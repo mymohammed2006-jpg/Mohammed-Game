@@ -2411,7 +2411,7 @@ function drawBoard(now){
 /* ================= البروفايل والـ Replay ================= */
 // الـ Replay: حركة المربع تنسجل 50 مرة بالثانية (مكان x,y + الاندفاع + الأرواح) لكل جولة من نقطة حفظ (segment)، مع رقم العشوائية حقها.
 // لكل مرحلة ونوع (نورمال/إيزي) Replay واحد لأفضل حرف: حرف أحسن يبدّله، ونفس الحرف ما يبدّل اللي قبله (القوانين تمنعه).
-const RP_HZ=50;
+const RP_HZ=50,RP_MAX_SEGS=100,RP_MAX_BYTES=900000;
 let rpq={};try{rpq=JSON.parse(localStorage.getItem('mg_rpq')||'{}')||{};}catch(e){rpq={};}
 function saveRpq(){try{localStorage.setItem('mg_rpq',JSON.stringify(rpq));}catch(e){}}
 function recSample(t){
@@ -2426,7 +2426,8 @@ function rpWin(r){
   if(!rec||!rec.segs.length)return;const L=cur,m=easy?'e':'n',best=L[easy?'bestE':'best'];rec.cur=null;
   if(best&&RANKS.indexOf(r)>RANKS.indexOf(best)){rec=null;return;}
   const segs=rec.segs.filter(s=>s.n>1).map(s=>({cp:s.cp,seed:s.seed,t0:s.t0||0,n:s.n,d:packRp(s.b)}));rec=null;
-  if(!segs.length||segs.length>8)return;
+  // ما فيه حد للموتات: الحد هو حجم الملف (Firebase يقبل 1 ميغا تقريبًا للملف) = حوالي 45 دقيقة لعب
+  if(!segs.length||segs.length>RP_MAX_SEGS||segs.reduce((a,s)=>a+s.d.length+80,0)>RP_MAX_BYTES)return;
   rpq[L.id+'_'+m]={lvl:L.id,m,r,hz:RP_HZ,segs};saveRpq();
 }
 function rpFields(q){return{uid:{stringValue:acc.uid},lvl:{stringValue:q.lvl},m:{stringValue:q.m},r:{stringValue:q.r},v:{integerValue:'1'},hz:{integerValue:String(q.hz)},
