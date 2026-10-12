@@ -25,9 +25,13 @@ jobs:
         run: |
           V=0.0.1-citest
           echo "النسخة: $V"
-          if gh release view "v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "::error::النسخة v$V منشورة من قبل. ما فيه شي جديد تنشره."
-            exit 1
+          if D=$(gh release view "v$V" --repo "$GITHUB_REPOSITORY" --json isDraft -q .isDraft 2>/dev/null); then
+            if [ "$D" != "true" ]; then
+              echo "::error::النسخة v$V منشورة من قبل. ما فيه شي جديد تنشره."
+              exit 1
+            fi
+            # نسخة مخفية باقية من محاولة فاشلة: نشيلها ونبدأ من جديد
+            gh release delete "v$V" --repo "$GITHUB_REPOSITORY" --yes
           fi
       - run: npm ci
       # النشر يصير على 3 خطوات عشان الملفات كلها تنرفع قبل ما اللاعبين يشوفون النسخة:
@@ -41,6 +45,7 @@ jobs:
           V=0.0.1-citest
           gh release create "v$V" --repo "$GITHUB_REPOSITORY" --draft --title "v$V" --target "$GITHUB_SHA" --notes "Mohammed Game $V"
       - name: ابن البرنامج وارفع الملفات
+        shell: bash
         run: npx electron-builder --win --x64 --publish always -c.extraMetadata.version=0.0.1-citest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -56,5 +61,12 @@ jobs:
           for f in Mohammed-Game-Setup.exe Mohammed-Game-Setup.exe.blockmap latest.yml; do
             echo "$FILES" | grep -qx "$f" || { echo "::error::الملف $f ما انرفع، النسخة باقية مخفية."; exit 1; }
           done
-          echo "ALL FILES OK - deleting test draft"
-          gh release delete "v$V" --repo "$GITHUB_REPOSITORY" --yes
+          echo "ALL FILES OK"
+      - name: cleanup test draft
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete v0.0.1-citest --repo "$GITHUB_REPOSITORY" --yes || true
+          gh api "repos/$GITHUB_REPOSITORY/releases" -q '.[] | [.tag_name,.draft] | @tsv'
