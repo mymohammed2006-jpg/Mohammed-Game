@@ -12,4 +12,8 @@ Object.defineProperty(Document.prototype, 'fullscreenElement', {
 });
 Element.prototype.requestFullscreen = function () { ipcRenderer.send('set-fullscreen', true); return Promise.resolve(); };
 Document.prototype.exitFullscreen = function () { ipcRenderer.send('set-fullscreen', false); return Promise.resolve(); };
-window.mgSkipUpdate = () => ipcRenderer.send('skip-update');
+// إعدادات خاصة ببرنامج الكمبيوتر (اللعبة تعرض خيار V-Sync بس إذا لقت هذا)
+window.mgApp = {
+  vsync: ipcRenderer.sendSync('get-vsync'),
+  setVsync: on => ipcRenderer.send('set-vsync', !!on)
+};

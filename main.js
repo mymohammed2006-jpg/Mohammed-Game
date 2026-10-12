@@ -6,6 +6,16 @@ const fs = require('fs');
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
+// إعدادات البرنامج (V-Sync) محفوظة في ملف، لأنها لازم تنقرى قبل ما تفتح النافذة
+const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
+let settings = { vsync: true, fullscreen: true };
+try { settings = Object.assign(settings, JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'))); } catch (e) {}
+function saveSettings() { try { fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings)); } catch (e) {} }
+if (!settings.vsync) {
+  app.commandLine.appendSwitch('disable-gpu-vsync');
+  app.commandLine.appendSwitch('disable-frame-rate-limit');
+}
+
 // الخطوط محفوظة داخل البرنامج عشان تشتغل بدون نت وبنفس الشكل
 const FONTS = path.join(__dirname, 'fonts');
 function fontResponse(file, type) {
@@ -54,7 +64,7 @@ function startUpdateCheck() {
   updater.on('update-not-available', () => { clearTimeout(timer); loadGame(); });
   updater.on('download-progress', p => showUpdate('download', p.percent));
   updater.on('update-downloaded', () => {
-    if (gameLoaded) return; // اللاعب تخطى: التحديث ينثبت لما يقفل اللعبة
+    if (gameLoaded) return; // لقى التحديث بعد ما فتحت اللعبة (نت بطيء): ينثبت لما يقفل اللعبة
     showUpdate('restart');
     setTimeout(() => {
       if (process.env.MG_UPDATE_TEST_URL) { console.log('MG_TEST would quitAndInstall'); return; }
@@ -70,7 +80,7 @@ function createWindow() {
     width: 1280,
     height: 720,
     useContentSize: true,
-    fullscreen: true,
+    fullscreen: settings.fullscreen !== false,
     backgroundColor: '#000000',
     title: 'Mohammed Game',
     autoHideMenuBar: true,
@@ -84,6 +94,10 @@ function createWindow() {
   });
   win.on('page-title-updated', e => e.preventDefault());
   const sendFS = () => win.webContents.send('fs-state', win.isFullScreen());
+  // نتذكر اختيار ملء الشاشة (من الإعدادات أو F11) للمرة الجاية
+  const rememberFS = () => { settings.fullscreen = win.isFullScreen(); saveSettings(); };
+  win.on('enter-full-screen', rememberFS);
+  win.on('leave-full-screen', rememberFS);
   win.on('enter-full-screen', sendFS);
   win.on('leave-full-screen', sendFS);
   win.webContents.on('did-finish-load', sendFS);
@@ -93,8 +107,8 @@ function createWindow() {
   win.webContents.once('did-finish-load', startUpdateCheck);
 }
 
-// في شاشة التحديث: Esc يدخلك اللعبة على طول، والتحديث يكمل بالخلفية
-ipcMain.on('skip-update', () => loadGame());
+ipcMain.on('get-vsync', e => { e.returnValue = !!settings.vsync; });
+ipcMain.on('set-vsync', (e, on) => { settings.vsync = !!on; saveSettings(); });
 ipcMain.on('set-fullscreen', (e, on) => { if (win) win.setFullScreen(!!on); });
 
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });

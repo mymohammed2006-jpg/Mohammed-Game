@@ -13,7 +13,6 @@ h1{font-family:Audiowide,sans-serif;font-weight:400;font-size:6.2em;margin:0 0 .
 .bar{width:36em;height:1.1em;margin-top:1.6em;border:.15em solid #ff2436;border-radius:.8em;padding:.2em;visibility:hidden;box-shadow:0 0 .6em rgba(255,36,54,.4)}
 .fill{height:100%;width:0;background:#ff2436;border-radius:.5em;transition:width .25s}
 #pct{font-family:Audiowide,sans-serif;font-size:1.8em;margin-top:.7em;color:#ff6b6b;direction:ltr;visibility:hidden}
-#hint{font-family:Tajawal,sans-serif;font-weight:500;font-size:1.5em;color:#888;margin-top:1.8em;visibility:hidden}
 #ver{position:absolute;left:2.4em;bottom:2em;font-family:Audiowide,sans-serif;font-size:1.4em;color:#555;direction:ltr}
 .dots::after{content:'';animation:d 1.2s steps(4) infinite}
 @keyframes d{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
@@ -25,17 +24,15 @@ h1{font-family:Audiowide,sans-serif;font-weight:400;font-size:6.2em;margin:0 0 .
   <p id="msg" class="dots">يدور على تحديث</p>
   <div class="bar" id="bar"><div class="fill" id="fill"></div></div>
   <div id="pct">0%</div>
-  <div id="hint">اضغط Esc عشان تلعب الحين، والتحديث ينزل بعد ما تقفل اللعبة</div>
   <div id="ver"></div>
 </div>
 <script>
 const $=id=>document.getElementById(id);
 const v=new URLSearchParams(location.search).get('v');if(v)$('ver').textContent='v'+v.split('.')[0];
-addEventListener('keydown',e=>{if(e.code==='Escape'&&window.mgSkipUpdate)window.mgSkipUpdate();});
 function setState(s,p){
-  if(s==='download'){$('msg').textContent='جاري التحديث';$('msg').className='';$('bar').style.visibility='visible';$('pct').style.visibility='visible';$('hint').style.visibility='visible';
+  if(s==='download'){$('msg').textContent='جاري التحديث';$('msg').className='';$('bar').style.visibility='visible';$('pct').style.visibility='visible';
     const n=Math.max(0,Math.min(100,Math.round(p||0)));$('fill').style.width=n+'%';$('pct').textContent=n+'%';}
-  else if(s==='restart'){$('msg').textContent='خلص التحديث، اللعبة تفتح من جديد';$('msg').className='dots';$('fill').style.width='100%';$('pct').textContent='100%';$('hint').style.visibility='hidden';}
+  else if(s==='restart'){$('msg').textContent='خلص التحديث، اللعبة تفتح من جديد';$('msg').className='dots';$('fill').style.width='100%';$('pct').textContent='100%';}
 }
 </script>
 </body>
