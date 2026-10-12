@@ -58,13 +58,15 @@ const ar=n=>n.toLocaleString('ar-EG');
 
 const cv=document.getElementById('c'),g=cv.getContext('2d');
 let scale=1,offX=0,offY=0;
-// الإعدادات: الدقة (تلقائي = دقة الشاشة) و V-Sync (في برنامج الكمبيوتر بس)
+// الإعدادات: الدقة (تلقائي = دقة الشاشة) و V-Sync و Framecap وعداد الفريمات، كلها تتطبق على طول
 const APP=window.mgApp||null;
 let resSet='auto';try{const r=localStorage.getItem('mg_res');if(r)resSet=r;}catch(e){}
-let vsyncOn=APP?!!APP.vsync:true;
+let vsyncOn=true;try{if(localStorage.getItem('mg_vsync')==='0')vsyncOn=false;}catch(e){}
+function setVsync(on){vsyncOn=on;try{localStorage.setItem('mg_vsync',on?'1':'0');}catch(e){}}
+let fpsShow=false;try{fpsShow=localStorage.getItem('mg_fpsshow')==='1';}catch(e){}
+function setFpsShow(on){fpsShow=on;try{localStorage.setItem('mg_fpsshow',on?'1':'0');}catch(e){}}
 const FPS_LIST=[60,120,144,165,240,360,500];let fpsCap=240;try{const f=+localStorage.getItem('mg_fps');if(FPS_LIST.includes(f))fpsCap=f;}catch(e){}
 function setFps(f){fpsCap=f;try{localStorage.setItem('mg_fps',String(f));}catch(e){}}
-let vsyncReopen=false;
 function nativeH(){const dpr=Math.min(2,window.devicePixelRatio||1);return Math.round((screen.height||1080)*dpr);}
 function resList(){return['auto',...['1440','1080','720'].filter(r=>+r<nativeH())];}
 function resLabel(r){return r==='auto'?'تلقائي ('+nativeH()+'p)':r+'p';}
@@ -1918,31 +1920,33 @@ function drawHowto(){
   row([[K.back,'رجوع']],W/2,H-36,30,'rgba(255,255,255,0.7)',22);
 }
 let setSel=0;
-function setRows(){return APP?['vol','fs','vsync','fps','res']:['vol','fs','fps','res'];}
+function setRows(){return['vol','fs','vsync','fps','counter','res'];}
+function checkBox(cx,y,on,sel){const s=36,bx=cx-s/2;
+  rr(bx,y-s/2,s,s,8);if(on){g.fillStyle=RED;if(sel){g.shadowColor=RED;g.shadowBlur=12*(0.6+0.6*pulse);}g.fill();g.shadowBlur=0;}
+  g.strokeStyle=on||sel?RED:'rgba(255,255,255,0.45)';g.lineWidth=2.5;g.stroke();
+  if(on){g.strokeStyle='#fff';g.lineWidth=4;g.lineCap='round';g.lineJoin='round';g.beginPath();g.moveTo(bx+8,y+1);g.lineTo(bx+15,y+9);g.lineTo(bx+28,y-8);g.stroke();g.lineCap='butt';g.lineJoin='miter';}}
 function optArrows(cx,y,on){g.fillStyle=on?'rgba(255,255,255,0.85)':'rgba(255,255,255,0.3)';g.beginPath();g.moveTo(cx-150,y);g.lineTo(cx-136,y-11);g.lineTo(cx-136,y+11);g.closePath();g.fill();g.beginPath();g.moveTo(cx+150,y);g.lineTo(cx+136,y-11);g.lineTo(cx+136,y+11);g.closePath();g.fill();}
 function drawSettings(){
-  txt('الإعدادات',W/2,100,48,'#fff');
+  txt('الإعدادات',W/2,88,48,'#fff');
   const rows=setRows(),cx=W/2-150,lx=W/2+350;
-  rows.forEach((k,i)=>{const y=190+i*84,sel=i===setSel;
-    if(sel){rr(W/2-390,y-36,780,72,16);g.fillStyle=`rgba(${RGB},${0.08+0.08*pulse})`;g.fill();g.strokeStyle=RED;g.lineWidth=2;g.stroke();}
+  rows.forEach((k,i)=>{const y=172+i*70,sel=i===setSel;
+    if(sel){rr(W/2-390,y-30,780,60,16);g.fillStyle=`rgba(${RGB},${0.08+0.08*pulse})`;g.fill();g.strokeStyle=RED;g.lineWidth=2;g.stroke();}
     const lc=sel?'#fff':'rgba(255,255,255,0.55)';
     if(k==='vol'){txt('مستوى الصوت',lx,y,32,lc,800,'right');
       const n=10,bw=20,gp=6,tot=n*bw+(n-1)*gp,x0=cx-tot/2+30,on=Math.round(vol*10);
       for(let j=0;j<n;j++){const x=x0+j*(bw+gp),h=12+j*3;rr(x,y-h/2,bw,h,5);g.fillStyle=j<on?RED:'rgba(255,255,255,0.1)';if(j<on&&sel){g.shadowColor=RED;g.shadowBlur=12*(0.6+0.6*pulse);}g.fill();g.shadowBlur=0;}
       txt(ar(on*10)+'٪',x0-18,y,30,on?(sel?RED:'rgba(255,255,255,0.7)'):'rgba(255,255,255,0.5)',800,'right');}
-    else if(k==='fs'){txt('ملء الشاشة',lx,y,32,lc,800,'right');const on=isFull(),s=36,bx=cx-s/2;
-      rr(bx,y-s/2,s,s,8);if(on){g.fillStyle=RED;if(sel){g.shadowColor=RED;g.shadowBlur=12*(0.6+0.6*pulse);}g.fill();g.shadowBlur=0;}
-      g.strokeStyle=on||sel?RED:'rgba(255,255,255,0.45)';g.lineWidth=2.5;g.stroke();
-      if(on){g.strokeStyle='#fff';g.lineWidth=4;g.lineCap='round';g.lineJoin='round';g.beginPath();g.moveTo(bx+8,y+1);g.lineTo(bx+15,y+9);g.lineTo(bx+28,y-8);g.stroke();g.lineCap='butt';g.lineJoin='miter';}}
+    else if(k==='fs'){txt('ملء الشاشة',lx,y,32,lc,800,'right');checkBox(cx,y,isFull(),sel);}
+    else if(k==='counter'){txt('عداد الفريمات',lx,y,32,lc,800,'right');checkBox(cx,y,fpsShow,sel);}
     else if(k==='vsync'){txt('V-Sync',lx,y,32,lc,800,'right');optArrows(cx,y,sel);txt(vsyncOn?'تشغيل':'إيقاف',cx,y,32,sel?RED:'rgba(255,255,255,0.7)',800);}
     else if(k==='fps'){txt('Framecap',lx,y,32,lc,800,'right');optArrows(cx,y,sel);txt('‪'+fpsCap+' FPS‬',cx,y,30,sel?RED:'rgba(255,255,255,0.7)',800);}
     else if(k==='res'){txt('الدقة',lx,y,32,lc,800,'right');optArrows(cx,y,sel);txt(resLabel(resSet),cx,y,30,sel?RED:'rgba(255,255,255,0.7)',800);}
   });
   const r=rows[setSel];let hint='';
-  if(vsyncReopen)hint='اللعبة بتقفل وتفتح عشان يتطبق V-Sync';
-  else if(r==='fs')hint='تقدر كمان تشغله وتطفيه بزر F11';
+  if(r==='fs')hint='تقدر كمان تشغله وتطفيه بزر F11';
   else if(r==='vsync')hint=vsyncOn?'الحركة أنعم وبدون تقطيع في الشاشة':'فريمات أكثر، بس ممكن يطلع تقطيع في الشاشة';
   else if(r==='fps')hint=vsyncOn?'أعلى شي يوصل له سرعة شاشتك، لأن V-Sync شغال':'أعلى عدد فريمات في الثانية';
+  else if(r==='counter')hint='يطلع عدد الفريمات تحت يمين الشاشة';
   else if(r==='res')hint='أقل دقة = اللعبة أخف على الجهاز، بس الرسم أقل وضوح';
   if(hint)txt(hint,W/2,H-118,24,'rgba(255,255,255,0.6)',500);
   row([[BTN[kind].move,'غيّر'],[BTN[kind].back,'رجوع']],W/2,H-45,30,'rgba(255,255,255,0.7)',22);
@@ -2032,13 +2036,24 @@ function draw(now){
 /* ================= الحلقة الرئيسية ================= */
 let last=performance.now();
 const tick=()=>{},pick=()=>{};
-let capAt=0;
+let capAt=0,pumping=false,nextAt=0,fpsN=0,fpsAt=0,fpsVal=0;
+const pumpCh=new MessageChannel();
 function frame(now){
+  if(!vsyncOn&&!document.hidden){if(!pumping){pumping=true;nextAt=performance.now();pumpCh.port2.postMessage(0);}return;}
   if(fpsCap){const iv=1000/fpsCap;if(capAt&&now-capAt<iv-0.7){requestAnimationFrame(frame);return;}capAt=(capAt&&now-capAt<iv*2)?capAt+iv:now;}
-  const dt=Math.min(0.05,(now-last)/1000);last=now;
+  step(now);requestAnimationFrame(frame);
+}
+pumpCh.port1.onmessage=()=>{
+  if(vsyncOn||document.hidden){pumping=false;capAt=0;requestAnimationFrame(frame);return;}
+  const now=performance.now(),iv=1000/fpsCap;
+  if(now>=nextAt){nextAt=now-nextAt>iv*2?now+iv:nextAt+iv;step(now);}
+  if(nextAt-now>6)setTimeout(()=>pumpCh.port2.postMessage(0),nextAt-now-5);else pumpCh.port2.postMessage(0);
+};
+function step(now){
+  const dt=Math.min(0.05,Math.max(0,now-last)/1000);last=now;
   const inp=readInput();
   if(state==='gate'){if((f11Hit||fsOK())&&menuBuf){ensureAudio();gatePressAt=now;gatePassed=true;state='gateWait';}f11Hit=false;}
-  else if(state==='gateWait'){if(actx.state==='running'){playMenu(0);state='splash';if(APP&&APP.openSettings){state='settings';setSel=setRows().indexOf('vsync');mainAt=-1e9;}}else if(now-gatePressAt>600){gateHint=true;if(inp.any)ensureAudio();}}
+  else if(state==='gateWait'){if(actx.state==='running'){playMenu(0);state='splash';}else if(now-gatePressAt>600){gateHint=true;if(inp.any)ensureAudio();}}
   else if(state==='splash'){if(menuPos()>=MENU_DROP){state='main';mainAt=now;menuSel=0;}else if(inp.any&&menuPos()>1.2){stopMenu();playMenu(MENU_DROP);state='main';mainAt=now;menuSel=0;}}
   else if(state==='main'){
     const MO=[5,0,1,2,3,4],mi=MO.indexOf(menuSel);if(inp.up)menuSel=MO[(mi+5)%6];else if(inp.down)menuSel=MO[(mi+1)%6];
@@ -2060,11 +2075,11 @@ function frame(now){
   else if(state==='howto'){if(inp.back||inp.pz||inp.confirm){tick();state='main';}}
   else if(state==='points'){if(inp.back||inp.pz||inp.confirm)state='main';}
   else if(state==='settings'){const rows=setRows();if(setSel>=rows.length)setSel=0;const r=rows[setSel],d=inp.right?1:inp.left?-1:0;
-    if(vsyncReopen){}
-    else if(inp.up)setSel=(setSel+rows.length-1)%rows.length;else if(inp.down)setSel=(setSel+1)%rows.length;
+    if(inp.up)setSel=(setSel+rows.length-1)%rows.length;else if(inp.down)setSel=(setSel+1)%rows.length;
     else if(d&&r==='vol')setVol(vol+0.1*d);
     else if((d||inp.confirm)&&r==='fs'){if(isFull())exitFS();else enterFS();}
-    else if(d&&r==='vsync'&&!vsyncReopen){vsyncOn=!vsyncOn;vsyncReopen=true;setTimeout(()=>APP.setVsync(vsyncOn),600);}
+    else if(d&&r==='vsync')setVsync(!vsyncOn);
+    else if((d||inp.confirm)&&r==='counter')setFpsShow(!fpsShow);
     else if(d&&r==='fps'){let i=FPS_LIST.indexOf(fpsCap);if(i<0)i=4;setFps(FPS_LIST[clamp(i+d,0,FPS_LIST.length-1)]);}
     else if(d&&r==='res'){const L=resList();let i=L.indexOf(resSet);if(i<0)i=0;setRes(L[(i+L.length+d)%L.length]);}
     else if(inp.back||inp.pz||inp.confirm)state='main';}
@@ -2088,7 +2103,9 @@ function frame(now){
   {const k=Math.min(1,dt*12);if(lvlSel<lvlFirst)lvlFirst=lvlSel;else if(lvlSel>lvlFirst+3)lvlFirst=lvlSel-3;if(friSel<friFirst)friFirst=friSel;else if(friSel>friFirst+3)friFirst=friSel-3;
   const lt=clamp(lvlFirst,0,Math.max(0,LEVELS.length-4)),ft=clamp(friFirst,0,Math.max(0,FRIENDS.length-4));lvlScr+=(lt-lvlScr)*k;friScr+=(ft-friScr)*k;if(Math.abs(lt-lvlScr)<0.001)lvlScr=lt;if(Math.abs(ft-friScr)<0.001)friScr=ft;}
   draw(now);
-  requestAnimationFrame(frame);
+  fpsN++;if(now-fpsAt>=500){fpsVal=fpsAt?Math.round(fpsN*1000/(now-fpsAt)):0;fpsN=0;fpsAt=now;}
+  if(fpsShow&&fpsVal){g.setTransform(scale,0,0,scale,offX,offY);g.font=`800 22px ${FONT}`;g.textAlign='right';g.textBaseline='bottom';g.direction='ltr';
+    g.lineWidth=4;g.strokeStyle='rgba(0,0,0,0.7)';g.strokeText(fpsVal+' FPS',W-14,H-10);g.fillStyle='rgba(255,255,255,0.85)';g.fillText(fpsVal+' FPS',W-14,H-10);g.direction='rtl';}
 }
 for(const L of [...LEVELS,...FRIENDS]){if(!L.name)continue;try{const v=localStorage.getItem('mg_best_'+L.name);if(RANKS.includes(v)){if(localStorage.getItem('mg_bestez_'+L.name)==='1'){localStorage.setItem('mg_beste_'+L.name,v);localStorage.removeItem('mg_best_'+L.name);}else L.best=v;}localStorage.removeItem('mg_bestez_'+L.name);const ve=localStorage.getItem('mg_beste_'+L.name);if(RANKS.includes(ve))L.bestE=ve;}catch(e){}}
 dec(SONG_MENU).then(b=>{MENUS.normal.buf=b;applyMenu();}).catch(()=>{});

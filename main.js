@@ -6,17 +6,12 @@ const fs = require('fs');
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
-// إعدادات البرنامج (V-Sync) محفوظة في ملف، لأنها لازم تنقرى قبل ما تفتح النافذة
+// اختيار ملء الشاشة محفوظ في ملف، عشان النافذة تنفتح على طول بنفس آخر اختيار
+// (V-Sync و Framecap صارت داخل اللعبة نفسها من نسخة 11، وتتطبق بدون إعادة تشغيل)
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
-let settings = { vsync: true, fullscreen: true };
+let settings = { fullscreen: true };
 try { settings = Object.assign(settings, JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'))); } catch (e) {}
 function saveSettings() { try { fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings)); } catch (e) {} }
-// لما البرنامج يعيد فتح نفسه بعد تغيير V-Sync: يدخل الإعدادات على طول بدون شاشة التحديث
-const OPEN_SETTINGS = process.argv.includes('--open-settings');
-if (!settings.vsync) {
-  app.commandLine.appendSwitch('disable-gpu-vsync');
-  app.commandLine.appendSwitch('disable-frame-rate-limit');
-}
 
 // الخطوط محفوظة داخل البرنامج عشان تشتغل بدون نت وبنفس الشكل
 const FONTS = path.join(__dirname, 'fonts');
@@ -103,44 +98,47 @@ function createWindow() {
     }
   });
   win.on('page-title-updated', e => e.preventDefault());
-  win.once('ready-to-show', () => { if (settings.fullscreen !== false) win.setFullScreen(true); win.show(); });
-  win.on('leave-full-screen', () => {
-    // إذا ويندوز خلى النافذة بحجم الشاشة، نرجعها لحجمها العادي
-    setTimeout(() => {
-      if (!win || win.isDestroyed() || win.isFullScreen()) return;
-      const b = win.getBounds(), wa = screen.getDisplayMatching(b).workArea;
-      if (win.isMaximized()) win.unmaximize();
-      if (b.width >= wa.width - 2 || b.height >= wa.height - 2) win.setBounds(normalBounds());
-    }, 50);
-  });
-  const sendFS = () => win.webContents.send('fs-state', win.isFullScreen());
-  // نتذكر اختيار ملء الشاشة (من الإعدادات أو F11) للمرة الجاية
-  const rememberFS = () => { settings.fullscreen = win.isFullScreen(); saveSettings(); };
-  win.on('enter-full-screen', rememberFS);
-  win.on('leave-full-screen', rememberFS);
-  win.on('enter-full-screen', sendFS);
-  win.on('leave-full-screen', sendFS);
+  win.once('ready-to-show', () => { applyFS(); win.show(); });
+  // ويندوز أحياناً يرسل أحداث ملء الشاشة متأخرة أو مرتين، فبعد كل تغيير نتأكد إن النافذة على اختيار اللاعب
+  win.on('enter-full-screen', syncFS);
+  win.on('leave-full-screen', syncFS);
   win.webContents.on('did-finish-load', sendFS);
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', e => e.preventDefault());
-  if (OPEN_SETTINGS) return loadGame();
   win.loadFile(path.join(__dirname, 'updater.html'), { query: { v: app.getVersion() } });
   win.webContents.once('did-finish-load', startUpdateCheck);
 }
 
-ipcMain.on('get-vsync', e => { e.returnValue = !!settings.vsync; });
-ipcMain.on('get-open-settings', e => { e.returnValue = OPEN_SETTINGS; });
-// V-Sync ما يتغير والبرنامج شغال، فنحفظه ونعيد فتح البرنامج على الإعدادات
-ipcMain.on('set-vsync', (e, on) => {
-  settings.vsync = !!on; saveSettings();
-  const args = process.argv.slice(1).filter(a => a !== '--open-settings');
-  app.relaunch({ args: [...args, '--open-settings'] });
-  app.exit(0);
-});
+// ملء الشاشة: اختيار اللاعب (want) هو الأساس. اللعبة تعرض الاختيار، والبرنامج يتأكد إن النافذة تطابقه
+let syncTimer = null, syncTries = 0;
+function want() { return settings.fullscreen !== false; }
+function sendFS() { if (win && !win.isDestroyed()) win.webContents.send('fs-state', want()); }
+function applyFS() {
+  if (!win || win.isDestroyed()) return;
+  if (win.isFullScreen() !== want()) win.setFullScreen(want());
+}
+function fixNormalBounds() {
+  // إذا ويندوز خلى النافذة بحجم الشاشة بعد ما طلعت من ملء الشاشة، نرجعها لحجمها العادي
+  if (win.isMaximized()) win.unmaximize();
+  const b = win.getBounds(), wa = screen.getDisplayMatching(b).workArea;
+  if (b.width >= wa.width - 2 || b.height >= wa.height - 2) win.setBounds(normalBounds());
+}
+function syncFS() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    if (!win || win.isDestroyed()) return;
+    if (win.isFullScreen() !== want() && syncTries < 3) { syncTries++; win.setFullScreen(want()); syncFS(); return; }
+    syncTries = 0;
+    if (!win.isFullScreen()) fixNormalBounds();
+    sendFS();
+  }, 400);
+}
 ipcMain.on('set-fullscreen', (e, on) => {
   if (!win) return;
-  if (win.isFullScreen() === !!on) win.webContents.send('fs-state', win.isFullScreen()); // نرجّع الحالة الصحيحة للعبة
-  else win.setFullScreen(!!on);
+  settings.fullscreen = !!on; saveSettings();
+  syncTries = 0;
+  applyFS();
+  syncFS();
 });
 
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
