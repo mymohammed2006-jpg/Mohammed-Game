@@ -1199,7 +1199,7 @@ function Traitor(ts,turn,te,T){let x=W/2,y=H/2,lastS=-1,ex=false,fx=1,fy=0,dash=
     g.restore();},
   hit(p,t){if(t<turn)return false;if(Math.hypot(p.x-x,p.y-y)<S+p.r-2)return true;for(const q of trail)if(t-q.t<0.4&&Math.hypot(p.x-q.x,p.y-q.y)<S*0.6+p.r)return true;return false;}};}
 
-/* ================= مرحلة: وعد مني (اختيار ixN1X) =================
+/* ================= مرحلة: وعد مني (اختيار ixGha) =================
    ٩٦ ضربة بالدقيقة، المقطع من ٠:٣٠ إلى ٢:٠٠ من الأغنية.
    ٠ الناس | ١٦ "لعبة" | ٣٢ "الوفي وخان" | ٤٤ "بنيان" | ٥٦ تكرار المقطع
    ٧٢ حفظ ← "وعد مني وعد" | ٨٠ "ما أثق أبد" | ٨٨ "ولا أنطي مجال" | ٩٦ "كل شي وله حد"
@@ -1782,7 +1782,7 @@ const EXIT=6,BOARD=8,ACC=7;
 const MAIN=[['المراحل الرئيسية',0],['مراحل الشباب',1],['الترتيب',BOARD],['طريقة اللعب',2],['الإعدادات',3]];if(APP)MAIN.push(['خروج',EXIT]);
 const FRIENDS=[
   {name:'ليش ضيعت الوفا',by:'Gampet',ver:'Gampet',ok:true,beats:BF1,end:340,cps:[0,148,276],energy:EF1,ezg:3,ezc:1,ez:0.5,build:()=>buildFriend1(),best:null},
-  {name:'وعد مني',by:'ixN1X',ver:'Mohammed',ok:true,bpm:96,off:0.005,end:141,cps:[0,72,112],energy:EF2,ezg:2,ezc:1,ez:0.5,build:()=>buildFriend2(),best:null},
+  {name:'وعد مني',by:'ixGha',ver:'Mohammed',ok:true,bpm:96,off:0.005,end:141,cps:[0,72,112],energy:EF2,ezg:2,ezc:1,ez:0.5,build:()=>buildFriend2(),best:null},
   {name:'انتظرتك سنين وأيام طوال',by:'Nice',ver:'Nice',ok:true,beats:BF3,end:232,cps:[0,80,160],energy:EF3,ezg:1,ezc:1,ez:0.9,build:()=>buildFriend3(),best:null},
   {name:'MEGALOVANIA',by:'Nightmare',ver:'Mohammed',ok:true,bpm:120,off:0.075,end:310,cps:[0,96,192],energy:EF4,ezg:1,ezc:1,ez:0.72,ezgw:1,build:()=>buildFriend4(),best:null}
 ];
