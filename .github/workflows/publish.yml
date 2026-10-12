@@ -24,11 +24,40 @@ jobs:
         run: |
           V=$(node -p "require('./package.json').version")
           echo "النسخة: $V"
-          if gh release view "v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "::error::النسخة v$V منشورة من قبل. ما فيه شي جديد تنشره."
-            exit 1
+          if D=$(gh release view "v$V" --repo "$GITHUB_REPOSITORY" --json isDraft -q .isDraft 2>/dev/null); then
+            if [ "$D" != "true" ]; then
+              echo "::error::النسخة v$V منشورة من قبل. ما فيه شي جديد تنشره."
+              exit 1
+            fi
+            # نسخة مخفية باقية من محاولة فاشلة: نشيلها ونبدأ من جديد
+            gh release delete "v$V" --repo "$GITHUB_REPOSITORY" --yes
           fi
       - run: npm ci
-      - run: npx electron-builder --win --x64 --publish always
+      # النشر يصير على 3 خطوات عشان الملفات كلها تنرفع قبل ما اللاعبين يشوفون النسخة:
+      # 1) نسوي النسخة مخفية (draft)، 2) نرفع الملفات فيها، 3) نخليها ظاهرة للكل.
+      # (قبل كانت electron-builder تسوي النسخة مرتين بنفس الوقت ويطلع خطأ 422.)
+      - name: سو النسخة مخفية
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          V=$(node -p "require('./package.json').version")
+          gh release create "v$V" --repo "$GITHUB_REPOSITORY" --draft --title "v$V" --target "$GITHUB_SHA" --notes "Mohammed Game $V"
+      - name: ابن البرنامج وارفع الملفات
+        shell: bash
+        run: npx electron-builder --win --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EP_DRAFT: "true"
+      - name: انشر النسخة للكل
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          V=$(node -p "require('./package.json').version")
+          FILES=$(gh release view "v$V" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')
+          echo "$FILES"
+          for f in Mohammed-Game-Setup.exe Mohammed-Game-Setup.exe.blockmap latest.yml; do
+            echo "$FILES" | grep -qx "$f" || { echo "::error::الملف $f ما انرفع، النسخة باقية مخفية."; exit 1; }
+          done
+          gh release edit "v$V" --repo "$GITHUB_REPOSITORY" --draft=false --latest
