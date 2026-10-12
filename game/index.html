@@ -1573,7 +1573,7 @@ function buildFriend4(){
 
 /* ================= التحكم ================= */
 const keys={};
-addEventListener('keydown',e=>{if(e.code==='F11'){e.preventDefault();if(!e.repeat){if(isFull()&&gatePassed)exitFS();else enterFS();f11Hit=true;}}keys[e.code]=true;if(!e.repeat)anyKeyFlag=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','Backspace'].includes(e.code))e.preventDefault();ensureAudio();if(e.code==='KeyF')toggleFS();});
+addEventListener('keydown',e=>{if(typeof typing==='function'&&typing()&&!['Enter','NumpadEnter','Escape','ArrowUp','ArrowDown','Tab','F11'].includes(e.code))return;if(e.code==='Tab')e.preventDefault();if(e.code==='NumpadEnter')keys.Enter=true;if(e.code==='F11'){e.preventDefault();if(!e.repeat){if(isFull()&&gatePassed)exitFS();else enterFS();f11Hit=true;}}keys[e.code]=true;if(!e.repeat)anyKeyFlag=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','Backspace'].includes(e.code))e.preventDefault();ensureAudio();if(e.code==='KeyF')toggleFS();});
 addEventListener('keyup',e=>{keys[e.code]=false;});
 addEventListener('pointerdown',()=>{ensureAudio();anyKeyFlag=true;});
 cv.addEventListener('dblclick',toggleFS);
@@ -1697,7 +1697,7 @@ function updatePlay(dt,inp){
 
   const beat=BT(t);
   for(const c of cur.cps){if(beat>=c&&c>checkpoint){checkpoint=c;cpMsg=1.8;sfx(tt=>{sTone(tt,659,0.25,'square',0.06);sTone(tt+0.08,880,0.3,'square',0.06);});}}
-  if(t>=B(cur.end)+0.4&&state==='play'){lastRank=(hitsTotal===0&&deaths===0)?'S':deaths===0?'A':deaths===1?'B':'C';lastEz=easy;const p0=ptsOf(easy),bk=easy?'bestE':'best',rb=cur[bk]?RANKS.indexOf(cur[bk]):99,rn=RANKS.indexOf(lastRank);if(rn<rb){cur[bk]=lastRank;try{localStorage.setItem((easy?'mg_beste_':'mg_best_')+cur.name,lastRank);}catch(e){}}lastGain=ptsOf(easy)-p0;state='win';winAt=performance.now();burst(p.x,p.y,CYAN,40,450);}
+  if(t>=B(cur.end)+0.4&&state==='play'){lastRank=(hitsTotal===0&&deaths===0)?'S':deaths===0?'A':deaths===1?'B':'C';lastEz=easy;const p0=ptsOf(easy),bk=easy?'bestE':'best',rb=cur[bk]?RANKS.indexOf(cur[bk]):99,rn=RANKS.indexOf(lastRank);if(rn<rb){cur[bk]=lastRank;try{localStorage.setItem((easy?'mg_beste_':'mg_best_')+cur.name,lastRank);}catch(e){}upState='';markDirty();}else upState='';lastGain=ptsOf(easy)-p0;state='win';winAt=performance.now();burst(p.x,p.y,CYAN,40,450);}
 }
 
 /* ================= الرسم ================= */
@@ -1768,8 +1768,8 @@ const LEVELS=[
   {name:'المرحلة الرابعة',song:'Mind Bloom',ok:true,bpm:150,off:0.04,end:292,cps:[0,112,208],energy:E4,ezg:3,ezc:1,ez:0.5,build:()=>buildLevel4(),best:null},
   {name:'المرحلة الخامسة',song:'Runaway',ok:true,bpm:87,off:1.303,end:199.4,cps:[0,52,104],energy:E5,ezg:2,ezc:0.5,ez:0.6,build:()=>buildLevel5(),best:null}
 ];
-const MAIN=['المراحل الرئيسية','مراحل الشباب','طريقة اللعب','الإعدادات'];if(APP)MAIN.push('خروج');
-const EXIT=6;
+const EXIT=6,BOARD=8,ACC=7;
+const MAIN=[['المراحل الرئيسية',0],['مراحل الشباب',1],['الترتيب',BOARD],['طريقة اللعب',2],['الإعدادات',3]];if(APP)MAIN.push(['خروج',EXIT]);
 const FRIENDS=[
   {name:'ليش ضيعت الوفا',by:'Gampet',ver:'Gampet',ok:true,beats:BF1,end:340,cps:[0,148,276],energy:EF1,ezg:3,ezc:1,ez:0.5,build:()=>buildFriend1(),best:null},
   {name:'وعد مني',by:'ixN1X',ver:'Mohammed',ok:true,bpm:96,off:0.005,end:141,cps:[0,72,112],energy:EF2,ezg:2,ezc:1,ez:0.5,build:()=>buildFriend2(),best:null},
@@ -1781,6 +1781,114 @@ const RANKS=['S','A','B','C'];
 const PTS={S:100,A:70,B:40,C:20};
 function ptsOf(e){let s=0;for(const L of [...LEVELS,...FRIENDS]){if(!L.name)continue;const r=e?L.bestE:L.best;if(r)s+=e?PTS[r]/2:PTS[r];}return s;}
 function ptsMax(e){return [...LEVELS,...FRIENDS].filter(L=>L.name).length*(e?PTS.S/2:PTS.S);}
+/* ================= الأونلاين ================= */
+// حساب باسم وكلمة سر، وأفضل تقييم لكل مرحلة ينحفظ في Firebase، وترتيب لكل مرحلة (نورمال وإيزي) وترتيب للنقاط.
+// الاسم يتحول من ورا لإيميل مخفي، واللاعب ما يشوف إيميل أبد. كل الطلبات REST عادية بدون مكتبات.
+const FB={key:'AIzaSyCgg3Wd_ZN4o_c-2xg_hGlXq2o0mfH75CU',project:'mohammed-game-f7563'};
+const FS_DOC=`projects/${FB.project}/databases/(default)/documents`,FS_URL='https://firestore.googleapis.com/v1/'+FS_DOC;
+LEVELS.forEach((L,i)=>L.id='L'+(i+1));FRIENDS.forEach((L,i)=>L.id='F'+(i+1));
+const ALL_LV=()=>[...LEVELS,...FRIENDS].filter(L=>L.name);
+const NAME_RE=/^[A-Za-z0-9_ء-غف-ي٠-٩]{3,12}$/;
+let acc=null;try{const a=JSON.parse(localStorage.getItem('mg_acc')||'null');if(a&&a.uid&&a.rt&&a.name)acc=a;}catch(e){}
+function saveAcc(){try{if(acc)localStorage.setItem('mg_acc',JSON.stringify(acc));else localStorage.removeItem('mg_acc');}catch(e){}}
+const nameKey=n=>n.toLowerCase();
+function nameEmail(n){return 'u'+[...new TextEncoder().encode(nameKey(n))].map(b=>b.toString(16).padStart(2,'0')).join('')+'@mohammed-game.app';}
+const ERR_AR={EMAIL_EXISTS:'هذا الاسم مأخوذ، اختر اسم ثاني',INVALID_LOGIN_CREDENTIALS:'الاسم أو كلمة السر غلط',EMAIL_NOT_FOUND:'الاسم أو كلمة السر غلط',INVALID_PASSWORD:'الاسم أو كلمة السر غلط',
+  WEAK_PASSWORD:'كلمة السر لازم ٦ حروف أو أكثر',TOO_MANY_ATTEMPTS_TRY_LATER:'محاولات كثيرة، جرّب بعد شوي',USER_DISABLED:'هذا الحساب موقّف',NET:'ما فيه نت، تأكد من الاتصال وجرّب مرة ثانية'};
+function errAr(e){const m=String(e&&e.message||'');for(const k in ERR_AR)if(m.startsWith(k))return ERR_AR[k];return 'صار خطأ، جرّب مرة ثانية';}
+async function jfetch(url,opt){let r;try{r=await fetch(url,opt);}catch(e){throw new Error('NET');}const j=await r.json().catch(()=>({}));if(!r.ok){const er=new Error((j.error&&(j.error.message||j.error.status))||('HTTP_'+r.status));er.code=r.status;throw er;}return j;}
+const idUrl=m=>`https://identitytoolkit.googleapis.com/v1/accounts:${m}?key=${FB.key}`;
+const jpost=(url,body,tok)=>jfetch(url,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},tok?{Authorization:'Bearer '+tok}:{}),body:JSON.stringify(body)});
+function setTok(j){acc.it=j.idToken||j.id_token;acc.rt=j.refreshToken||j.refresh_token;acc.exp=Date.now()+(+(j.expiresIn||j.expires_in)||3600)*1000;saveAcc();}
+async function idToken(){
+  if(!acc)throw new Error('NO_ACC');if(acc.it&&Date.now()<acc.exp-60000)return acc.it;
+  const j=await jfetch(`https://securetoken.googleapis.com/v1/token?key=${FB.key}`,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(acc.rt)})
+    .catch(e=>{if(/TOKEN_EXPIRED|USER_DISABLED|USER_NOT_FOUND|INVALID_REFRESH_TOKEN/.test(e.message))logout();throw e;});
+  setTok(j);return acc.it;
+}
+// تحويل قيم Firestore
+const fsMap=(m,ts)=>{const f={};for(const k in m)f[k]=ts?{timestampValue:m[k]}:{stringValue:m[k]};return{mapValue:{fields:f}};};
+const unMap=v=>{const o={},f=(v&&v.mapValue&&v.mapValue.fields)||{};for(const k in f)o[k]=f[k].stringValue||f[k].timestampValue;return o;};
+function parsePlayer(d){const f=d.fields||{};return{uid:d.name.split('/').pop(),name:(f.name&&f.name.stringValue)||'?',n:unMap(f.n),e:unMap(f.e),nt:unMap(f.nt),et:unMap(f.et)};}
+const better=(a,b)=>a&&(!b||RANKS.indexOf(a)<RANKS.indexOf(b));
+function localBests(){const n={},e={};for(const L of ALL_LV()){if(L.best)n[L.id]=L.best;if(L.bestE)e[L.id]=L.bestE;}return{n,e};}
+function setLocal(L,ez,r){L[ez?'bestE':'best']=r;try{const k=(ez?'mg_beste_':'mg_best_')+L.name;if(r)localStorage.setItem(k,r);else localStorage.removeItem(k);}catch(e){}}
+// كتابة ملف اللاعب: الحقول اللي تغيرت بس، ووقت كل تقييم جديد ووقت آخر حفظ من ساعة السيرفر
+function playerWrite(fields,mask,tsPaths,create){
+  const w={update:{name:`${FS_DOC}/players/${acc.uid}`,fields},updateTransforms:['at',...tsPaths].map(p=>({fieldPath:p,setToServerValue:'REQUEST_TIME'})),currentDocument:{exists:!create}};
+  if(mask)w.updateMask={fieldPaths:mask};return w;
+}
+async function commit(writes){return jpost(`${FS_URL}:commit`,{writes},await idToken());}
+async function createPlayer(){
+  const{n,e}=localBests(),ts=[...Object.keys(n).map(k=>'nt.'+k),...Object.keys(e).map(k=>'et.'+k)];
+  await commit([{update:{name:`${FS_DOC}/names/${nameKey(acc.name)}`,fields:{uid:{stringValue:acc.uid}}},currentDocument:{exists:false}},
+    playerWrite({name:{stringValue:acc.name},n:fsMap(n),e:fsMap(e),nt:fsMap({},true),et:fsMap({},true)},null,ts,true)]);
+  board.at=0;
+}
+// المزامنة: أفضل تقييم بين الجهاز والحساب يصير هو الاثنين
+let syncing=false,netState='',lastSyncTry=-1e9,upState='';
+async function sync(){
+  if(!acc||syncing)return;syncing=true;lastSyncTry=performance.now();if(acc.dirty)upState='saving';
+  try{
+    let doc=null;try{doc=await jfetch(`${FS_URL}/players/${acc.uid}`,{headers:{Authorization:'Bearer '+await idToken()}});}catch(e){if(e.code!==404)throw e;}
+    if(!acc)return;
+    if(!doc){await createPlayer();}
+    else{
+      const on=parsePlayer(doc),up={},mask=[],ts=[];
+      for(const L of ALL_LV())for(const ez of[false,true]){const f=ez?'e':'n',o=on[f][L.id],l=L[ez?'bestE':'best'];
+        if(better(o,l))setLocal(L,ez,o);else if(better(l,o)){(up[f]=up[f]||{})[L.id]=l;mask.push(`${f}.${L.id}`);ts.push(`${f}t.${L.id}`);}}
+      if(mask.length){const fields={};for(const f in up)fields[f]=fsMap(up[f]);await commit([playerWrite(fields,mask,ts,false)]);board.at=0;}
+    }
+    acc.dirty=false;saveAcc();netState='ok';upState=upState?'ok':'';
+  }catch(e){netState=e.message==='NET'?'net':'err';if(upState)upState='fail';}
+  finally{syncing=false;}
+}
+function markDirty(){if(!acc)return;acc.dirty=true;saveAcc();sync();}
+function logout(){acc=null;saveAcc();for(const L of ALL_LV()){setLocal(L,false,null);setLocal(L,true,null);}upState='';}
+let authBusy=false,authMsg='',authErr=false;
+async function doAuth(signup,name,pass){
+  if(authBusy)return;name=name.trim();
+  if(!NAME_RE.test(name)){authErr=true;authMsg='الاسم من ٣ إلى ١٢ حرف أو رقم، بدون مسافات';return;}
+  if(pass.length<6){authErr=true;authMsg='كلمة السر لازم ٦ حروف أو أكثر';return;}
+  authBusy=true;authErr=false;authMsg=signup?'جاري إنشاء الحساب…':'جاري الدخول…';
+  try{
+    const j=await jpost(idUrl(signup?'signUp':'signInWithPassword'),{email:nameEmail(name),password:pass,returnSecureToken:true});
+    acc={uid:j.localId,name,dirty:true};setTok(j);
+    if(signup){try{await createPlayer();acc.dirty=false;saveAcc();}catch(e){}}
+    else{
+      // الاسم المحفوظ بالحساب (بنفس الحروف الكبيرة والصغيرة)
+      try{const d=await jfetch(`${FS_URL}/players/${acc.uid}`,{headers:{Authorization:'Bearer '+acc.it}});acc.name=parsePlayer(d).name;saveAcc();}catch(e){}
+      await sync();
+    }
+    authMsg='';accSel=0;inEl.value='';passVal='';nameVal='';state='main';toast=`أهلًا ${acc.name}!`;toastT=2.4;
+  }catch(e){authErr=true;authMsg=errAr(e);}
+  finally{authBusy=false;}
+}
+// الترتيب: نجيب ملفات كل اللاعبين (عددهم قليل) ونرتب في الجهاز
+const board={at:0,busy:false,err:false,list:[],idx:0,mode:'n'};
+async function loadBoard(force){
+  if(board.busy||(!force&&board.at&&performance.now()-board.at<60000))return;board.busy=true;board.err=false;
+  try{const out=[];let tok='';do{const j=await jfetch(`${FS_URL}/players?pageSize=300${tok?'&pageToken='+encodeURIComponent(tok):''}`);(j.documents||[]).forEach(d=>out.push(parsePlayer(d)));tok=j.nextPageToken||'';}while(tok);
+    board.list=out;board.at=performance.now();}
+  catch(e){board.err=true;}finally{board.busy=false;}
+}
+const boardLv=i=>i?ALL_LV()[i-1]:null;
+function boardModes(){return board.idx?['n','e']:['n','e','t'];}
+function ptsOfP(p,f){let s=0;for(const L of ALL_LV()){const r=p[f][L.id];if(r)s+=f==='e'?PTS[r]/2:PTS[r];}return s;}
+function boardRows(){
+  const L=boardLv(board.idx),m=board.mode;let rows;
+  if(L){const f=m,t=f+'t';rows=board.list.filter(p=>p[f][L.id]).map(p=>({p,r:p[f][L.id],v:-RANKS.indexOf(p[f][L.id]),t:p[t][L.id]||''}))
+    .sort((a,b)=>b.v-a.v||(a.t<b.t?-1:a.t>b.t?1:0));}
+  else{rows=board.list.map(p=>({p,v:m==='t'?ptsOfP(p,'n')+ptsOfP(p,'e'):ptsOfP(p,m)})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v||a.p.name.localeCompare(b.p.name));}
+  rows.forEach((x,i)=>{x.pos=i+1;x.me=!!acc&&x.p.uid===acc.uid;});return rows;
+}
+// خانة الكتابة المخفية: الكيبورد يكتب فيها، واللعبة ترسم اللي فيها
+const inEl=document.createElement('input');inEl.setAttribute('autocomplete','off');inEl.setAttribute('spellcheck','false');
+inEl.style.cssText='position:fixed;left:-9999px;top:0;opacity:0;width:10px;';document.body.appendChild(inEl);
+let accSel=0,nameVal='',passVal='',logoutArm=0;
+const typing=()=>state==='account'&&!acc&&accSel<2;
+function syncField(){const want=typing();if(want){const v=accSel===0?nameVal:passVal;inEl.maxLength=accSel===0?12:32;if(inEl.dataset.f!==String(accSel)){inEl.dataset.f=accSel;inEl.value=v;}if(document.activeElement!==inEl)inEl.focus();if(accSel===0)nameVal=inEl.value.replace(/\s/g,'');else passVal=inEl.value;}
+  else if(document.activeElement===inEl){inEl.blur();inEl.dataset.f='';}}
 const PAUSE=['أكمل اللعب','إعادة من آخر حفظ','إعادة من البداية','الخروج من المرحلة'];
 function bgShapes(now){
   const tt=now/1000;g.save();g.globalAlpha=0.4;g.strokeStyle=RED;g.lineWidth=3;
@@ -1847,16 +1955,97 @@ function drawEasyBox(now){
   if(easy){g.strokeStyle='#fff';g.lineWidth=4;g.lineCap='round';g.lineJoin='round';g.beginPath();g.moveTo(x+7,y+1);g.lineTo(x+13,y+8);g.lineTo(x+24,y-7);g.stroke();g.lineCap='butt';g.lineJoin='miter';}
   g.font=`${sel?26:24}px ${TFONT}`;g.fillStyle=sel||easy?'#fff':'rgba(255,255,255,0.5)';g.textAlign='left';g.textBaseline='middle';g.direction='ltr';g.fillText('Easy Mode',x+s+16,y+1);
 }
+// زر الحساب فوق يسار القائمة: اسمك إذا مسجل، أو "سجّل دخول"
+function personIcon(x,y,col,k=1){g.fillStyle=col;g.beginPath();g.arc(x,y-6*k,6*k,0,TAU);g.fill();g.beginPath();g.ellipse(x,y+9*k,11*k,7*k,0,Math.PI,TAU);g.fill();}
+function drawAccBox(now){
+  const sel=menuSel===7,lab=acc?acc.name:'سجّل دخول',x=40,y=50,fs=acc?(sel?30:27):(sel?26:23);
+  g.font=`800 ${fs}px ${FONT}`;const w=g.measureText(lab).width+74;
+  rr(x,y-30,w,60,16);g.fillStyle=sel?`rgba(${RGB},${0.1+0.08*pulse})`:'rgba(255,255,255,0.04)';g.fill();g.strokeStyle=sel?RED:`rgba(${RGB},0.45)`;g.lineWidth=2;g.stroke();
+  personIcon(x+28,y+2,acc?RED:'rgba(255,255,255,0.45)');
+  txt(lab,x+w-18,y+2,fs,acc||sel?'#fff':'rgba(255,255,255,0.6)',acc?800:500,'right');
+}
+function field(label,val,y,sel,pass){
+  const x=W/2-300,w=600,h=64;
+  txt(label,W/2+300,y-50,22,sel?'#fff':'rgba(255,255,255,0.55)',500,'right');
+  rr(x,y-h/2,w,h,14);g.fillStyle=sel?CARDS:CARD;g.fill();g.strokeStyle=sel?RED:'rgba(255,255,255,0.18)';g.lineWidth=sel?2.5:1.5;g.stroke();
+  const shown=pass?'•'.repeat(val.length):val;
+  g.font=`800 30px ${FONT}`;const tw=g.measureText(shown).width;
+  txt(shown,x+w-24,y+2,30,'#fff',800,'right');
+  if(sel&&Math.floor(performance.now()/500)%2===0){g.fillStyle=RED;g.fillRect(x+w-28-tw,y-17,3,34);}
+}
+function btnRow(label,y,sel,w=360){
+  rr(W/2-w/2,y-30,w,60,16);g.fillStyle=sel?`rgba(${RGB},${0.1+0.08*pulse})`:'rgba(255,255,255,0.04)';g.fill();g.strokeStyle=sel?RED:'rgba(255,255,255,0.18)';g.lineWidth=2;g.stroke();
+  txt(label,W/2,y+2,sel?32:28,sel?'#fff':'rgba(255,255,255,0.6)',800);
+}
+function drawAccount(now){
+  bgShapes(now);
+  if(acc){
+    txt('حسابك',W/2,100,48,'#fff');
+    personIcon(W/2,205,RED,2.2);txt(acc.name,W/2,280,46,'#fff',800);
+    const st=syncing?['جاري المزامنة…','rgba(255,255,255,0.55)']:netState==='net'?['ما فيه نت، نقاطك بتنحفظ أونلاين أول ما يرجع','#ffb35c']:netState==='err'?['ما قدرت أحفظ أونلاين الحين، بجرب بعدين','#ffb35c']:['نقاطك محفوظة أونلاين ✓','#5fe08f'];
+    txt(st[0],W/2,330,22,st[1],500);
+    const pn=ptsOf(false),pe=ptsOf(true);
+    [['NORMAL',pn,'#ff2436','#fff'],['EASY',pe,'#7cc8ff','#0b1426']].forEach(([lab,v,c,fg],i)=>{const cx=W/2+(i?-130:130),y=420;
+      rr(cx-110,y-50,220,100,18);g.fillStyle=CARD;g.fill();g.strokeStyle=c;g.lineWidth=2;g.stroke();ezBadge(cx,y-26,1,lab,c,fg);txt(ar(v),cx,y+18,40,c,800);});
+    btnRow(logoutArm>0?'اضغط مرة ثانية للتأكيد':'تسجيل خروج',540,accSel===0,logoutArm>0?420:360);
+    row([[BTN[kind].confirm,'اختيار'],[BTN[kind].back,'رجوع']],W/2,H-40,30,'rgba(255,255,255,0.7)',22);
+    return;
+  }
+  txt('حسابك',W/2,82,48,'#fff');
+  txt('سجّل دخول عشان تنحفظ نقاطك أونلاين ويطلع اسمك في الترتيب',W/2,138,22,'rgba(255,255,255,0.6)',500);
+  field('الاسم',nameVal,236,accSel===0,false);
+  field('كلمة السر',passVal,352,accSel===1,true);
+  btnRow('دخول',446,accSel===2);
+  btnRow('حساب جديد',522,accSel===3);
+  if(authMsg)txt(authMsg,W/2,585,22,authErr?'#ff8a8a':'rgba(255,255,255,0.7)',500);
+  else txt('أول ما تسجّل، نقاطك اللي في هذا الجهاز تنضاف لحسابك',W/2,585,20,'rgba(255,255,255,0.45)',500);
+  if(kind!=='kb')padLabel(kind,'للكتابة تحتاج كيبورد',W/2,H-82,RED3,20);
+  row([[['الأسهم'],'تنقّل'],[['Enter'],'اختيار'],[['Esc'],'رجوع']],W/2,H-36,30,'rgba(255,255,255,0.7)',22);
+}
+function drawBoard(now){
+  bgShapes(now);txt('الترتيب',W/2,62,46,'#fff');
+  const L=boardLv(board.idx),cy=128;
+  // اسم اللوحة مع أسهم يمين ويسار
+  txt(L?L.name:'النقاط',W/2,cy,34,'#fff',800);
+  if(L){g.font=`17px ${TFONT}`;g.textAlign='center';g.textBaseline='middle';g.direction='ltr';g.fillStyle=RED3;g.fillText(L.song||('by '+L.by),W/2,cy+32);}
+  g.fillStyle='rgba(255,255,255,0.75)';
+  if(board.idx<ALL_LV().length){g.beginPath();g.moveTo(W/2-300,cy);g.lineTo(W/2-284,cy-14);g.lineTo(W/2-284,cy+14);g.closePath();g.fill();}
+  if(board.idx>0){g.beginPath();g.moveTo(W/2+300,cy);g.lineTo(W/2+284,cy-14);g.lineTo(W/2+284,cy+14);g.closePath();g.fill();}
+  // نورمال / إيزي / المجموع
+  const ms=boardModes(),mw=150,my=cy+78;
+  ms.forEach((m,i)=>{const cx=W/2+((ms.length-1)/2-i)*(mw+14),on=m===board.mode,c=m==='n'?'#ff2436':m==='e'?'#7cc8ff':'#fff';
+    rr(cx-mw/2,my-20,mw,40,20);g.fillStyle=on?c:'rgba(255,255,255,0.04)';g.fill();g.strokeStyle=on?c:'rgba(255,255,255,0.2)';g.lineWidth=2;g.stroke();
+    const lab=m==='n'?'NORMAL':m==='e'?'EASY':'TOTAL';g.font=`16px ${TFONT}`;g.textAlign='center';g.textBaseline='middle';g.direction='ltr';g.fillStyle=on?(m==='n'?'#fff':'#0b1426'):'rgba(255,255,255,0.55)';g.fillText(lab,cx,my+1);});
+  const top=my+52,rh=38,lx=W/2-330,rw=660;
+  if(board.busy&&!board.list.length){txt('جاري التحميل…',W/2,top+120,26,'rgba(255,255,255,0.6)',500);}
+  else if(board.err&&!board.list.length){txt('ما فيه نت، ما قدرت أجيب الترتيب',W/2,top+120,26,'#ffb35c',500);}
+  else{
+    const rows=boardRows(),shown=rows.slice(0,10),mine=rows.find(x=>x.me);
+    if(!rows.length)txt(L?'محد خلّص هذي المرحلة للحين':'محد عنده نقاط للحين',W/2,top+120,26,'rgba(255,255,255,0.55)',500);
+    const drawRow=(x,y)=>{
+      rr(lx,y-rh/2+2,rw,rh-4,10);if(x.me){g.fillStyle=`rgba(${RGB},${0.14+0.06*pulse})`;g.fill();g.strokeStyle=RED;g.lineWidth=1.5;g.stroke();}else{g.fillStyle='rgba(255,255,255,0.035)';g.fill();}
+      const pc=x.pos===1?'#ffd54a':x.pos===2?'#d8dde6':x.pos===3?'#e0a46a':'rgba(255,255,255,0.6)';
+      txt(ar(x.pos),lx+rw-30,y+1,24,pc,800);
+      txt(x.p.name,lx+rw-80,y+1,24,x.me?'#fff':'#e9e6f5',x.me?800:500,'right');
+      if(L){g.font=`26px ${TFONT}`;g.textAlign='center';g.textBaseline='middle';g.direction='ltr';g.fillStyle=board.mode==='e'?'#7cc8ff':'#ff2436';g.fillText(x.r,lx+40,y+1);}
+      else txt(`${ar(x.v)} نقطة`,lx+20,y+1,22,board.mode==='e'?'#7cc8ff':board.mode==='n'?'#ff6b6b':'#fff',800,'left');
+    };
+    shown.forEach((x,i)=>drawRow(x,top+i*rh));
+    if(mine&&mine.pos>10){txt('…',W/2,top+10*rh-8,22,'rgba(255,255,255,0.4)',500);drawRow(mine,top+10*rh+16);}
+    if(!acc)txt('سجّل دخول من القائمة عشان يطلع اسمك هنا',W/2,H-82,20,'rgba(255,255,255,0.5)',500);
+  }
+  row([[BTN[kind].move,'المرحلة'],[BTN[kind].confirm,'NORMAL / EASY'],[BTN[kind].back,'رجوع']],W/2,H-36,30,'rgba(255,255,255,0.7)',22);
+}
 function drawMain(now){
   const k=clamp((now-mainAt)/650,0,1),e=k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2,oa=clamp((now-mainAt-250)/450,0,1);
   g.globalAlpha=oa;bgShapes(now);g.globalAlpha=1;drawTitle(W/2,H/2-20+(180-(H/2-20))*e,110+(78-110)*e);
   g.globalAlpha=oa;
-  MAIN.forEach((s,i)=>{const id=i<4?i:EXIT,y=APP?310+i*72:325+i*80,sel=id===menuSel;
+  MAIN.forEach(([s,id],i)=>{const y=APP?300+i*66:310+i*72,sel=id===menuSel;
     if(sel){rr(W/2-240,y-32,480,64,16);g.fillStyle=`rgba(${RGB},${0.08+0.08*pulse})`;g.fill();g.strokeStyle=RED;g.lineWidth=2;g.stroke();
       g.save();g.translate(W/2+205,y);g.rotate(now/420);g.fillStyle=RED;const q=8*(1+0.3*pulse);g.fillRect(-q,-q,2*q,2*q);g.restore();}
     txt(s,W/2,y,sel?40:34,sel?'#fff':'rgba(255,255,255,0.5)',800);});
   drawEasyBox(now);
-  drawPtsBox(now);
+  drawPtsBox(now);drawAccBox(now);
   g.globalAlpha=1;
   if(kind!=='kb'){g.globalAlpha=oa;padLabel(kind,kind==='ps'?'يد سوني متصلة':'يد إكس بوكس متصلة',W/2,H-42,RED3);g.globalAlpha=1;}
 }
@@ -1993,7 +2182,7 @@ function draw(now){
   g.setTransform(scale,0,0,scale,offX+sx*scale,offY+sy*scale);
   g.save();g.beginPath();g.rect(0,0,W,H);g.clip();
   const inGame=!!player&&['play','paused','dead','win','starting'].includes(state);
-  const menuish=['gate','gateWait','splash','main','levels','howto','settings','friends','points'].includes(state);
+  const menuish=['gate','gateWait','splash','main','levels','howto','settings','friends','points','account','board'].includes(state);
   if(inGame){const bt=BT(songT),bar=Math.floor(bt/4);energy=cur.energy[clamp(bar,0,cur.energy.length-1)]||0.12;pulse=Math.exp(-(((bt%1)+1)%1)*5)*(0.35+0.65*energy);}
   else if(menuish&&menuSrc){const mp=menuPos(),bt=(mp-MENU_OFF)/MENU_SPB;energy=0.6;pulse=mp>=MENU_DROP-0.02?Math.exp(-(((bt%1)+1)%1)*5):0;}
   else{energy=0.3;pulse=0;}
@@ -2008,6 +2197,8 @@ function draw(now){
   else if(state==='friends')drawFriends(now);
   else if(state==='settings')drawSettings();
   else if(state==='points')drawPoints(now);
+  else if(state==='account')drawAccount(now);
+  else if(state==='board')drawBoard(now);
   else if(!inGame){drawSpawn();if(state==='levelIntro')drawLevelInfo(now);}
   else{
     for(const h of hazards)h.draw(songT);
@@ -2026,9 +2217,10 @@ function draw(now){
     g.font=`150px ${TFONT}`;g.textAlign='center';g.textBaseline='middle';g.direction='ltr';g.fillStyle=lastRank==='S'?CYAN:PINK;g.shadowColor=g.fillStyle;g.shadowBlur=30;g.fillText(lastRank,W/2,H/2-40);g.shadowBlur=0;if(lastEz)ezBadge(W/2+100,H/2-95,1.3);
     txt(`انضربت ${ar(hitsTotal)} مرة    خسرت ${ar(deaths)} مرة`,W/2,H/2+70,28,'#e9e6f5',500);
     if(lastGain>0){const gc=lastEz?'#7cc8ff':'#ff2436';g.save();g.translate(W/2-170,H/2-40);g.rotate(now/420);g.fillStyle=gc;g.shadowColor=gc;g.shadowBlur=10;g.fillRect(-7,-7,14,14);g.restore();txt(`+${ar(lastGain)} نقطة`,W/2-190,H/2-40,34,gc,800,'right');}
+    if(acc&&upState){const u=upState==='saving'?['جاري الحفظ أونلاين…','rgba(255,255,255,0.55)']:upState==='ok'?['انحفظ أونلاين ✓','#5fe08f']:['بينحفظ أونلاين أول ما يرجع النت','#ffb35c'];txt(u[0],W/2,H/2+102,20,u[1],500);}
     if(now-winAt>800){row([[K.confirm,'العب مرة ثانية']],W/2,H/2+135);row([[K.back,'المراحل']],W/2,H/2+190);}}
   if(state==='starting'&&audioHint){overlay(0.4);txt('اضغط على الشاشة مرة وحدة عشان يشتغل الصوت 🔊',W/2,H/2,32,'#fff',500);}
-  if(gatePassed&&!fsOK()&&['main','levels','friends','howto','settings','points','paused'].includes(state))txt('اضغط F11 عشان ترجع ملء الشاشة',W/2,state==='paused'?H-40:22,18,'rgba(255,255,255,0.5)',500);
+  if(gatePassed&&!fsOK()&&['main','levels','friends','howto','settings','points','account','board','paused'].includes(state))txt('اضغط F11 عشان ترجع ملء الشاشة',W/2,state==='paused'?H-40:22,18,'rgba(255,255,255,0.5)',500);
   if(toastT>0&&state!=='main'){g.globalAlpha=Math.min(1,toastT);if(toastPad)padLabel(toastPad,toast,W/2,H-78,menuish?RED3:CYAN,22);else txt(toast,W/2,H-78,22,menuish?RED3:CYAN,500);g.globalAlpha=1;}
   if(flash>0){g.fillStyle=`rgba(255,255,255,${Math.min(0.8,flash)})`;g.fillRect(0,0,W,H);}
   g.restore();
@@ -2052,14 +2244,20 @@ pumpCh.port1.onmessage=()=>{
 };
 function step(now){
   const dt=Math.min(0.05,Math.max(0,now-last)/1000);last=now;
-  const inp=readInput();
+  const inp=readInput();syncField();
+  if(acc&&acc.dirty&&!syncing&&now-lastSyncTry>30000&&!['play','starting','levelIntro'].includes(state))sync();
   if(state==='gate'){if((f11Hit||fsOK())&&menuBuf){ensureAudio();gatePressAt=now;gatePassed=true;state='gateWait';}f11Hit=false;}
   else if(state==='gateWait'){if(actx.state==='running'){playMenu(0);state='splash';}else if(now-gatePressAt>600){gateHint=true;if(inp.any)ensureAudio();}}
   else if(state==='splash'){if(menuPos()>=MENU_DROP){state='main';mainAt=now;menuSel=0;}else if(inp.any&&menuPos()>1.2){stopMenu();playMenu(MENU_DROP);state='main';mainAt=now;menuSel=0;}}
   else if(state==='main'){
-    const MO=APP?[5,0,1,2,3,EXIT,4]:[5,0,1,2,3,4],mi=MO.indexOf(menuSel),mn=MO.length;if(inp.up)menuSel=MO[(mi+mn-1)%mn];else if(inp.down)menuSel=MO[(mi+1)%mn];
-    else if(inp.right&&menuSel!==5)menuSel=5;else if(inp.left&&menuSel===5)menuSel=0;
-    if(inp.confirm){if(menuSel===4)setEasy(!easy);else if(menuSel===5)state='points';else if(menuSel===EXIT)window.close();else state=['levels','friends','howto','settings'][menuSel];}
+    const MO=[5,...MAIN.map(m=>m[1]),4],mn=MO.length;
+    if(menuSel===ACC){if(inp.down)menuSel=0;else if(inp.up)menuSel=4;else if(inp.right)menuSel=5;}
+    else{const mi=MO.indexOf(menuSel);if(inp.up)menuSel=MO[(mi+mn-1)%mn];else if(inp.down)menuSel=MO[(mi+1)%mn];
+    else if(inp.right&&menuSel!==5)menuSel=5;else if(inp.left)menuSel=ACC;}
+    if(inp.confirm){if(menuSel===4)setEasy(!easy);else if(menuSel===5)state='points';else if(menuSel===EXIT)window.close();
+      else if(menuSel===ACC){state='account';accSel=0;authMsg='';logoutArm=0;}
+      else if(menuSel===BOARD){state='board';board.mode=easy?'e':'n';loadBoard(false);}
+      else state=['levels','friends','howto','settings'][menuSel];}
   }
   else if(state==='levels'){
     if(inp.left&&lvlSel<LEVELS.length-1){lvlSel++;tick();}
@@ -2075,6 +2273,19 @@ function step(now){
   }
   else if(state==='howto'){if(inp.back||inp.pz||inp.confirm){tick();state='main';}}
   else if(state==='points'){if(inp.back||inp.pz||inp.confirm)state='main';}
+  else if(state==='account'){
+    if(acc){logoutArm=Math.max(0,logoutArm-dt);if(inp.confirm){if(logoutArm>0){logout();logoutArm=0;accSel=0;authMsg='';}else logoutArm=3;}else if(inp.back||inp.pz)state='main';}
+    else{if(keys.Tab){keys.Tab=false;accSel=(accSel+1)%4;}
+      if(inp.down)accSel=Math.min(3,accSel+1);else if(inp.up)accSel=Math.max(0,accSel-1);
+      else if(inp.confirm&&!authBusy){if(accSel===0)accSel=1;else if(accSel===1||accSel===2)doAuth(false,nameVal,passVal);else doAuth(true,nameVal,passVal);}
+      else if(inp.pz||(inp.back&&accSel>1)){state='main';authMsg='';}}
+  }
+  else if(state==='board'){const n=ALL_LV().length,ms0=boardModes();
+    if(inp.left&&board.idx<n){board.idx++;tick();}else if(inp.right&&board.idx>0){board.idx--;tick();}
+    if(!boardModes().includes(board.mode))board.mode=easy?'e':'n';
+    if(inp.confirm){const ms=boardModes();board.mode=ms[(ms.indexOf(board.mode)+1)%ms.length];tick();}
+    else if(inp.back||inp.pz)state='main';
+    if(!board.busy&&performance.now()-board.at>60000)loadBoard(false);}
   else if(state==='settings'){const rows=setRows();if(setSel>=rows.length)setSel=0;const r=rows[setSel],d=inp.right?1:inp.left?-1:0;
     if(inp.up)setSel=(setSel+rows.length-1)%rows.length;else if(inp.down)setSel=(setSel+1)%rows.length;
     else if(d&&r==='vol')setVol(vol+0.1*d);
@@ -2097,7 +2308,7 @@ function step(now){
   }
   else if(state==='dead'){if(now-deadAt>700&&inp.confirm)requestStart(checkpoint);else if(inp.back)toMenu();}
   else if(state==='win'){if(now-winAt>800&&inp.confirm){stopMusic();requestStart(0);}else if(inp.back){stopMusic();player=null;hazards=[];state=fromList;}}
-  if(['main','levels','howto','settings','friends','points'].includes(state)){if(!menuSrc&&menuBuf&&actx.state==='running')playMenu(MENU_DROP);}else if(menuSrc&&state!=='splash')stopMenu();
+  if(['main','levels','howto','settings','friends','points','account','board'].includes(state)){if(!menuSrc&&menuBuf&&actx.state==='running')playMenu(MENU_DROP);}else if(menuSrc&&state!=='splash')stopMenu();
   for(const q of particles){q.x+=q.vx*dt;q.y+=q.vy*dt;const f=Math.pow(0.04,dt);q.vx*=f;q.vy*=f;q.life-=dt;}
   particles=particles.filter(q=>q.life>0);
   gloom+=(gloomT-gloom)*Math.min(1,dt*3);shake=Math.max(0,shake-dt*50);flash=Math.max(0,flash-dt*2.2);cpMsg-=dt;toastT-=dt;shakeCard=Math.max(0,shakeCard-dt);
@@ -2120,6 +2331,7 @@ dec(SONG_F1).then(b=>{FRIENDS[0].buf=b;}).catch(()=>{FRIENDS[0].err=true;});
 dec(SONG_F2).then(b=>{FRIENDS[1].buf=b;}).catch(()=>{FRIENDS[1].err=true;});
 dec(SONG_F3).then(b=>{FRIENDS[2].buf=b;}).catch(()=>{FRIENDS[2].err=true;});
 dec(SONG_F4).then(b=>{FRIENDS[3].buf=b;}).catch(()=>{FRIENDS[3].err=true;});
+if(acc)sync();
 requestAnimationFrame(frame);
 })();
 
