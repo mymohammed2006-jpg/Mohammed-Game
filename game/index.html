@@ -1768,7 +1768,8 @@ const LEVELS=[
   {name:'المرحلة الرابعة',song:'Mind Bloom',ok:true,bpm:150,off:0.04,end:292,cps:[0,112,208],energy:E4,ezg:3,ezc:1,ez:0.5,build:()=>buildLevel4(),best:null},
   {name:'المرحلة الخامسة',song:'Runaway',ok:true,bpm:87,off:1.303,end:199.4,cps:[0,52,104],energy:E5,ezg:2,ezc:0.5,ez:0.6,build:()=>buildLevel5(),best:null}
 ];
-const MAIN=['المراحل الرئيسية','مراحل الشباب','طريقة اللعب','الإعدادات'];
+const MAIN=['المراحل الرئيسية','مراحل الشباب','طريقة اللعب','الإعدادات'];if(APP)MAIN.push('خروج');
+const EXIT=6;
 const FRIENDS=[
   {name:'ليش ضيعت الوفا',by:'Gampet',ver:'Gampet',ok:true,beats:BF1,end:340,cps:[0,148,276],energy:EF1,ezg:3,ezc:1,ez:0.5,build:()=>buildFriend1(),best:null},
   {name:'وعد مني',by:'ixN1X',ver:'Mohammed',ok:true,bpm:96,off:0.005,end:141,cps:[0,72,112],energy:EF2,ezg:2,ezc:1,ez:0.5,build:()=>buildFriend2(),best:null},
@@ -1850,8 +1851,8 @@ function drawMain(now){
   const k=clamp((now-mainAt)/650,0,1),e=k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2,oa=clamp((now-mainAt-250)/450,0,1);
   g.globalAlpha=oa;bgShapes(now);g.globalAlpha=1;drawTitle(W/2,H/2-20+(180-(H/2-20))*e,110+(78-110)*e);
   g.globalAlpha=oa;
-  MAIN.forEach((s,i)=>{const y=325+i*80,sel=i===menuSel;
-    if(sel){rr(W/2-240,y-34,480,68,16);g.fillStyle=`rgba(${RGB},${0.08+0.08*pulse})`;g.fill();g.strokeStyle=RED;g.lineWidth=2;g.stroke();
+  MAIN.forEach((s,i)=>{const id=i<4?i:EXIT,y=APP?310+i*72:325+i*80,sel=id===menuSel;
+    if(sel){rr(W/2-240,y-32,480,64,16);g.fillStyle=`rgba(${RGB},${0.08+0.08*pulse})`;g.fill();g.strokeStyle=RED;g.lineWidth=2;g.stroke();
       g.save();g.translate(W/2+205,y);g.rotate(now/420);g.fillStyle=RED;const q=8*(1+0.3*pulse);g.fillRect(-q,-q,2*q,2*q);g.restore();}
     txt(s,W/2,y,sel?40:34,sel?'#fff':'rgba(255,255,255,0.5)',800);});
   drawEasyBox(now);
@@ -2056,9 +2057,9 @@ function step(now){
   else if(state==='gateWait'){if(actx.state==='running'){playMenu(0);state='splash';}else if(now-gatePressAt>600){gateHint=true;if(inp.any)ensureAudio();}}
   else if(state==='splash'){if(menuPos()>=MENU_DROP){state='main';mainAt=now;menuSel=0;}else if(inp.any&&menuPos()>1.2){stopMenu();playMenu(MENU_DROP);state='main';mainAt=now;menuSel=0;}}
   else if(state==='main'){
-    const MO=[5,0,1,2,3,4],mi=MO.indexOf(menuSel);if(inp.up)menuSel=MO[(mi+5)%6];else if(inp.down)menuSel=MO[(mi+1)%6];
+    const MO=APP?[5,0,1,2,3,EXIT,4]:[5,0,1,2,3,4],mi=MO.indexOf(menuSel),mn=MO.length;if(inp.up)menuSel=MO[(mi+mn-1)%mn];else if(inp.down)menuSel=MO[(mi+1)%mn];
     else if(inp.right&&menuSel!==5)menuSel=5;else if(inp.left&&menuSel===5)menuSel=0;
-    if(inp.confirm){if(menuSel===4)setEasy(!easy);else if(menuSel===5)state='points';else state=['levels','friends','howto','settings'][menuSel];}
+    if(inp.confirm){if(menuSel===4)setEasy(!easy);else if(menuSel===5)state='points';else if(menuSel===EXIT)window.close();else state=['levels','friends','howto','settings'][menuSel];}
   }
   else if(state==='levels'){
     if(inp.left&&lvlSel<LEVELS.length-1){lvlSel++;tick();}
