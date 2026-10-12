@@ -100,7 +100,7 @@ function dec(b64){return new Promise((res,rej)=>{try{const bin=atob(b64),u=new U
 function playMenu(from=0){if(menuSrc||!menuBuf)return;menuGain=actx.createGain();if(from>0){menuGain.gain.setValueAtTime(0.0001,actx.currentTime);menuGain.gain.exponentialRampToValueAtTime(0.85,actx.currentTime+0.4);}else menuGain.gain.value=0.85;menuGain.connect(master);
   menuSrc=actx.createBufferSource();menuSrc.buffer=menuBuf;menuSrc.loop=true;menuSrc.loopStart=MENU_DROP;menuSrc.loopEnd=Math.min(MENU_LOOP,menuBuf.duration);menuSrc.connect(menuGain);const w=actx.currentTime+0.05;menuSrc.start(w,from);menuStart=w-from;}
 function stopMenu(){if(!menuSrc)return;const s=menuSrc,gn=menuGain;gn.gain.setTargetAtTime(0,actx.currentTime,0.15);try{s.stop(actx.currentTime+1);}catch(e){}setTimeout(()=>{try{gn.disconnect();}catch(e){}},1500);menuSrc=null;menuGain=null;}
-function ensureAudio(){if(actx.state==='suspended'&&state!=='paused'&&state!=='pauseSet')actx.resume().catch(()=>{});}
+function ensureAudio(){if(actx.state==='suspended'&&state!=='paused'&&state!=='pauseSet'&&!(rp.paused&&['replay','rpGap','rpEnd'].includes(state)))actx.resume().catch(()=>{});}
 function playMusic(fromT){
   stopMusic();
   musicGain=actx.createGain();musicGain.gain.value=1;musicGain.connect(master);
@@ -1951,13 +1951,14 @@ function toggleFS(){if(!document.fullscreenElement){const el=document.documentEl
 
 let prev={},kind='kb';
 function readInput(){
-  let x=0,y=0,dash=false,confirm=false,pz=false,back=false,restart=false;
+  let x=0,y=0,dash=false,confirm=false,pz=false,back=false,restart=false,l1=false,r1=false;
   if(keys.ArrowLeft||keys.KeyA)x-=1;if(keys.ArrowRight||keys.KeyD)x+=1;if(keys.ArrowUp||keys.KeyW)y-=1;if(keys.ArrowDown||keys.KeyS)y+=1;
   if(keys.Space||keys.ShiftLeft||keys.ShiftRight||keys.KeyJ||keys.KeyK)dash=true;
   if(keys.Enter||keys.Space)confirm=true;
   if(keys.Escape||keys.KeyP)pz=true;
   if(keys.Backspace)back=true;
   if(keys.KeyR)restart=true;
+  if(keys.KeyQ)l1=true;if(keys.KeyE)r1=true;
   kind='kb';let padAny=false;
   const pads=navigator.getGamepads?navigator.getGamepads():[];
   for(const gp of pads){
@@ -1968,17 +1969,17 @@ function readInput(){
     if(mag>0.22){const k=Math.min(1,(mag-0.22)/0.7)/mag;x+=ax*k;y+=ay*k;}
     if(b(14))x-=1;if(b(15))x+=1;if(b(12))y-=1;if(b(13))y+=1;
     if(b(0)||b(2)||b(4)||b(5)||b(6)||b(7))dash=true;
-    if(b(0))confirm=true;if(b(9))pz=true;if(b(1))back=true;if(b(3)||b(8))restart=true;
+    if(b(0))confirm=true;if(b(9))pz=true;if(b(1))back=true;if(b(3)||b(8))restart=true;if(b(4))l1=true;if(b(5))r1=true;
   }
-  const cur={dash,confirm,pz,back,restart,padAny,left:x<-0.5,right:x>0.5,up:y<-0.5,down:y>0.5},out={x,y};
+  const cur={dash,confirm,pz,back,restart,l1,r1,padAny,left:x<-0.5,right:x>0.5,up:y<-0.5,down:y>0.5},out={x,y};
   for(const k in cur)out[k]=cur[k]&&!prev[k];
   out.any=anyKeyFlag||out.padAny;anyKeyFlag=false;
   prev=cur;return out;
 }
 const BTN={
-  ps:{move:['stick'],confirm:['x'],dash:['x','R1'],pause:['Options'],back:['o'],restart:['tri']},
-  xbox:{move:['stick'],confirm:['A'],dash:['A','RB'],pause:['Menu'],back:['B'],restart:['Y']},
-  kb:{move:['الأسهم'],confirm:['Enter'],dash:['مسافة'],pause:['Esc'],back:['Backspace'],restart:['R']}
+  ps:{move:['stick'],confirm:['x'],dash:['x','R1'],pause:['Options'],back:['o'],restart:['tri'],small:['L1  R1']},
+  xbox:{move:['stick'],confirm:['A'],dash:['A','RB'],pause:['Menu'],back:['B'],restart:['Y'],small:['LB  RB']},
+  kb:{move:['الأسهم'],confirm:['Enter'],dash:['مسافة'],pause:['Esc'],back:['Backspace'],restart:['R'],small:['Q  E']}
 };
 
 /* ================= سير اللعبة ================= */
@@ -2473,48 +2474,105 @@ function drawProfile(now){
   row([[BTN[kind].move,'اختيار'],[BTN[kind].confirm,'شاهد الـ Replay'],[BTN[kind].back,'رجوع']],W/2,H-30,24,'rgba(255,255,255,0.7)',18);
 }
 // مشغّل الـ Replay: نفس المرحلة ونفس الأغنية ونفس الهجمات، والمربع يمشي على الحركة المسجلة
-const rp={p:null,L:null,m:'n',doc:null,seg:0,err:false,gapAt:0,gapDead:false,endAt:0,saveEasy:false};
+// يشتغل مثل الفيديو: إيقاف وتشغيل، ترجيع وتقديم ٥ ثواني، السرعة، وإخفاء الكلام اللي فوق
+// الترجيع والتقديم: نبدأ المحاولة من أولها ونمشّي المرحلة بسرعة بدون رسم ولا صوت لين نوصل الثانية المطلوبة (نفس العشوائية فتطلع نفس الهجمات)
+// أي Replay بنفس الشكل (segs) يقدر يستخدم هذي الشاشة، حتى لو جاي من البوت
+const rp={p:null,L:null,m:'n',doc:null,seg:0,err:false,gapAt:0,gapDead:false,endAt:0,saveEasy:false,paused:false,rate:1,hide:false,barT:0,aT:0,aCT:0,off:[],tot:0};
+const RP_RATES=[0.25,0.5,0.75,1,1.5,2],RP_JUMP=5,RP_SMALL=1,RP_FINE=0.1,RP_ST=1/120;
 function openReplay(p,L,m){rp.p=p;rp.L=L;rp.m=m;rp.doc=null;rp.err=false;state='rpLoad';
   jfetch(`${FS_URL}/replays/${p.uid}_${L.id}_${m}`).then(d=>{if(state==='rpLoad'&&rp.L===L&&rp.m===m)rp.doc=parseRp(d);}).catch(()=>{if(state==='rpLoad')rp.err=true;});}
 function parseRp(d){const f=d.fields;return{r:f.r.stringValue,hz:+f.hz.integerValue||RP_HZ,segs:f.segs.arrayValue.values.map(v=>{const s=v.mapValue.fields;
   return{cp:+s.cp.integerValue,seed:+s.seed.integerValue,t0:+(s.t0.doubleValue!==undefined?s.t0.doubleValue:s.t0.integerValue),n:+s.n.integerValue,b:unpackRp(s.d.stringValue)};})};}
-function rpSeg(i){rp.seg=i;const s=rp.doc.segs[i];checkpoint=s.cp;stopMusic();beginRun(s.cp,s.seed);state='replay';player.inv=1e9;}
-function rpStart(){rp.saveEasy=easy;easy=rp.m==='e';cur=rp.L;levelTiming(rp.L);hitsTotal=0;deaths=0;rpSeg(0);}
-function exitReplay(){stopMusic();player=null;hazards=[];particles=[];gloom=gloomT=0;easy=rp.saveEasy;state='profile';actx.resume().catch(()=>{});}
-function updateReplay(dt){
-  songT=actx.currentTime-songStart;const t=songT,s=rp.doc.segs[rp.seg],hz=rp.doc.hz,p=player,b=s.b;
-  let fi=Math.max(0,(t-s.t0)*hz);
-  if(fi>=s.n-1){const lf=b[(s.n-1)*3+2];
-    if(rp.seg<rp.doc.segs.length-1){rp.gapDead=((lf>>1)&7)===0;if(rp.gapDead){burst(p.x,p.y,CYAN,50,520);deaths++;}stopMusic();state='rpGap';rp.gapAt=performance.now();}
-    else{state='rpEnd';rp.endAt=performance.now();}
-    return;}
-  const i=Math.floor(fi),k=fi-i,o=i*3,o2=(i+1)*3,fl=b[o+2];
+const rpFrom=s=>s.cp===0?0:B(s.cp-2);
+const rpLen=s=>Math.max(0,s.t0-rpFrom(s))+(s.n-1)/rp.doc.hz;
+function rpTimeline(){let o=0;rp.off=rp.doc.segs.map(s=>{const a=o;o+=rpLen(s);return a;});rp.tot=o;}
+function rpKill(){if(!src)return;try{src.stop();}catch(e){}try{src.disconnect();musicGain.disconnect();}catch(e){}src=null;musicGain=null;}
+// يبدأ المحاولة i من الثانية T بالأغنية (بدون T = من أولها)
+function rpGo(i,T){
+  rp.seg=i;const s=rp.doc.segs[i],T0=rpFrom(s);checkpoint=s.cp;stopMusic();beginRun(s.cp,s.seed);rpKill();state='replay';player.inv=1e9;
+  T=T===undefined?T0:Math.max(T0,T);
+  if(T>T0){dry=true;for(let t=T0;t<T-1e-9;){const d=Math.min(RP_ST,T-t);t+=d;rpApply(t,d,false);}dry=false;particles=[];shake=flash=0;cpMsg=0;}
+  playMusic(T);if(src)src.playbackRate.value=rp.rate;rp.aT=T;rp.aCT=songStart+T;songT=T;
+}
+function rpSeg(i){rpGo(i);}
+function rpStart(){rp.saveEasy=easy;easy=rp.m==='e';cur=rp.L;levelTiming(rp.L);hitsTotal=0;deaths=0;rp.paused=false;rp.rate=1;rp.barT=4;rpTimeline();rpSeg(0);}
+function exitReplay(){stopMusic();player=null;hazards=[];particles=[];gloom=gloomT=0;easy=rp.saveEasy;rp.paused=false;state='profile';actx.resume().catch(()=>{});}
+// مكان الـ Replay كله (كل المحاولات ورا بعض) بالثواني
+function rpPos(){if(state==='rpEnd')return rp.tot;const s=rp.doc.segs[rp.seg],len=rpLen(s);return rp.off[rp.seg]+(state==='rpGap'?len:clamp(songT-rpFrom(s),0,len));}
+function rpSeekTo(x){x=clamp(x,0,Math.max(0,rp.tot-0.05));let i=0;while(i<rp.doc.segs.length-1&&x>=rp.off[i+1])i++;rpGo(i,rpFrom(rp.doc.segs[i])+x-rp.off[i]);}
+function rpPause(v){rp.paused=v;if(v){shake=0;actx.suspend().catch(()=>{});}else actx.resume().catch(()=>{});}
+function rpSetRate(r){const now=actx.currentTime;if(state==='replay'&&now>rp.aCT){rp.aT=rp.aT+(now-rp.aCT)*rp.rate;rp.aCT=now;}rp.rate=r;if(src)src.playbackRate.setValueAtTime(r,now);}
+function rpInput(inp,dt){
+  rp.barT=Math.max(0,rp.barT-dt);let k=false;
+  if(inp.confirm){k=true;if(state==='rpEnd'){rpPause(false);rpSeekTo(0);}else rpPause(!rp.paused);}
+  // يمين ويسار ٥ ثواني، L1 وR1 ثانية وحدة (ولو موقّف عُشر ثانية عشان تشوف الحركة بالتفصيل)
+  const sm=rp.paused?RP_FINE:RP_SMALL,j=inp.left?-RP_JUMP:inp.right?RP_JUMP:inp.l1?-sm:inp.r1?sm:0;
+  if(j<0){k=true;rpSeekTo(rpPos()+j);}else if(j>0&&state!=='rpEnd'){k=true;const x=rpPos()+j;if(x>=rp.tot-0.05){rpKill();state='rpEnd';rp.endAt=performance.now();}else rpSeekTo(x);}
+  if(inp.up||inp.down){k=true;const i=clamp(RP_RATES.indexOf(rp.rate)+(inp.up?1:-1),0,RP_RATES.length-1);rpSetRate(RP_RATES[i]);}
+  if(inp.restart)rp.hide=!rp.hide;
+  if(k)rp.barT=3;
+}
+// خطوة وحدة من الـ Replay عند الثانية t: المربع على الحركة المسجلة والهجمات تمشي (fx=false وقت التقديم السريع بدون مؤثرات)
+function rpApply(t,dt,fx){
+  songT=t;const s=rp.doc.segs[rp.seg],hz=rp.doc.hz,p=player,b=s.b;
+  const fi=clamp((t-s.t0)*hz,0,Math.max(0,s.n-1.0001)),i=Math.floor(fi),k=fi-i,o=i*3,o2=Math.min(i+1,s.n-1)*3,fl=b[o+2];
   const nx=(b[o]+(b[o2]-b[o])*k)/50,ny=(b[o+1]+(b[o2+1]-b[o+1])*k)/50,dx=nx-p.x,dy=ny-p.y,d=Math.hypot(dx,dy);
   p.dash=(fl&1)?0.1:0;if(d>0.5){p.ddx=dx/d;p.ddy=dy/d;}
   p.ang+=(clamp(dx/Math.max(dt,1e-4),-950,950)*0.004)*dt*6;p.x=nx;p.y=ny;
-  const hp=(fl>>1)&7,prevHp=p.hp;if(hp<p.hp){hitsTotal++;p.hurt=2.0;shake=16;flash=0.3;burst(p.x,p.y,CYAN,22,380);sfx(tt=>{sTone(tt,110,0.3,'square',0.18);sNoise(tt,0.25,'lowpass',900,0.3);});}
+  const hp=(fl>>1)&7,prevHp=p.hp;if(hp<p.hp&&fx){hitsTotal++;p.hurt=2.0;shake=16;flash=0.3;burst(p.x,p.y,CYAN,22,380);sfx(tt=>{sTone(tt,110,0.3,'square',0.18);sNoise(tt,0.25,'lowpass',900,0.3);});}
   p.hp=hp;p.hurt-=dt;p.trail.push({x:p.x,y:p.y,d:p.dash>0});if(p.trail.length>10)p.trail.shift();
   fireEvents(t);stepHazards(t,dt);if(hp<prevHp){for(const h of hazards){if(!h.dead&&h.hit(p,t))break;}}hazards=hazards.filter(h=>!h.dead);
-  const beat=BT(t);for(const c of cur.cps){if(beat>=c&&c>checkpoint){checkpoint=c;cpMsg=1.8;}}
+  const beat=BT(t);for(const c of cur.cps){if(beat>=c&&c>checkpoint){checkpoint=c;if(fx)cpMsg=1.8;}}
+}
+function updateReplay(dt){
+  if(rp.paused)return;
+  const t=rp.aT+Math.max(0,actx.currentTime-rp.aCT)*rp.rate,s=rp.doc.segs[rp.seg],b=s.b,p=player;
+  if((t-s.t0)*rp.doc.hz>=s.n-1){const lf=b[(s.n-1)*3+2];
+    if(rp.seg<rp.doc.segs.length-1){rp.gapDead=((lf>>1)&7)===0;if(rp.gapDead){burst(p.x,p.y,CYAN,50,520);deaths++;}stopMusic();state='rpGap';rp.gapAt=performance.now();}
+    else{stopMusic();state='rpEnd';rp.endAt=performance.now();}
+    return;}
+  rpApply(t,dt*rp.rate,true);
 }
 function drawRpLoad(now){bgShapes(now);
   if(rp.err){txt('ما قدرت أجيب الـ Replay، تأكد من النت',W/2,H/2,28,'#ffb35c',500);}
   else txt('جاري تحميل الـ Replay…',W/2,H/2,30,'rgba(255,255,255,0.7)',500);
   row([[BTN[kind].back,'رجوع']],W/2,H-30,24,'rgba(255,255,255,0.7)',18);}
+const rpClock=x=>{x=Math.max(0,Math.floor(x));return Math.floor(x/60)+':'+String(x%60).padStart(2,'0');};
 function drawRpOverlay(now){
-  const c=rp.m==='e'?'#7cc8ff':'#ff2436',w=600,x=W/2-w/2,y=14;
-  rr(x,y,w,46,23);g.fillStyle='rgba(8,8,14,0.82)';g.fill();g.strokeStyle='rgba(255,255,255,0.22)';g.lineWidth=1.5;g.stroke();
-  g.fillStyle=c;g.beginPath();g.moveTo(x+24,y+13);g.lineTo(x+24,y+33);g.lineTo(x+40,y+23);g.closePath();g.fill();
-  g.font=`16px ${TFONT}`;g.textAlign='left';g.textBaseline='middle';g.direction='ltr';g.fillStyle='#fff';g.fillText('REPLAY',x+50,y+24);
-  txt(`${rp.p.name}  ·  ${rp.L.name}`,W/2+30,y+24,21,'#fff',800);
-  g.font=`26px ${TFONT}`;g.textAlign='center';g.direction='ltr';g.fillStyle=c;g.fillText(rp.doc.r,x+w-30,y+24);
-  ezBadge(x+w-82,y+23,0.8,rp.m==='e'?'EASY':'NORMAL',c,rp.m==='e'?'#0b1426':'#fff');
-  g.direction='rtl';
-  row([[BTN[kind].back,'رجوع']],W/2,82,24,'rgba(255,255,255,0.6)',18);
+  const c=rp.m==='e'?'#7cc8ff':'#ff2436',K=BTN[kind];
+  if(!rp.hide){const w=600,x=W/2-w/2,y=14;
+    rr(x,y,w,46,23);g.fillStyle='rgba(8,8,14,0.82)';g.fill();g.strokeStyle='rgba(255,255,255,0.22)';g.lineWidth=1.5;g.stroke();
+    g.fillStyle=c;g.beginPath();g.moveTo(x+24,y+13);g.lineTo(x+24,y+33);g.lineTo(x+40,y+23);g.closePath();g.fill();
+    g.font=`16px ${TFONT}`;g.textAlign='left';g.textBaseline='middle';g.direction='ltr';g.fillStyle='#fff';g.fillText('REPLAY',x+50,y+24);
+    txt(`${rp.p.name}  ·  ${rp.L.name}`,W/2+30,y+24,21,'#fff',800);
+    g.font=`26px ${TFONT}`;g.textAlign='center';g.direction='ltr';g.fillStyle=c;g.fillText(rp.doc.r,x+w-30,y+24);
+    ezBadge(x+w-82,y+23,0.8,rp.m==='e'?'EASY':'NORMAL',c,rp.m==='e'?'#0b1426':'#fff');
+    g.direction='rtl';}
   if(state==='rpGap'){overlay(0.45);txt(rp.gapDead?'خسر! يرجع لآخر حفظ':'رجع لآخر حفظ',W/2,H/2,48,PINK);}
   if(state==='rpEnd'){overlay(0.65);txt('خلص الـ Replay',W/2,H/2-90,52,'#fff');
     g.font=`130px ${TFONT}`;g.textAlign='center';g.textBaseline='middle';g.direction='ltr';g.fillStyle=c;g.shadowColor=c;g.shadowBlur=26;g.fillText(rp.doc.r,W/2,H/2+30);g.shadowBlur=0;g.direction='rtl';
-    row([[BTN[kind].confirm,'رجوع']],W/2,H/2+150,30,'#fff',24);}
+    row([[K.confirm,'شغّله من البداية'],[K.back,'رجوع']],W/2,H/2+150,30,'#fff',24);}
+  // شريط التحكم تحت (مثل الفيديو): يطلع أول ما يبدأ، ووقت الإيقاف، ولما تضغط زر، ويختفي بعد ثواني عشان ما يغطي المرحلة
+  const a=rp.paused?1:Math.min(1,rp.barT/0.4);if(a<=0.01||state==='rpEnd')return;
+  g.globalAlpha=a;
+  const pw=1120,px=W/2-pw/2,py=H-150,ph=92;
+  rr(px,py,pw,ph,18);g.fillStyle='rgba(8,8,14,0.82)';g.fill();g.strokeStyle='rgba(255,255,255,0.18)';g.lineWidth=1.5;g.stroke();
+  const ry=py+28,pos=rpPos(),tot=Math.max(rp.tot,0.01);
+  // زر تشغيل/إيقاف
+  const bx=px+34;g.fillStyle='#fff';
+  if(rp.paused){g.beginPath();g.moveTo(bx-8,ry-11);g.lineTo(bx-8,ry+11);g.lineTo(bx+12,ry);g.closePath();g.fill();}
+  else{g.fillRect(bx-9,ry-10,7,20);g.fillRect(bx+3,ry-10,7,20);}
+  g.font=`17px ${TFONT}`;g.textBaseline='middle';g.direction='ltr';g.textAlign='left';g.fillStyle='#fff';
+  g.fillText(rpClock(pos)+' / '+rpClock(tot),px+62,ry+1);
+  const x0=px+215,x1=px+pw-200;
+  g.fillStyle='rgba(255,255,255,0.15)';rr(x0,ry-3,x1-x0,6,3);g.fill();
+  g.fillStyle=c;rr(x0,ry-3,Math.max(6,(x1-x0)*pos/tot),6,3);g.fill();
+  rp.doc.segs.forEach((s,i)=>{if(!i)return;const dead=((rp.doc.segs[i-1].b[(rp.doc.segs[i-1].n-1)*3+2]>>1)&7)===0,cx=x0+(x1-x0)*rp.off[i]/tot;g.fillStyle=dead?PINK:'rgba(255,255,255,0.75)';g.fillRect(cx-1.5,ry-9,3,18);});
+  g.fillStyle='#fff';circle(x0+(x1-x0)*pos/tot,ry,8);
+  const rs=rp.rate+'x';g.font=`17px ${TFONT}`;g.textAlign='right';g.direction='ltr';g.fillStyle=rp.rate===1?'rgba(255,255,255,0.8)':'#ffd25c';g.fillText(rs,px+pw-24,ry+1);
+  g.direction='rtl';txt(`المحاولة ${ar(rp.seg+1)} من ${ar(rp.doc.segs.length)}`,px+pw-78,ry+1,17,'rgba(255,255,255,0.7)',500,'right');
+  row([[K.confirm,rp.paused?'تشغيل':'إيقاف'],[K.move,'يمين ويسار: ٥ ثواني'],[K.small,rp.paused?'عُشر ثانية':'ثانية'],[K.move,'فوق وتحت: السرعة'],[K.restart,rp.hide?'إظهار الكلام':'إخفاء الكلام'],[K.back,'رجوع']],W/2,py+68,23,'rgba(255,255,255,0.75)',16);
+  g.globalAlpha=1;
 }
 function drawMain(now){
   const k=clamp((now-mainAt)/650,0,1),e=k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2,oa=clamp((now-mainAt-250)/450,0,1);
@@ -2788,9 +2846,11 @@ function step(now){
     if(inp.confirm){const L=ALL_LV()[prof.row],m=prof.col?'e':'n',r=prof.p[m][L.id];if(r&&hasRp(prof.p,L,m)){tick();openReplay(prof.p,L,m);}else{prof.msg=!r?'ما خلّص هذي المرحلة للحين':prof.busy?'لحظة، جاري التحميل…':'ما فيه Replay لهذي المرحلة';prof.msgT=2.2;}}
     else if(inp.back||inp.pz)state='board';}
   else if(state==='rpLoad'){if(inp.back||inp.pz)state='profile';else if(rp.doc&&rp.L.buf&&actx.state==='running')rpStart();else ensureAudio();}
-  else if(state==='replay'){if(inp.back||inp.pz)exitReplay();else updateReplay(dt);}
-  else if(state==='rpGap'){if(inp.back||inp.pz)exitReplay();else if(performance.now()-rp.gapAt>1300)rpSeg(rp.seg+1);}
-  else if(state==='rpEnd'){if(inp.back||inp.pz||(inp.confirm&&performance.now()-rp.endAt>500)||performance.now()-rp.endAt>5000)exitReplay();}
+  else if(['replay','rpGap','rpEnd'].includes(state)){
+    if(inp.back||inp.pz)exitReplay();
+    else{rpInput(inp,dt);
+      if(state==='replay')updateReplay(dt);
+      else if(state==='rpGap'){if(rp.paused)rp.gapAt+=dt*1000;else if(performance.now()-rp.gapAt>1300/Math.max(1,rp.rate))rpSeg(rp.seg+1);}}}
   else if(state==='starting'){
     if(actx.state==='running'&&cur.buf){if(startBeat===0){state='levelIntro';introAt=now;player=null;hazards=[];particles=[];}else beginRun(startBeat);}
     else if(now-startReqAt>500)audioHint=true;
@@ -2805,9 +2865,10 @@ function step(now){
   else if(state==='dead'){if(now-deadAt>700&&inp.confirm)requestStart(checkpoint);else if(inp.back)toMenu();}
   else if(state==='win'){if(now-winAt>800&&inp.confirm){stopMusic();requestStart(0);}else if(inp.back){stopMusic();player=null;hazards=[];state=fromList;}}
   if(['main','levels','howto','settings','friends','points','account','board','profile','rpLoad'].includes(state)){if(!menuSrc&&menuBuf&&actx.state==='running')playMenu(MENU_DROP);}else if(menuSrc&&state!=='splash')stopMenu();
-  for(const q of particles){q.x+=q.vx*dt;q.y+=q.vy*dt;const f=Math.pow(0.04,dt);q.vx*=f;q.vy*=f;q.life-=dt;}
+  const edt=['replay','rpGap','rpEnd'].includes(state)?(rp.paused?0:dt*rp.rate):dt;
+  for(const q of particles){q.x+=q.vx*edt;q.y+=q.vy*edt;const f=Math.pow(0.04,edt);q.vx*=f;q.vy*=f;q.life-=edt;}
   particles=particles.filter(q=>q.life>0);
-  gloom+=(gloomT-gloom)*Math.min(1,dt*3);shake=Math.max(0,shake-dt*50);flash=Math.max(0,flash-dt*2.2);cpMsg-=dt;toastT-=dt;shakeCard=Math.max(0,shakeCard-dt);
+  gloom+=(gloomT-gloom)*Math.min(1,edt*3);shake=Math.max(0,shake-edt*50);flash=Math.max(0,flash-edt*2.2);cpMsg-=edt;toastT-=dt;shakeCard=Math.max(0,shakeCard-dt);
   {const k=Math.min(1,dt*12);if(lvlSel<lvlFirst)lvlFirst=lvlSel;else if(lvlSel>lvlFirst+3)lvlFirst=lvlSel-3;if(friSel<friFirst)friFirst=friSel;else if(friSel>friFirst+3)friFirst=friSel-3;
   const lt=clamp(lvlFirst,0,Math.max(0,LEVELS.length-4)),ft=clamp(friFirst,0,Math.max(0,FRIENDS.length-4));lvlScr+=(lt-lvlScr)*k;friScr+=(ft-friScr)*k;if(Math.abs(lt-lvlScr)<0.001)lvlScr=lt;if(Math.abs(ft-friScr)<0.001)friScr=ft;}
   draw(now);
