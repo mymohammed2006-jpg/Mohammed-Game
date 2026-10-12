@@ -1,0 +1,60 @@
+# حدث للكل: يبني البرنامج على ويندوز وينشره، وكل اللي عندهم اللعبة يتحدثون لحالهم أول ما يفتحونها.
+# يتشغل بس لما محمد يضغط Run workflow بنفسه.
+name: CI test publish (draft only)
+on:
+  push:
+    branches: [ci-test-publish]
+permissions:
+  contents: write
+concurrency:
+  group: publish
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: تأكد إن هالنسخة ما انتشرت قبل
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          V=0.0.1-citest
+          echo "النسخة: $V"
+          if gh release view "v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::النسخة v$V منشورة من قبل. ما فيه شي جديد تنشره."
+            exit 1
+          fi
+      - run: npm ci
+      # النشر يصير على 3 خطوات عشان الملفات كلها تنرفع قبل ما اللاعبين يشوفون النسخة:
+      # 1) نسوي النسخة مخفية (draft)، 2) نرفع الملفات فيها، 3) نخليها ظاهرة للكل.
+      # (قبل كانت electron-builder تسوي النسخة مرتين بنفس الوقت ويطلع خطأ 422.)
+      - name: سو النسخة مخفية
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          V=0.0.1-citest
+          gh release create "v$V" --repo "$GITHUB_REPOSITORY" --draft --title "v$V" --target "$GITHUB_SHA" --notes "Mohammed Game $V"
+      - name: ابن البرنامج وارفع الملفات
+        run: npx electron-builder --win --x64 --publish always -c.extraMetadata.version=0.0.1-citest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EP_DRAFT: "true"
+      - name: انشر النسخة للكل
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          V=0.0.1-citest
+          FILES=$(gh release view "v$V" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')
+          echo "$FILES"
+          for f in Mohammed-Game-Setup.exe Mohammed-Game-Setup.exe.blockmap latest.yml; do
+            echo "$FILES" | grep -qx "$f" || { echo "::error::الملف $f ما انرفع، النسخة باقية مخفية."; exit 1; }
+          done
+          echo "ALL FILES OK - deleting test draft"
+          gh release delete "v$V" --repo "$GITHUB_REPOSITORY" --yes
