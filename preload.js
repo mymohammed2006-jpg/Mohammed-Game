@@ -2,6 +2,8 @@
 const { ipcRenderer } = require('electron');
 let full = false;
 ipcRenderer.on('fs-state', (e, on) => {
+  // مؤشر الماوس يبان لما تكون اللعبة نافذة
+  const c = document.getElementById('c'); if (c) c.style.cursor = on ? 'none' : 'default';
   if (on === full) return;
   full = on;
   document.dispatchEvent(new Event('fullscreenchange'));
@@ -15,5 +17,6 @@ Document.prototype.exitFullscreen = function () { ipcRenderer.send('set-fullscre
 // إعدادات خاصة ببرنامج الكمبيوتر (اللعبة تعرض خيار V-Sync بس إذا لقت هذا)
 window.mgApp = {
   vsync: ipcRenderer.sendSync('get-vsync'),
+  openSettings: ipcRenderer.sendSync('get-open-settings'),
   setVsync: on => ipcRenderer.send('set-vsync', !!on)
 };

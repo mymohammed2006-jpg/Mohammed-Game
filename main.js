@@ -1,6 +1,6 @@
 // Mohammed Game: يفتح اللعبة (game/index.html) في نافذة خاصة بدون متصفح.
 // من نسخة 8: أول ما يفتح يدور على تحديث في GitHub، وإذا فيه يحمله ويعيد التشغيل لحاله.
-const { app, BrowserWindow, ipcMain, protocol, net, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net, Menu, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -11,6 +11,8 @@ const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
 let settings = { vsync: true, fullscreen: true };
 try { settings = Object.assign(settings, JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'))); } catch (e) {}
 function saveSettings() { try { fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings)); } catch (e) {} }
+// لما البرنامج يعيد فتح نفسه بعد تغيير V-Sync: يدخل الإعدادات على طول بدون شاشة التحديث
+const OPEN_SETTINGS = process.argv.includes('--open-settings');
 if (!settings.vsync) {
   app.commandLine.appendSwitch('disable-gpu-vsync');
   app.commandLine.appendSwitch('disable-frame-rate-limit');
@@ -75,12 +77,20 @@ function startUpdateCheck() {
   updater.checkForUpdates().catch(() => { clearTimeout(timer); loadGame(); });
 }
 
+// حجم النافذة العادي (لما ما تكون ملء الشاشة): 1280×720 أو أصغر إذا الشاشة صغيرة، في النص
+function normalBounds() {
+  const wa = screen.getDisplayMatching(win.getBounds()).workArea;
+  const w = Math.min(1280, Math.round(wa.width * 0.9)), h = Math.min(720, Math.round(wa.height * 0.9));
+  return { x: wa.x + Math.round((wa.width - w) / 2), y: wa.y + Math.round((wa.height - h) / 2), width: w, height: h };
+}
+
 function createWindow() {
+  // النافذة تنفتح عادية وبعدين تصير ملء الشاشة، عشان ويندوز يعرف حجمها العادي لما تطلع من ملء الشاشة
   win = new BrowserWindow({
     width: 1280,
     height: 720,
-    useContentSize: true,
-    fullscreen: settings.fullscreen !== false,
+    center: true,
+    show: false,
     backgroundColor: '#000000',
     title: 'Mohammed Game',
     autoHideMenuBar: true,
@@ -93,6 +103,16 @@ function createWindow() {
     }
   });
   win.on('page-title-updated', e => e.preventDefault());
+  win.once('ready-to-show', () => { if (settings.fullscreen !== false) win.setFullScreen(true); win.show(); });
+  win.on('leave-full-screen', () => {
+    // إذا ويندوز خلى النافذة بحجم الشاشة، نرجعها لحجمها العادي
+    setTimeout(() => {
+      if (!win || win.isDestroyed() || win.isFullScreen()) return;
+      const b = win.getBounds(), wa = screen.getDisplayMatching(b).workArea;
+      if (win.isMaximized()) win.unmaximize();
+      if (b.width >= wa.width - 2 || b.height >= wa.height - 2) win.setBounds(normalBounds());
+    }, 50);
+  });
   const sendFS = () => win.webContents.send('fs-state', win.isFullScreen());
   // نتذكر اختيار ملء الشاشة (من الإعدادات أو F11) للمرة الجاية
   const rememberFS = () => { settings.fullscreen = win.isFullScreen(); saveSettings(); };
@@ -103,13 +123,25 @@ function createWindow() {
   win.webContents.on('did-finish-load', sendFS);
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', e => e.preventDefault());
+  if (OPEN_SETTINGS) return loadGame();
   win.loadFile(path.join(__dirname, 'updater.html'), { query: { v: app.getVersion() } });
   win.webContents.once('did-finish-load', startUpdateCheck);
 }
 
 ipcMain.on('get-vsync', e => { e.returnValue = !!settings.vsync; });
-ipcMain.on('set-vsync', (e, on) => { settings.vsync = !!on; saveSettings(); });
-ipcMain.on('set-fullscreen', (e, on) => { if (win) win.setFullScreen(!!on); });
+ipcMain.on('get-open-settings', e => { e.returnValue = OPEN_SETTINGS; });
+// V-Sync ما يتغير والبرنامج شغال، فنحفظه ونعيد فتح البرنامج على الإعدادات
+ipcMain.on('set-vsync', (e, on) => {
+  settings.vsync = !!on; saveSettings();
+  const args = process.argv.slice(1).filter(a => a !== '--open-settings');
+  app.relaunch({ args: [...args, '--open-settings'] });
+  app.exit(0);
+});
+ipcMain.on('set-fullscreen', (e, on) => {
+  if (!win) return;
+  if (win.isFullScreen() === !!on) win.webContents.send('fs-state', win.isFullScreen()); // نرجّع الحالة الصحيحة للعبة
+  else win.setFullScreen(!!on);
+});
 
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 
