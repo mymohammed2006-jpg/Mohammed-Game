@@ -1,0 +1,34 @@
+# حدث للكل: يبني البرنامج على ويندوز وينشره، وكل اللي عندهم اللعبة يتحدثون لحالهم أول ما يفتحونها.
+# يتشغل بس لما محمد يضغط Run workflow بنفسه.
+name: حدث للكل
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: publish
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: تأكد إن هالنسخة ما انتشرت قبل
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          V=$(node -p "require('./package.json').version")
+          echo "النسخة: $V"
+          if gh release view "v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::النسخة v$V منشورة من قبل. ما فيه شي جديد تنشره."
+            exit 1
+          fi
+      - run: npm ci
+      - run: npx electron-builder --win --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
