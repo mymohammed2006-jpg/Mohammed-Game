@@ -2260,6 +2260,43 @@ const BTN={
   kb:{move:['الأسهم'],confirm:['Enter'],dash:['مسافة'],pause:['Esc'],back:['Backspace'],restart:['R'],sq:['T'],small:['Q  E']}
 };
 
+
+/* ================= وش الجديد =================
+   تطلع مرة وحدة لكل تحديث، بعد المقدمة وقبل القائمة. كل تحديث جديد: غيّر v وحط الأشياء الجديدة في items
+   (العنوان، زر يطلع جنب العنوان أو null، الشرح) */
+const NEWS={v:'23',items:[
+  ['مرحلة جديدة',null,['A3D أضاف مرحلة في مراحل الشباب: طنش (هبة مسعود).','البروفايل والترتيب صار فيهم طنش.']],
+  ['شوف البوت','restart',['في كرت أي مرحلة: البوت يلعبها ويجيب S.','بوت للنورمال وبوت للإيزي.','تقدر توقفه وتقدمه وترجعه.']],
+  ['التدريب','sq',['تبدأ من أي ثانية في المرحلة.','السرعة: ١٠٠٪ أو ٧٥٪ أو ٥٠٪.','الأرواح: ما تخلص أو عادية.','شبح البوت يوريك طريقه.','ما ينحسب له تقييم ولا نقاط.']],
+  ['Replay مثل الفيديو',null,['إيقاف وتشغيل.','تقديم وترجيع ٥ ثواني، أو ثانية وحدة.','السرعة من 0.25x لين 2x.','تقدر تخفي الكلام اللي فوق.','لما يخلص: تعيده من البداية أو ترجع.']],
+  ['الحركة والقوائم',null,['المربع يتمطط مع اتجاه حركته.','الاندفاع: تمطط ووميض أبيض سريع.','القوائم تطلع وتختفي بتلاشي.','البطاقة المختارة ترتفع بنعومة.','أغنية المرحلة تشتغل وأنت على كرتها.']],
+  ['الفوز والخسارة',null,['حرف التقييم يطيح مع الضربة.','النقاط تعدّ من صفر.','حرف النورمال أحمر وحرف الإيزي أزرق.','S النورمال يلمع.','شاشة الخسارة توريك كم بالمية وصلت.']]]};
+let newsAt=0;
+function newsDue(){try{return localStorage.getItem('mg_news')!==NEWS.v;}catch(e){return false;}}
+function goMain(now){if(newsDue()){state='news';newsAt=now;}else{state='main';mainAt=now;menuSel=0;}}
+function newsDone(now){try{localStorage.setItem('mg_news',NEWS.v);}catch(e){}tick();state='main';mainAt=now;menuSel=0;}
+function wrapAr(t,maxW,size,weight=500){g.font=`${weight} ${size}px ${FONT}`;const out=[];let ln='';
+  for(const w of t.split(' ')){const c=ln?ln+' '+w:w;if(g.measureText(c).width>maxW&&ln){out.push(ln);ln=w;}else ln=c;}if(ln)out.push(ln);return out;}
+function drawNews(now){
+  bgShapes(now);const el=(now-newsAt)/1000,K=BTN[kind];
+  const ha=clamp(el/0.35,0,1);g.globalAlpha=ha;
+  txt('وش الجديد؟',W/2,62-10*(1-ee2(ha)),46,'#fff');
+  const tag='التحديث '+ar(+NEWS.v);g.font=`500 19px ${FONT}`;const tw=g.measureText(tag).width+30;
+  rr(W/2-tw/2,100,tw,30,15);g.fillStyle=`rgba(${RGB},0.16)`;g.fill();g.strokeStyle=`rgba(${RGB},0.6)`;g.lineWidth=1.5;g.stroke();
+  txt(tag,W/2,116,19,'rgba(255,255,255,0.85)',500);g.globalAlpha=1;
+  const cw=380,ch=236,gx=16,gy=16,cols=3,x0=W/2+(cols*cw+(cols-1)*gx)/2,y0=162;
+  NEWS.items.forEach(([hd,ic,pts],i)=>{const k=clamp((el-0.25-i*0.09)/0.4,0,1);if(k<=0)return;const e=ee2(k);
+    const c=i%cols,r=Math.floor(i/cols),x=x0-c*(cw+gx)-cw,y=y0+r*(ch+gy)+24*(1-e);
+    g.globalAlpha=e;rr(x,y,cw,ch,18);g.fillStyle='rgba(16,12,15,0.94)';g.fill();g.strokeStyle=`rgba(${RGB},${0.35+0.15*pulse})`;g.lineWidth=1.5;g.stroke();
+    g.save();g.translate(x+cw-28,y+32);g.rotate(now/700+i);g.fillStyle=RED;g.shadowColor=RED;g.shadowBlur=8;g.fillRect(-6,-6,12,12);g.restore();
+    txt(hd,x+cw-46,y+33,25,'#fff',800,'right');
+    if(ic){g.font=`800 25px ${FONT}`;const hw=g.measureText(hd).width,n=K[ic][0],s=28,w=iconW(n,s);icon(n,x+cw-46-hw-12-w/2,y+33,s);}
+    let ly=y+72;for(const t of pts){const ls=wrapAr(t,cw-60,18);g.fillStyle=`rgba(${RGB},0.9)`;g.beginPath();g.arc(x+cw-30,ly,3.2,0,TAU);g.fill();
+      for(const l of ls){txt(l,x+cw-42,ly,18,'rgba(233,230,245,0.85)',500,'right');ly+=29;}}
+    g.globalAlpha=1;});
+  g.globalAlpha=clamp((el-0.9)/0.4,0,1);row([[K.confirm,'يالله نلعب']],W/2,H-36,30,'#fff',24);g.globalAlpha=1;
+}
+
 /* ================= سير اللعبة ================= */
 function requestStart(beat){
   if(beat===0){hitsTotal=0;deaths=0;rec={segs:[],cur:null};}
@@ -3003,9 +3040,9 @@ function drawLevelInfo(now){
   else{g.font=`26px ${TFONT}`;g.fillStyle=PINK;g.textAlign='left';g.textBaseline='middle';g.direction='ltr';g.fillText(L.song,x0+26,top+h-22);}
   g.globalAlpha=1;
 }
-const TR_ST=['main','levels','howto','settings','friends','points','account','board','profile','rpLoad'],TR_DEEP={main:0,levels:1,friends:1,howto:1,settings:1,points:1,account:1,board:1,profile:2,rpLoad:3};
+const TR_ST=['main','levels','howto','settings','friends','points','account','board','profile','rpLoad','news'],TR_DEEP={news:1,main:0,levels:1,friends:1,howto:1,settings:1,points:1,account:1,board:1,profile:2,rpLoad:3};
 function trWrap(now){
-  const D={main:drawMain,levels:drawLevels,howto:drawHowto,settings:drawSettings,friends:drawFriends,points:drawPoints,account:drawAccount,board:drawBoard,profile:drawProfile,rpLoad:drawRpLoad};
+  const D={news:drawNews,main:drawMain,levels:drawLevels,howto:drawHowto,settings:drawSettings,friends:drawFriends,points:drawPoints,account:drawAccount,board:drawBoard,profile:drawProfile,rpLoad:drawRpLoad};
   D[state](now);
   return true;
 }
@@ -3210,7 +3247,8 @@ function step(now){
   if(acc&&acc.dirty&&!syncing&&now-lastSyncTry>30000&&!['play','starting','levelIntro'].includes(state))sync();
   if(state==='gate'){if((f11Hit||fsOK())&&menuBuf){ensureAudio();gatePressAt=now;gatePassed=true;state='gateWait';}f11Hit=false;}
   else if(state==='gateWait'){if(actx.state==='running'){playMenu(0);state='splash';}else if(now-gatePressAt>600){gateHint=true;if(inp.any)ensureAudio();}}
-  else if(state==='splash'){if(menuPos()>=MENU_DROP){state='main';mainAt=now;menuSel=0;}else if(inp.any&&menuPos()>1.2){stopMenu();playMenu(MENU_DROP);state='main';mainAt=now;menuSel=0;}}
+  else if(state==='splash'){if(menuPos()>=MENU_DROP){goMain(now);}else if(inp.any&&menuPos()>1.2){stopMenu();playMenu(MENU_DROP);goMain(now);}}
+  else if(state==='news'){if(now-newsAt>700&&(inp.confirm||inp.back||inp.pz))newsDone(now);}
   else if(state==='main'){
     const MO=[5,...MAIN.map(m=>m[1]),4],mn=MO.length;
     if(menuSel===ACC){if(inp.down)menuSel=0;else if(inp.up)menuSel=4;else if(inp.right)menuSel=5;}
@@ -3293,7 +3331,7 @@ function step(now){
   else if(state==='win'){if(now-winAt>800&&inp.confirm){stopMusic();requestStart(0);}else if(inp.back){stopMusic();player=null;hazards=[];state=fromList;}}
   pvUpdate(now);
   if(pv.src||pv.had){if(menuSrc)stopMenu();}
-  else if(['main','levels','howto','settings','friends','points','account','board','profile','rpLoad','practice'].includes(state)){if(!menuSrc&&menuBuf&&actx.state==='running')playMenu(MENU_DROP);}else if(menuSrc&&state!=='splash')stopMenu();
+  else if(['main','levels','howto','settings','friends','points','account','board','profile','rpLoad','practice','news'].includes(state)){if(!menuSrc&&menuBuf&&actx.state==='running')playMenu(MENU_DROP);}else if(menuSrc&&state!=='splash')stopMenu();
   const edt=['replay','rpGap','rpEnd'].includes(state)?(rp.paused?0:dt*rp.rate):dt;
   for(const q of particles){q.x+=q.vx*edt;q.y+=q.vy*edt;const f=Math.pow(0.04,edt);q.vx*=f;q.vy*=f;q.life-=edt;}
   particles=particles.filter(q=>q.life>0);
