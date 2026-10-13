@@ -2027,7 +2027,7 @@ function Tanoura(x,y,R,arms,w,ts,te,ang,emit){const grow=t=>clamp((t-ts)/(1.5*SP
     for(let i=0;i<arms;i++){const aa=a+i*TAU/arms,c=Math.cos(aa),s=Math.sin(aa);
       if(obbHit(p.x,p.y,p.r,x+c*R*0.25,y+s*R*0.25,R*0.25,w*0.26,aa)||obbHit(p.x,p.y,p.r,x+c*R*0.75,y+s*R*0.75,R*0.25,w*0.42,aa))return true;}return false;}};}
 // "ريّح بالك": دائرة كبيرة تقفل عليك وفيها فتحة، اطلع منها من الفتحة
-function Squeeze(x,y,r0,r1,tw,ta,te,th,gap,gs){const rad=t=>{const k=clamp((t-ta)/(te-ta),0,1);return r0+(r1-r0)*(k*(2-k));};return{
+function RingSqueeze(x,y,r0,r1,tw,ta,te,th,gap,gs){const rad=t=>{const k=clamp((t-ta)/(te-ta),0,1);return r0+(r1-r0)*(k*(2-k));};return{
   update(t){if(t>te+0.25)this.dead=true;},
   draw(t){g.strokeStyle=PINK;
     if(t<ta){const k=clamp((t-tw)/(ta-tw),0,1);g.globalAlpha=0.25+0.45*k;g.lineWidth=3;g.beginPath();g.arc(x,y,r0,gap+gs/2,gap-gs/2+TAU);g.stroke();
@@ -2110,7 +2110,7 @@ function buildFriend6(){
   const heart=(hit,x,y,T,n=10,s=46,a0=0)=>ev(hit-T.wn-0.3,()=>hazards.push(BurnHeart(x,y,s,B(hit-T.wn-0.3),B(hit),n,T.sp*0.75,a0)));
   const stomp=(hit,x,T,top=false,h=H*0.55,w=110,dur=0.5,wave=true)=>ev(hit-T.wn,()=>hazards.push(Stomp(x,w,h,top,B(hit-T.wn),B(hit),B(hit+dur),wave?T.sp*1.05:0)));
   const wall=(hit,dir,T,gh=200,sp)=>{const vert=dir==='L'||dir==='R',gc=vert?90+R()*(H-180):150+R()*(W-300);ev(hit-1,()=>hazards.push(TalkWall(dir,gc,gh,sp||(vert?400:290),B(hit-1),B(hit))));};
-  const squeeze=(hit,x,y,dur,T,gs=0.75)=>{const gap=R()*TAU;ev(hit-T.wn-0.5,()=>hazards.push(Squeeze(x,y,950,0,B(hit-T.wn-0.5),B(hit),B(hit+dur),18,gap,gs)));};
+  const squeeze=(hit,x,y,dur,T,gs=0.75)=>{const gap=R()*TAU;ev(hit-T.wn-0.5,()=>hazards.push(RingSqueeze(x,y,950,0,B(hit-T.wn-0.5),B(hit),B(hit+dur),18,gap,gs)));};
   const dervish=(b0,b1,x,y,Rr,arms,om,T,emit)=>ev(b0-1.5,()=>{const t0=B(b0-1.5),ph=R()*TAU;hazards.push(Tanoura(x,y,Rr,arms,30,t0,B(b1),t=>ph+(t-t0)*om,emit?{every:emit,sp:T.sp*0.7,lead:0.12*Math.sign(om)}:null));});
   const fanAt=(hit,x,y,n,a0,spr,T,k=0.8,o={r:10})=>ev(hit,()=>{const t0=B(hit);for(let i=0;i<n;i++){const a=a0+(i-(n-1)/2)*spr;hazards.push(Bubble(x,y,Math.cos(a)*T.sp*k,Math.sin(a)*T.sp*k,t0,o));}});
 
@@ -2263,17 +2263,25 @@ const BTN={
 
 /* ================= وش الجديد =================
    تطلع مرة وحدة لكل تحديث، بعد المقدمة وقبل القائمة. كل تحديث جديد: غيّر v وحط الأشياء الجديدة في items
-   (العنوان، زر يطلع جنب العنوان أو null، الشرح) */
-const NEWS={v:'23',items:[
-  ['مرحلة جديدة',null,['A3D أضاف مرحلة في مراحل الشباب: طنش (هبة مسعود).','البروفايل والترتيب صار فيهم طنش.']],
-  ['شوف البوت','restart',['في كرت أي مرحلة: البوت يلعبها ويجيب S.','بوت للنورمال وبوت للإيزي.','تقدر توقفه وتقدمه وترجعه.']],
-  ['التدريب','sq',['تبدأ من أي ثانية في المرحلة.','السرعة: ١٠٠٪ أو ٧٥٪ أو ٥٠٪.','الأرواح: ما تخلص أو عادية.','شبح البوت يوريك طريقه.','ما ينحسب له تقييم ولا نقاط.']],
-  ['Replay مثل الفيديو',null,['إيقاف وتشغيل.','تقديم وترجيع ٥ ثواني، أو ثانية وحدة.','السرعة من 0.25x لين 2x.','تقدر تخفي الكلام اللي فوق.','لما يخلص: تعيده من البداية أو ترجع.']],
-  ['الحركة والقوائم',null,['المربع يتمطط مع اتجاه حركته.','الاندفاع: تمطط ووميض أبيض سريع.','القوائم تطلع وتختفي بتلاشي.','البطاقة المختارة ترتفع بنعومة.','أغنية المرحلة تشتغل وأنت على كرتها.']],
-  ['الفوز والخسارة',null,['حرف التقييم يطيح مع الضربة.','النقاط تعدّ من صفر.','حرف النورمال أحمر وحرف الإيزي أزرق.','S النورمال يلمع.','شاشة الخسارة توريك كم بالمية وصلت.']]]};
-let newsAt=0;
-function newsDue(){try{return localStorage.getItem('mg_news')!==NEWS.v;}catch(e){return false;}}
-function goMain(now){if(newsDue()){state='news';newsAt=now;}else{state='main';mainAt=now;menuSel=0;}}
+   (العنوان، زر يطلع جنب العنوان أو null، النقاط، [من، لين]): المربع يطلع للاعب اللي آخر تحديث شافه من <= رقمه < لين
+   (اللي ما شاف ولا تحديث = 0). كذا اللي جاي من نسخة قديمة يشوف كل اللي فاته، واللي شاف التحديث اللي قبل يشوف الجديد بس */
+const NEWS={v:'24',items:[
+  ['مرحلة جديدة',null,['A3D أضاف مرحلة في مراحل الشباب: طنش (هبة مسعود).','موثّقة من Mohammed.','البروفايل والترتيب صار فيهم طنش.'],[0,23]],
+  ['شوف البوت','restart',['في كرت أي مرحلة: البوت يلعبها ويجيب S.','بوت للنورمال وبوت للإيزي.','تقدر توقفه وتقدمه وترجعه.'],[0,23]],
+  ['التدريب','sq',['تبدأ من أي ثانية في المرحلة.','السرعة: ١٠٠٪ أو ٧٥٪ أو ٥٠٪.','الأرواح: ما تخلص أو عادية.','شبح البوت يوريك طريقه.','ما ينحسب له تقييم ولا نقاط.'],[0,23]],
+  ['Replay مثل الفيديو',null,['إيقاف وتشغيل.','تقديم وترجيع ٥ ثواني، أو ثانية وحدة.','السرعة من 0.25x لين 2x.','تقدر تخفي الكلام اللي فوق.','لما يخلص: تعيده من البداية أو ترجع.'],[0,23]],
+  ['الحركة والقوائم',null,['المربع يتمطط مع اتجاه حركته.','الاندفاع: تمطط ووميض أبيض سريع.','القوائم تطلع وتختفي بتلاشي.','البطاقة المختارة ترتفع بنعومة.','أغنية المرحلة تشتغل وأنت على كرتها.'],[0,23]],
+  ['الفوز والخسارة',null,['حرف التقييم يطيح مع الضربة.','النقاط تعدّ من صفر.','حرف النورمال أحمر وحرف الإيزي أزرق.','S النورمال يلمع.','شاشة الخسارة توريك كم بالمية وصلت.'],[0,23]],
+  ['طنش',null,['صارت موثّقة من Mohammed.'],[23,24]],
+  ['إصلاح',null,['رجع الصندوق اللي يحبسك في MEGALOVANIA ووعد مني.','حركة المربع الجديدة صارت تطلع في Replay والبوت.'],[23,24]]]};
+let newsAt=0,newsShow=[],newsPg=0,newsPgAt=-1e9,newsDir=1;const NEWS_PER=6;
+const newsPages=()=>Math.max(1,Math.ceil(newsShow.length/NEWS_PER));
+function newsSeen(){try{return parseFloat(localStorage.getItem('mg_news'))||0;}catch(e){return 1e9;}}
+function newsList(){const sn=newsSeen();return NEWS.items.filter(it=>sn>=it[3][0]&&sn<it[3][1]);}
+function newsDue(){return newsSeen()<+NEWS.v&&newsList().length>0;}
+function newsNew(){try{if(localStorage.getItem('mg_news')!==null||localStorage.getItem('mg_acc'))return false;for(let i=0;i<localStorage.length;i++)if(/^mg_best/.test(localStorage.key(i)||''))return false;return true;}catch(e){return false;}}
+function goMain(now){if(newsDue()&&newsNew())try{localStorage.setItem('mg_news',NEWS.v);}catch(e){}
+  if(newsDue()){newsShow=newsList();newsPg=0;newsPgAt=-1e9;state='news';newsAt=now;}else{state='main';mainAt=now;menuSel=0;}}
 function newsDone(now){try{localStorage.setItem('mg_news',NEWS.v);}catch(e){}tick();state='main';mainAt=now;menuSel=0;}
 function wrapAr(t,maxW,size,weight=500){g.font=`${weight} ${size}px ${FONT}`;const out=[];let ln='';
   for(const w of t.split(' ')){const c=ln?ln+' '+w:w;if(g.measureText(c).width>maxW&&ln){out.push(ln);ln=w;}else ln=c;}if(ln)out.push(ln);return out;}
@@ -2284,9 +2292,10 @@ function drawNews(now){
   const tag='التحديث '+ar(+NEWS.v);g.font=`500 19px ${FONT}`;const tw=g.measureText(tag).width+30;
   rr(W/2-tw/2,100,tw,30,15);g.fillStyle=`rgba(${RGB},0.16)`;g.fill();g.strokeStyle=`rgba(${RGB},0.6)`;g.lineWidth=1.5;g.stroke();
   txt(tag,W/2,116,19,'rgba(255,255,255,0.85)',500);g.globalAlpha=1;
-  const cw=380,ch=236,gx=16,gy=16,cols=3,x0=W/2+(cols*cw+(cols-1)*gx)/2,y0=162;
-  NEWS.items.forEach(([hd,ic,pts],i)=>{const k=clamp((el-0.25-i*0.09)/0.4,0,1);if(k<=0)return;const e=ee2(k);
-    const c=i%cols,r=Math.floor(i/cols),x=x0-c*(cw+gx)-cw,y=y0+r*(ch+gy)+24*(1-e);
+  const np=newsPages(),L=newsShow.slice(newsPg*NEWS_PER,newsPg*NEWS_PER+NEWS_PER),pe=(now-newsPgAt)/1000,n=L.length,cw=380,gx=16,gy=16,cols=Math.min(3,n),rows=Math.ceil(n/cols),x0=W/2+(cols*cw+(cols-1)*gx)/2;
+  const need=Math.max(...L.map(it=>it[2].reduce((a,t)=>a+wrapAr(t,cw-60,18).length,0))),ch=Math.max(130,Math.min(236,72+need*29+6)),y0=162+(2*236+gy-(rows*ch+(rows-1)*gy))/2;
+  L.forEach(([hd,ic,pts],i)=>{const k=Math.min(clamp((el-0.25-i*0.09)/0.4,0,1),clamp((pe-i*0.04)/0.3,0,1)),pk=pe<1;if(k<=0)return;const e=ee2(k);
+    const c=i%cols,r=Math.floor(i/cols),x=x0-c*(cw+gx)-cw-(pk?60*newsDir*(1-e):0),y=y0+r*(ch+gy)+(pk?0:24*(1-e));
     g.globalAlpha=e;rr(x,y,cw,ch,18);g.fillStyle='rgba(16,12,15,0.94)';g.fill();g.strokeStyle=`rgba(${RGB},${0.35+0.15*pulse})`;g.lineWidth=1.5;g.stroke();
     g.save();g.translate(x+cw-28,y+32);g.rotate(now/700+i);g.fillStyle=RED;g.shadowColor=RED;g.shadowBlur=8;g.fillRect(-6,-6,12,12);g.restore();
     txt(hd,x+cw-46,y+33,25,'#fff',800,'right');
@@ -2294,7 +2303,13 @@ function drawNews(now){
     let ly=y+72;for(const t of pts){const ls=wrapAr(t,cw-60,18);g.fillStyle=`rgba(${RGB},0.9)`;g.beginPath();g.arc(x+cw-30,ly,3.2,0,TAU);g.fill();
       for(const l of ls){txt(l,x+cw-42,ly,18,'rgba(233,230,245,0.85)',500,'right');ly+=29;}}
     g.globalAlpha=1;});
-  g.globalAlpha=clamp((el-0.9)/0.4,0,1);row([[K.confirm,'يالله نلعب']],W/2,H-36,30,'#fff',24);g.globalAlpha=1;
+  if(np>1){const cy=y0+(rows*ch+(rows-1)*gy)/2;g.globalAlpha=clamp((el-0.6)/0.4,0,1);g.fillStyle='rgba(255,255,255,0.5)';
+    if(newsPg>0){g.beginPath();g.moveTo(W-30,cy);g.lineTo(W-46,cy-14);g.lineTo(W-46,cy+14);g.closePath();g.fill();}
+    if(newsPg<np-1){g.beginPath();g.moveTo(30,cy);g.lineTo(46,cy-14);g.lineTo(46,cy+14);g.closePath();g.fill();}
+    for(let i=0;i<np;i++){const dx=W/2+(np-1)*11-i*22,dy=H-57;g.beginPath();g.arc(dx,dy,5,0,TAU);
+      if(i===newsPg){g.fillStyle=RED;g.shadowColor=RED;g.shadowBlur=8;g.fill();g.shadowBlur=0;}else{g.strokeStyle='rgba(255,255,255,0.45)';g.lineWidth=1.5;g.stroke();}}
+    g.globalAlpha=1;}
+  g.globalAlpha=clamp((el-0.9)/0.4,0,1);row(newsPg<np-1?[[K.confirm,'التالي'],[K.move,'قلّب']]:np>1?[[K.confirm,'يالله نلعب'],[K.move,'قلّب']]:[[K.confirm,'يالله نلعب']],W/2,np>1?H-26:H-36,30,'#fff',24);g.globalAlpha=1;
 }
 
 /* ================= سير اللعبة ================= */
@@ -2461,7 +2476,7 @@ const FRIENDS=[
   {name:'انتظرتك سنين وأيام طوال',by:'Nice',ver:'Nice',ok:true,beats:BF3,end:232,cps:[0,80,160],energy:EF3,ezg:1,ezc:1,ez:0.9,build:()=>buildFriend3(),best:null},
   {name:'MEGALOVANIA',by:'Nightmare',ver:'Mohammed',ok:true,bpm:120,off:0.075,end:310,cps:[0,96,192],energy:EF4,ezg:1,ezc:1,ez:0.72,ezgw:1,build:()=>buildFriend4(),best:null},
   {name:'Fairytale',by:'Twesii',ver:'Twesii',ok:true,bpm:108,off:0.445,end:268.9,cps:[0,132,200],energy:EF5,ezg:1,ezc:1,ez:0.7,build:()=>buildFriend5(),best:null},
-  {name:'طنش',by:'A3D',ver:'',ok:true,bpm:102,off:0.137,end:197,cps:[0,76,140],energy:EF6,ezg:1,ezc:1.05,ez:0.55,build:()=>buildFriend6(),best:null}
+  {name:'طنش',by:'A3D',ver:'Mohammed',ok:true,bpm:102,off:0.137,end:197,cps:[0,76,140],energy:EF6,ezg:1,ezc:1.05,ez:0.55,build:()=>buildFriend6(),best:null}
 ];
 const RANKS=['S','A','B','C'];
 // النقاط: من أفضل تقييم في كل مرحلة. العادي S100 A70 B40 C20، والـ Easy نصها. العادي والـ Easy كل واحد لحاله، والمجموع حاصل جمعهم
@@ -2845,8 +2860,12 @@ function rpApply(t,dt,fx){
   songT=t;const s=rp.doc.segs[rp.seg],hz=rp.doc.hz,p=player,b=s.b;
   const fi=clamp((t-s.t0)*hz,0,Math.max(0,s.n-1.0001)),i=Math.floor(fi),k=fi-i,o=i*3,o2=Math.min(i+1,s.n-1)*3,fl=b[o+2];
   const nx=(b[o]+(b[o2]-b[o])*k)/50,ny=(b[o+1]+(b[o2+1]-b[o+1])*k)/50,dx=nx-p.x,dy=ny-p.y,d=Math.hypot(dx,dy);
-  p.dash=(fl&1)?0.1:0;if(d>0.5){p.ddx=dx/d;p.ddy=dy/d;}
-  p.ang+=(clamp(dx/Math.max(dt,1e-4),-950,950)*0.004)*dt*6;p.x=nx;p.y=ny;
+  const wd=p.dash>0;p.dash=(fl&1)?0.1:0;if(d>0.5){p.ddx=dx/d;p.ddy=dy/d;}
+  if(p.dash>0&&!wd){p.dt0=t;const da=Math.atan2(p.ddy,p.ddx),q=Math.PI/2;p.ang=da+Math.round((p.ang-da)/q)*q;p.sa=da;}
+  {const sp=Math.min(950,d/Math.max(dt,1e-4)),tg=p.dash>0?1:Math.min(1,sp/370)*0.3,q=Math.PI/2;
+   if(sp>1&&d>0.05){const ma=Math.atan2(dy,dx);p.sa=ma;if(p.dash<=0){let df=ma-p.ang;df-=Math.round(df/q)*q;p.ang+=df*Math.min(1,dt*16);}}
+   p.sk=(p.sk||0)+(tg-(p.sk||0))*Math.min(1,dt*(tg>(p.sk||0)?30:12));}
+  p.x=nx;p.y=ny;
   const hp=(fl>>1)&7,prevHp=p.hp;if(hp<p.hp&&fx){hitsTotal++;p.hurt=2.0;shake=16;flash=0.3;burst(p.x,p.y,CYAN,22,380);sfx(tt=>{sTone(tt,110,0.3,'square',0.18);sNoise(tt,0.25,'lowpass',900,0.3);});}
   p.hp=hp;p.hurt-=dt;p.trail.push({x:p.x,y:p.y,d:p.dash>0});if(p.trail.length>10)p.trail.shift();
   fireEvents(t);stepHazards(t,dt);if(hp<prevHp){for(const h of hazards){if(!h.dead&&h.hit(p,t))break;}}hazards=hazards.filter(h=>!h.dead);
@@ -3248,7 +3267,9 @@ function step(now){
   if(state==='gate'){if((f11Hit||fsOK())&&menuBuf){ensureAudio();gatePressAt=now;gatePassed=true;state='gateWait';}f11Hit=false;}
   else if(state==='gateWait'){if(actx.state==='running'){playMenu(0);state='splash';}else if(now-gatePressAt>600){gateHint=true;if(inp.any)ensureAudio();}}
   else if(state==='splash'){if(menuPos()>=MENU_DROP){goMain(now);}else if(inp.any&&menuPos()>1.2){stopMenu();playMenu(MENU_DROP);goMain(now);}}
-  else if(state==='news'){if(now-newsAt>700&&(inp.confirm||inp.back||inp.pz))newsDone(now);}
+  else if(state==='news'){const np=newsPages(),pg=d=>{newsPg+=d;newsPgAt=now;newsDir=d;tick();};
+    if(inp.left&&newsPg<np-1)pg(1);else if(inp.right&&newsPg>0)pg(-1);
+    else if(now-newsAt>700&&inp.confirm&&newsPg<np-1)pg(1);else if(now-newsAt>700&&(inp.confirm||inp.back||inp.pz))newsDone(now);}
   else if(state==='main'){
     const MO=[5,...MAIN.map(m=>m[1]),4],mn=MO.length;
     if(menuSel===ACC){if(inp.down)menuSel=0;else if(inp.up)menuSel=4;else if(inp.right)menuSel=5;}
