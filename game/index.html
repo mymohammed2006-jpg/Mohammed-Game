@@ -851,7 +851,7 @@ function buildLevel5(){
   const dancer=(b0,b1,path,T,R0=80,shed=0)=>ev(b0-T.wn,()=>hazards.push(Ballerina(path,B(b0-T.wn),B(b0),B(b1),R0,shed)));
   const line=(x0,y0,x1,y1,amp=0,wv=2)=>u=>({x:x0+(x1-x0)*u-(y1-y0)/Math.hypot(x1-x0,y1-y0)*Math.sin(u*Math.PI*wv)*amp,y:y0+(y1-y0)*u+(x1-x0)/Math.hypot(x1-x0,y1-y0)*Math.sin(u*Math.PI*wv)*amp});
   const orbit=(cx,cy,rx2,ry2,a0,turns)=>u=>({x:cx+Math.cos(a0+u*turns*TAU)*rx2,y:cy+Math.sin(a0+u*turns*TAU)*ry2});
-  ev(0,()=>hazards.push(KeyStrip(B(0),B(199.5),NK)));
+  E.push({b:0,keep:1,f:()=>hazards.push(KeyStrip(B(0),B(199.5),NK))});
 
   /* ---------- القسم الأول (٠:٣٣ – ١:٠٩) ---------- */
   let T=TI[0];
@@ -1077,7 +1077,7 @@ function buildFriend1(){
 
   /* ---------- القسم الأول ---------- */
   let T=TI[0];
-  ev(0,()=>hazards.push(BgRain(B(0),B(340),70)));
+  E.push({b:0,keep:1,f:()=>hazards.push(BgRain(B(0),B(340),70))});
   ev(2,()=>hazards.push(IntroHeart(B(2),B(24),T.sp*0.85)));
   // ٢٦–٥٥ القلوب المتناثرة: قطري ← قطري معاكس ← دائرة
   for(let i=0;i<4;i++)heart(28+i*2,180+i*300,120+i*160,T,44,1.5,Math.PI/4);
@@ -1246,7 +1246,7 @@ function buildFriend2(){
   /* ---------- القسم الأول ---------- */
   let T=TI[0];
   // ٠:٣٠ "طيبة قلبي": ناس رماديين يمشون معك بسلام... واحد يخون
-  crowd(0,6,99999,0,'dash',T);
+  crowd(0,6,99999,0,'dash',T);E[E.length-1].keep=1;
   crowd(4,3,9,2,'dash',T,{r:240});
   // ٠:٤٠ "لعبت بحالي لعبة": الساحة تصير رقعة شطرنج
   ev(15,()=>hazards.push(Board(B(15),B(31))));
@@ -1811,7 +1811,7 @@ function buildFriend5(){
   // نوتات اللحن: كل نوتة يعزفها الكمان تطلع من اليمين وتمشي على خط بين الأوتار (الوتر العالي فوق)
   const melody=(key,T,k=1.25,from=-1e9,to=1e9,dir=-1,echo=true)=>{let last=-1,run=0,cnt=0;for(const it of FT_MEL[key].split(';')){const[b,sv]=it.split(':').map(Number);if(b<from||b>=to)continue;run=sv===last?run+1:0;last=sv;const ln=sv+(run%2);
     const ph=[0,2,1,3][(cnt++)%4],y1=laneP(ln,ph),y2=laneP(4-ln,ph);ev(b,()=>{hazards.push(Note(dir<0?W+20:-20,y1,dir*T.sp*k,0,B(b),{r:12}));if(echo)hazards.push(Note(dir<0?-20:W+20,y2,-dir*T.sp*k*0.8,0,B(b),{r:11}));});}};
-  ev(0,()=>hazards.push(ViolinStrings(B(0),B(262))));
+  E.push({b:0,keep:1,f:()=>hazards.push(ViolinStrings(B(0),B(262)))});
 
   /* ---------- القسم الأول (٠:٠٠ – ١:١٤) ---------- */
   let T=TI[0];
@@ -2408,7 +2408,7 @@ function buildLevel6(){
   const spin=(b0,b1,x,y,Rr,T,segs,on,rot,a0=0,w=22)=>ev(b0-2*T.wn,()=>hazards.push(HxSpin(x,y,Rr,B(b0-2*T.wn),B(b0),B(b1),segs,on,w,rot,a0)));
   const fx=(b,f2,s2,tear=0)=>ev(b,()=>{flash=Math.max(flash,f2);shake=Math.max(shake,s2);if(tear)hazards.push(HxTear(B(b),tear));});
 
-  ev(0,()=>hazards.push(HxGrid(B(0),B(399.5))));
+  E.push({b:0,keep:1,f:()=>hazards.push(HxGrid(B(0),B(399.5)))});
   ev(0,()=>hazards.push(HxLoader(B(0),B(36),'LOADING  H3RD.EXE')));
   ev(0,()=>hazards.push(HxFloor(B(0),B(131))));
   /* ---------- الفيز ١: الشبكة (٠:١٠ – ١:٠٠) ---------- */
@@ -2783,7 +2783,8 @@ function buildLevel7(){
   // موجة: حلقة تطلع من قلب الدوّامة وتكبر، وفيها فتحة تلف مع الدوّامة
   const wave=(hb,T,gs=0.9,th=16,off=0)=>ev(hb-T.wn,()=>hazards.push(Ring(CX,CY,B(hb),T.sp*0.62,th,angC(B(hb))+off,gs,T.wn*SPB)));
   fx(120,0.45,16);word(120,'ROUND & ROUND',W/2,H/2,64,2.2,'rgba(255,255,255,0.6)');
-  ev(116,()=>hazards.push(L7Fence(CX,CY,RF,B(116),B(120),B(124),B(214),B(218))));
+  // keep: لو مات اللاعب ورجع من نقطة الحفظ ١٢٠، السور يرجع معه
+  E.push({b:116,keep:1,f:()=>hazards.push(L7Fence(CX,CY,RF,B(116),B(120),B(124),B(214),B(218)))});
   ev(118,()=>hazards.push(L7Hub(CX,CY,B(118),B(216),angC)));
   // ١٢٢–١٨٧: حلقة الخيول البرّانية
   ev(120,()=>hazards.push(L7Horses([CX,CY],268,easy?8:10,[],B(120),B(124),B(188),angC,easy?8:14,23)));
@@ -2912,8 +2913,9 @@ const BTN={
    تطلع مرة وحدة لكل تحديث، بعد المقدمة وقبل القائمة. كل تحديث جديد: غيّر v وحط الأشياء الجديدة في items
    (العنوان، زر يطلع جنب العنوان أو null، النقاط، [من، لين]): المربع يطلع للاعب اللي آخر تحديث شافه من <= رقمه < لين
    (اللي ما شاف ولا تحديث = 0). كذا اللي جاي من نسخة قديمة يشوف كل اللي فاته، واللي شاف التحديث اللي قبل يشوف الجديد بس */
-const NEWS={v:'26',items:[
+const NEWS={v:'27',items:[
   ['مراحل جديدة',null,['المرحلة السادسة: H3ЯД.','المرحلة السابعة: Clownparty.','البروفايل والترتيب صار فيهم المرحلتين.'],[0,26]],
+  ['إصلاح',null,['لما تموت وترجع من نقطة الحفظ، الخلفية والأشكال الكبيرة ترجع معك.'],[0,27]],
   ['مرحلة جديدة',null,['A3D أضاف مرحلة في مراحل الشباب: طنش (هبة مسعود).','موثّقة من Mohammed.','البروفايل والترتيب صار فيهم طنش.'],[0,23]],
   ['شوف البوت','restart',['في كرت أي مرحلة: البوت يلعبها ويجيب S.','بوت للنورمال وبوت للإيزي.','تقدر توقفه وتقدمه وترجعه.'],[0,23]],
   ['التدريب','sq',['تبدأ من أي ثانية في المرحلة.','السرعة: ١٠٠٪ أو ٧٥٪ أو ٥٠٪.','الأرواح: ما تخلص أو عادية.','شبح البوت يوريك طريقه.','ما ينحسب له تقييم ولا نقاط.'],[0,23]],
@@ -2998,6 +3000,8 @@ function beginRun(cp,seed){
   evIdx=events.findIndex(e=>e.b>=fromB);if(evIdx<0)evIdx=events.length;
   player={x:200,y:H/2,r:easy?EZ_R:5,hp:5,inv:1.0,hurt:0,dash:0,cd:0,fx:1,fy:0,ddx:1,ddy:0,ang:0,trail:[]};
   playMusic(fromT);songT=fromT-0.12;
+  // نقطة حفظ: الأشياء اللي تبقى طويل (الخلفيات وغيرها، keep) ترجع مع اللاعب
+  if(cp>0){const r0=rngS;for(let j=0;j<evIdx;j++)if(events[j].keep){const k=hazards.length;rngS=hstr(runSeed+':e'+j);events[j].f();for(let i=k;i<hazards.length;i++)hazards[i].rid='e'+j+'.'+(i-k);if(easy)ezCut(k,'e'+j,ezKE[j]);}rngS=r0;}
   state='play';
   if(seed===undefined&&rec){rec.cur={cp,seed:runSeed,t0:null,b:[],n:0};rec.segs.push(rec.cur);}
 }
