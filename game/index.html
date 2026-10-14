@@ -93,8 +93,8 @@ function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a
 let state='gate';
 const bootAt=performance.now();let friSel=0,lvlScr=0,friScr=0,lvlFirst=0,friFirst=0,fromList='levels',pauseSel=0,f11Hit=false,gatePassed=false;
 function levelTiming(L){if(L.beats){BEATS=L.beats;OFF=L.beats[0];SPB=(L.beats[L.beats.length-1]-L.beats[0])/(L.beats.length-1);}else{BEATS=null;SPB=60/L.bpm;OFF=L.off;}}
-function startLevel(L,from){cur=L;fromList=from;levelTiming(L);requestStart(0);}
-let gateHint=false,gatePressAt=0,mainAt=-1e9,toastPad=null;let menuSel=0,lvlSel=0,introAt=0,bestRank=null,lastRank='C',lastGain=0,shakeCard=0,anyKeyFlag=false;
+function startLevel(L,from){cur=L;fromList=from;levelTiming(L);requestStart(0);introOn=true;}
+let introOn=false,gateHint=false,gatePressAt=0,mainAt=-1e9,toastPad=null;let menuSel=0,lvlSel=0,introAt=0,bestRank=null,lastRank='C',lastGain=0,shakeCard=0,anyKeyFlag=false;
 const AC=window.AudioContext||window.webkitAudioContext;
 const actx=new AC();
 let vol=0.8;try{const v=parseFloat(localStorage.getItem('mg_volume'));if(!isNaN(v))vol=clamp(v,0,1);}catch(e){}
@@ -2913,7 +2913,8 @@ const BTN={
    تطلع مرة وحدة لكل تحديث، بعد المقدمة وقبل القائمة. كل تحديث جديد: غيّر v وحط الأشياء الجديدة في items
    (العنوان، زر يطلع جنب العنوان أو null، النقاط، [من، لين]): المربع يطلع للاعب اللي آخر تحديث شافه من <= رقمه < لين
    (اللي ما شاف ولا تحديث = 0). كذا اللي جاي من نسخة قديمة يشوف كل اللي فاته، واللي شاف التحديث اللي قبل يشوف الجديد بس */
-const NEWS={v:'28',items:[
+const NEWS={v:'29',items:[
+  ['لما تخسر','restart',['زر جديد يرجعك لبداية المرحلة على طول.','اسم الأغنية يطلع بس أول ما تدخل المرحلة.'],[0,29]],
   ['V-Sync',null,['صار مربع مثل ملء الشاشة.','لما تطفيه ما يصير تقطيع.','المرحلة السابعة صارت أخف.'],[0,28]],
   ['التدريب','sq',['تختار الحرف اللي تتدرب عليه: S أو A أو B أو C.','الأرواح تتعدل مع الحرف، وتقدر تغيرها من 1 لين 10.'],[0,28]],
   ['بوت جديد','restart',['البوت صار يلعب بحدود الإنسان.','ما يضغط أكثر من 5 مرات بالثانية.','يجيب S في كل المراحل.'],[0,28]],
@@ -2968,7 +2969,7 @@ function drawNews(now){
 /* ================= سير اللعبة ================= */
 function requestStart(beat){
   if(beat===0){hitsTotal=0;deaths=0;rec={segs:[],cur:null};}
-  checkpoint=beat;startBeat=beat;state='starting';audioHint=false;startReqAt=performance.now();
+  checkpoint=beat;startBeat=beat;state='starting';audioHint=false;startReqAt=performance.now();introOn=false;
   ensureAudio();
 }
 /* ================= Easy Mode ================= */
@@ -3784,7 +3785,7 @@ function draw(now){
     {const e=clamp((now-deadAt-250)/600,0,1),ee=1-Math.pow(1-e,3),bw=420,bx=W/2-bw/2,by=H/2-20,pc=deadPct*ee;
       g.globalAlpha=clamp((now-deadAt-200)/200,0,1);rr(bx,by-5,bw,10,5);g.fillStyle='rgba(255,255,255,0.12)';g.fill();if(pc>0.005){rr(bx,by-5,bw*pc,10,5);g.fillStyle=PINK;g.fill();}
       txt(`وصلت ${ar(Math.round(pc*100))}٪`,W/2,by+34,30,'#fff',800);g.globalAlpha=1;}
-    if(now-deadAt>700){row([[K.confirm,pr.on?'من نقطة التدريب':'كمّل من آخر حفظ']],W/2,H/2+110,38,'#fff',30);row([[K.back,pr.on?'التدريب':'القائمة']],W/2,H/2+170);}}
+    if(now-deadAt>700){row([[K.confirm,pr.on?'من نقطة التدريب':'كمّل من آخر حفظ']],W/2,H/2+110,38,'#fff',30);row(pr.on?[[K.back,'التدريب']]:[[K.restart,'من بداية المرحلة'],[K.back,'القائمة']],W/2,H/2+170);}}
   if(state==='win'){overlay(0.7);
     txt('خلّصت المرحلة!',W/2,H/2-160,64,'#fff');
     {const fall=180,ts=now-(winSlam-fall);if(ts>0){const e=clamp(ts/fall,0,1),sc=e<1?1+2.2*Math.pow(1-e,2):1+0.18*Math.exp(-(ts-fall)/90);
@@ -4000,7 +4001,7 @@ function step(now,nd){
   else if(state==='prStarting'){if(actx.state==='running'&&cur.buf)prBegin();else ensureAudio();}
   else if(state==='prEnd'){if(performance.now()-winAt>600&&inp.confirm)prGo();else if(inp.back||inp.pz)prToMenu();}
   else if(state==='starting'){
-    if(actx.state==='running'&&cur.buf){if(startBeat===0){state='levelIntro';introAt=now;player=null;hazards=[];particles=[];}else beginRun(startBeat);}
+    if(actx.state==='running'&&cur.buf){if(startBeat===0&&introOn){introOn=false;state='levelIntro';introAt=now;player=null;hazards=[];particles=[];}else beginRun(startBeat);}
     else if(now-startReqAt>500)audioHint=true;
   }
   else if(state==='levelIntro'){if(now-introAt>3200)beginRun(0);}
@@ -4012,7 +4013,7 @@ function step(now,nd){
     else if(inp.confirm){if(pauseSel===0)resume();else if(pauseSel===1){stopMusic();requestStart(checkpoint);}else if(pauseSel===2){stopMusic();requestStart(0);}else if(pauseSel===3){state='pauseSet';setSel=0;}else{stopMusic();player=null;hazards=[];state=fromList;actx.resume().catch(()=>{});}}
   }
   else if(state==='dead'&&pr.on){if(now-deadAt>700&&inp.confirm)prGo();else if(inp.back)prToMenu();}
-  else if(state==='dead'){if(now-deadAt>700&&inp.confirm)requestStart(checkpoint);else if(inp.back)toMenu();}
+  else if(state==='dead'){if(now-deadAt>700&&inp.confirm)requestStart(checkpoint);else if(now-deadAt>700&&inp.restart)requestStart(0);else if(inp.back)toMenu();}
   else if(state==='win'){if(now-winAt>800&&inp.confirm){stopMusic();requestStart(0);}else if(inp.back){stopMusic();player=null;hazards=[];state=fromList;}}
   pvUpdate(now);
   if(pv.src||pv.had){if(menuSrc)stopMenu();}
