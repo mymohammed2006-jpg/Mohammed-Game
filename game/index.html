@@ -185,7 +185,7 @@ function Ring(x,y,t0,sp,th,gap,gs,warn){return{
   update(t){if((t-t0)*sp>1600)this.dead=true;},
   draw(t){g.strokeStyle=PINK;
     if(t<t0){const k=clamp(1-(t0-t)/warn,0,1);g.globalAlpha=0.6;g.lineWidth=4;g.beginPath();g.arc(x,y,20+50*k,gap+gs/2,gap-gs/2+TAU);g.stroke();g.globalAlpha=1;return;}
-    const r=(t-t0)*sp;g.lineWidth=th*(1+0.15*pulse);g.shadowColor=PINK;g.shadowBlur=14;g.beginPath();g.arc(x,y,r,gap+gs/2,gap-gs/2+TAU);g.stroke();g.shadowBlur=0;},
+    const r=(t-t0)*sp;if(r-th-30>Math.hypot(Math.max(x,W-x),Math.max(y,H-y)))return;g.lineWidth=th*(1+0.15*pulse);g.shadowColor=PINK;g.shadowBlur=14;g.beginPath();g.arc(x,y,r,gap+gs/2,gap-gs/2+TAU);g.stroke();g.shadowBlur=0;},
   hit(p,t){if(t<t0)return false;const r=(t-t0)*sp,dx=p.x-x,dy=p.y-y,d=Math.hypot(dx,dy);if(Math.abs(d-r)>th/2+p.r-2)return false;let da=Math.atan2(dy,dx)-gap;da=Math.atan2(Math.sin(da),Math.cos(da));return Math.abs(da)>gs/2-p.r/Math.max(d,1);}};}
 
 function poly(n,r){g.beginPath();for(let i=0;i<n;i++){const a=i*TAU/n-Math.PI/2;i?g.lineTo(Math.cos(a)*r,Math.sin(a)*r):g.moveTo(Math.cos(a)*r,Math.sin(a)*r);}g.closePath();g.fill();}
@@ -2635,7 +2635,7 @@ function L7Fence(cx,cy,R1,tw,t0,tc,to,t1){const R0=800,rad=t=>t<t0?R0:t<tc?R0+(R
   return{update(t){if(t>t1)this.dead=true;},
   draw(t){if(t<t0){const k=clamp((t-tw)/(t0-tw),0,1);g.strokeStyle=`rgba(255,42,109,${0.3+0.5*k})`;g.lineWidth=3;g.setLineDash([12,10]);g.beginPath();g.arc(cx,cy,R1,0,TAU);g.stroke();g.setLineDash([]);return;}
     const r=rad(t);if(r>=780)return;g.save();g.beginPath();g.rect(0,0,W,H);g.arc(cx,cy,r,0,TAU,true);g.fillStyle='rgba(255,42,109,0.2)';g.fill('evenodd');g.clip('evenodd');
-    g.fillStyle='rgba(255,42,109,0.22)';const sp=(t*0.25)%(TAU/24);for(let i=0;i<24;i++){const a=sp+i*TAU/24;g.beginPath();g.moveTo(cx,cy);g.arc(cx,cy,900,a,a+TAU/48);g.closePath();g.fill();}g.restore();
+    g.fillStyle='rgba(255,42,109,0.22)';const sp=(t*0.25)%(TAU/24);g.beginPath();for(let i=0;i<24;i++){const a=sp+i*TAU/24;g.moveTo(cx,cy);g.arc(cx,cy,900,a,a+TAU/48);g.closePath();}g.fill();g.restore();
     g.save();g.shadowColor=PINK;g.shadowBlur=18;g.strokeStyle=PINK;g.lineWidth=6;g.beginPath();g.arc(cx,cy,r,0,TAU);g.stroke();g.restore();
     g.fillStyle=GREY+'0.5)';for(let i=0;i<36;i++){const a=i*TAU/36+t*0.3,on=(i+Math.floor(BT(t)))%3===0;g.fillStyle=on?'rgba(255,255,255,0.85)':GREY+'0.35)';circle(cx+Math.cos(a)*(r+12),cy+Math.sin(a)*(r+12),3.5);}},
   hit(p,t){if(t<t0)return false;const r=rad(t);return Math.hypot(p.x-cx,p.y-cy)>r-6-p.r;}};}
@@ -2913,7 +2913,10 @@ const BTN={
    تطلع مرة وحدة لكل تحديث، بعد المقدمة وقبل القائمة. كل تحديث جديد: غيّر v وحط الأشياء الجديدة في items
    (العنوان، زر يطلع جنب العنوان أو null، النقاط، [من، لين]): المربع يطلع للاعب اللي آخر تحديث شافه من <= رقمه < لين
    (اللي ما شاف ولا تحديث = 0). كذا اللي جاي من نسخة قديمة يشوف كل اللي فاته، واللي شاف التحديث اللي قبل يشوف الجديد بس */
-const NEWS={v:'27',items:[
+const NEWS={v:'28',items:[
+  ['V-Sync',null,['صار مربع مثل ملء الشاشة.','لما تطفيه ما يصير تقطيع.','المرحلة السابعة صارت أخف.'],[0,28]],
+  ['التدريب','sq',['تختار الحرف اللي تتدرب عليه: S أو A أو B أو C.','الأرواح تتعدل مع الحرف، وتقدر تغيرها من 1 لين 10.'],[0,28]],
+  ['بوت جديد','restart',['البوت صار يلعب بحدود الإنسان.','ما يضغط أكثر من 5 مرات بالثانية.','يجيب S في كل المراحل.'],[0,28]],
   ['مراحل جديدة',null,['المرحلة السادسة: H3ЯД.','المرحلة السابعة: Clownparty.','البروفايل والترتيب صار فيهم المرحلتين.'],[0,26]],
   ['إصلاح',null,['لما تموت وترجع من نقطة الحفظ، الخلفية والأشكال الكبيرة ترجع معك.'],[0,27]],
   ['مرحلة جديدة',null,['A3D أضاف مرحلة في مراحل الشباب: طنش (هبة مسعود).','موثّقة من Mohammed.','البروفايل والترتيب صار فيهم طنش.'],[0,23]],
@@ -3101,7 +3104,7 @@ function drawPlayer(){
 }
 function drawHUD(){
   const p=player;if(!p)return;
-  for(let i=0;i<5;i++){const x=34+i*28,y=34;if(i<p.hp){g.fillStyle=CYAN;g.fillRect(x-9,y-9,18,18);}else{g.strokeStyle='rgba(45,226,230,0.35)';g.lineWidth=2;g.strokeRect(x-8,y-8,16,16);}}
+  for(let i=0,hn=pr.on&&!pr.inf?pr.lv:5;i<hn;i++){const x=34+i*28,y=34;if(i<p.hp){g.fillStyle=CYAN;g.fillRect(x-9,y-9,18,18);}else{g.strokeStyle='rgba(45,226,230,0.35)';g.lineWidth=2;g.strokeRect(x-8,y-8,16,16);}}
   const x0=220,x1=W-220,y=H-26,endT=B(cur.end),prog=clamp(songT/endT,0,1);
   g.fillStyle='rgba(255,255,255,0.12)';g.fillRect(x0,y-2,x1-x0,4);
   g.fillStyle=CYAN;g.fillRect(x0,y-2,(x1-x0)*prog,4);
@@ -3667,13 +3670,13 @@ function drawSettings(){
       txt(ar(on*10)+'٪',x0-18,y,30,on?(sel?RED:'rgba(255,255,255,0.7)'):'rgba(255,255,255,0.5)',800,'right');}
     else if(k==='fs'){txt('ملء الشاشة',lx,y,32,lc,800,'right');checkBox(cx,y,isFull(),sel);}
     else if(k==='counter'){txt('عداد الفريمات',lx,y,32,lc,800,'right');checkBox(cx,y,fpsShow,sel);}
-    else if(k==='vsync'){txt('V-Sync',lx,y,32,lc,800,'right');optArrows(cx,y,sel);txt(vsyncOn?'تشغيل':'إيقاف',cx,y,32,sel?RED:'rgba(255,255,255,0.7)',800);}
+    else if(k==='vsync'){txt('V-Sync',lx,y,32,lc,800,'right');checkBox(cx,y,vsyncOn,sel);}
     else if(k==='fps'){txt('Framecap',lx,y,32,lc,800,'right');optArrows(cx,y,sel);txt('‪'+fpsCap+' FPS‬',cx,y,30,sel?RED:'rgba(255,255,255,0.7)',800);}
     else if(k==='res'){txt('الدقة',lx,y,32,lc,800,'right');optArrows(cx,y,sel);txt(resLabel(resSet),cx,y,30,sel?RED:'rgba(255,255,255,0.7)',800);}
   });
   const r=rows[setSel];let hint='';
   if(r==='fs')hint='تقدر كمان تشغله وتطفيه بزر F11';
-  else if(r==='vsync')hint=vsyncOn?'الحركة أنعم وبدون تقطيع في الشاشة':'فريمات أكثر، بس ممكن يطلع تقطيع في الشاشة';
+  else if(r==='vsync')hint=vsyncOn?'الحركة أنعم وبدون تقطيع في الشاشة':'اللعبة تمشي لين الـ Framecap، والرسم مع كل تحديث للشاشة';
   else if(r==='fps')hint=vsyncOn?'أعلى شي يوصل له سرعة شاشتك، لأن V-Sync شغال':'أعلى عدد فريمات في الثانية';
   else if(r==='counter')hint='يطلع عدد الفريمات تحت يمين الشاشة';
   else if(r==='res')hint='أقل دقة = اللعبة أخف على الجهاز، بس الرسم أقل وضوح';
@@ -3807,7 +3810,9 @@ function draw(now){
 // شوف البوت: جولة S للبوت (يلعب بحدود بشرية) لكل مرحلة ونوع، محفوظة في songs/bot.js وتشتغل بمشغّل الـ Replay.
 // التدريب: تبدأ من أي ثانية، بسرعة 100/75/50٪، بأرواح ما تخلص أو عادية، ومعك شبح البوت. ما فيه تقييم ولا نقاط ولا Replay ولا حفظ أونلاين.
 let spd=1,noMus=false;
-const pr={on:false,L:null,from:'levels',t:0,spd:1,inf:true,ghost:true,sel:0,doc:null,lastL:null};
+const pr={on:false,L:null,from:'levels',t:0,spd:1,inf:true,lv:5,let:'',ghost:true,sel:0,doc:null,lastL:null};
+// الحرف اللي تتدرب عليه، وكم روح يعطيك (0 = ما تخلص): S ولا ضربة، A تنضرب بس ما تخسر، B تخسر مرة وحدة، C تكمل وبس
+const PR_LET=['','S','A','B','C'],PR_LETLV={'':0,S:1,A:5,B:10,C:0},PR_LVMAX=10;
 const PR_PAUSE=['أكمل اللعب','إعادة من نقطة التدريب','غيّر نقطة التدريب','الإعدادات','الخروج من المرحلة'];
 const PR_SPD=[1,0.75,0.5];
 const botCache={};
@@ -3821,14 +3826,15 @@ function openBot(L,from){const m=easy?'e':'n',d=botDoc(L,m);if(!d){noBot();retur
   fromList=from;rp.p={name:'البوت',uid:'bot'};rp.L=L;rp.m=m;rp.doc=d;rp.err=false;rp.bot=true;rp.back=from;state='rpLoad';ensureAudio();}
 // التدريب (□)
 function openPractice(L,from){if(pr.lastL!==L){pr.t=0;pr.lastL=L;}pr.L=L;pr.from=from;pr.doc=botDoc(L,easy?'e':'n');pr.sel=0;cur=L;fromList=from;levelTiming(L);state='practice';}
-function prRows(){return pr.doc?['t','spd','inf','ghost','go']:['t','spd','inf','go'];}
+function prRows(){return pr.doc?['t','spd','let','inf','ghost','go']:['t','spd','let','inf','go'];}
 function prMaxT(){return Math.max(0,Math.floor((B(pr.L.end)-4)/5)*5);}
 function prMenuInput(inp){const rows=prRows();if(pr.sel>=rows.length)pr.sel=0;const r=rows[pr.sel],d=inp.right?1:inp.left?-1:0;
   if(inp.up){pr.sel=(pr.sel+rows.length-1)%rows.length;tick();}else if(inp.down){pr.sel=(pr.sel+1)%rows.length;tick();}
   else if(inp.restart){const nx=pr.L.cps.map(c=>B(c)).find(c=>c>pr.t+0.5);pr.t=nx===undefined?0:Math.round(nx*10)/10;pr.sel=0;}
   else if(d&&r==='t')pr.t=clamp(d>0?Math.floor(pr.t/5+1e-6)*5+5:Math.ceil(pr.t/5-1e-6)*5-5,0,prMaxT());
   else if(d&&r==='spd')pr.spd=PR_SPD[clamp(PR_SPD.indexOf(pr.spd)-d,0,PR_SPD.length-1)];
-  else if((d||inp.confirm)&&r==='inf')pr.inf=!pr.inf;
+  else if((d||inp.confirm)&&r==='let'){const i=PR_LET.indexOf(pr.let),n=PR_LET.length;pr.let=PR_LET[(i+(d||1)+n)%n];const v=PR_LETLV[pr.let];pr.inf=v===0;if(v)pr.lv=v;}
+  else if(d&&r==='inf'){let v=pr.inf?0:pr.lv;v=(v+d+PR_LVMAX+1)%(PR_LVMAX+1);pr.inf=v===0;if(v)pr.lv=v;}
   else if((d||inp.confirm)&&r==='ghost')pr.ghost=!pr.ghost;
   else if(inp.confirm)prGo();
   else if(inp.back||inp.pz)state=pr.from;}
@@ -3841,7 +3847,7 @@ function prBegin(){const d=pr.doc,T=pr.t;
   while(t<end){t=Math.min(end,t+st);songT=t;const q=botPos(d,t);if(q){p.x=q.x;p.y=q.y;}fireEvents(t);stepHazards(t,st);hazards=hazards.filter(h=>!h.dead);}
   dry=false;particles=[];shake=0;flash=0;gloom=gloomT;
   if(T>0){const q=botPos(d,T);if(q){p.x=q.x;p.y=q.y;}}
-  p.inv=1.0;p.trail=[];checkpoint=0;const bt=BT(T);for(const c of cur.cps)if(bt>=c)checkpoint=c;
+  p.inv=1.0;p.trail=[];if(!pr.inf)p.hp=pr.lv;checkpoint=0;const bt=BT(T);for(const c of cur.cps)if(bt>=c)checkpoint=c;
   playMusic(T);songT=T-0.12*spd;state='play';}
 function prFinish(){stopMusic();state='prEnd';winAt=performance.now();}
 function prStop(){stopMusic();pr.on=false;spd=1;player=null;hazards=[];particles=[];gloom=gloomT=0;actx.resume().catch(()=>{});}
@@ -3863,7 +3869,8 @@ function drawPractice(now){
     if(sel){rr(W/2-390,y-28,780,56,16);g.fillStyle=`rgba(${RGB},${0.08+0.08*pulse})`;g.fill();g.strokeStyle=RED;g.lineWidth=2;g.stroke();}
     if(k==='t'){txt('من وين تبدأ',lx,y,30,lc,800,'right');optArrows(cx,y,sel);ltxt(pr.t<0.05?'0:00':mmss(pr.t),cx,y,30,vc);}
     else if(k==='spd'){txt('السرعة',lx,y,30,lc,800,'right');optArrows(cx,y,sel);txt(ar(pr.spd*100)+'٪',cx,y,30,vc,800);}
-    else if(k==='inf'){txt('الأرواح',lx,y,30,lc,800,'right');optArrows(cx,y,sel);txt(pr.inf?'ما تخلص':'عادية',cx,y,30,vc,800);}
+    else if(k==='let'){txt('الحرف',lx,y,30,lc,800,'right');optArrows(cx,y,sel);if(pr.let)ltxt(pr.let,cx,y+2,34,sel?(easy?'#7cc8ff':'#ff2436'):'rgba(255,255,255,0.7)');else txt('بدون',cx,y,30,vc,800);}
+    else if(k==='inf'){txt('الأرواح',lx,y,30,lc,800,'right');optArrows(cx,y,sel);if(pr.inf)txt('ما تخلص',cx,y,30,vc,800);else ltxt(String(pr.lv),cx,y+2,30,vc);}
     else if(k==='ghost'){txt('شبح البوت',lx,y,30,lc,800,'right');checkBox(cx,y,pr.ghost,sel);}
   });
   // شريط المرحلة: وين بتبدأ ونقاط الحفظ
@@ -3876,7 +3883,8 @@ function drawPractice(now){
   const r=rows[pr.sel];let hint='';
   if(r==='t')row([[K.move,'٥ ثواني'],[K.restart,'نقطة الحفظ الجاية']],W/2,H-82,22,'rgba(255,255,255,0.6)',17);
   else{if(r==='spd')hint='أبطأ = تشوف الهجمات بوضوح، بس الأغنية تصير أثقل';
-    else if(r==='inf')hint=pr.inf?'الضربة تومض بس، وتكمل لين آخر المرحلة':'خمس أرواح مثل اللعب العادي، ولو خسرت ترجع لنقطة التدريب';
+    else if(r==='let')hint=({'':'اختار الحرف اللي تتدرب عليه، والأرواح تتعدل معه',S:'S: ولا ضربة، أول ضربة ترجعك لنقطة التدريب',A:'A: تنضرب بس ما تخسر (5 أرواح)',B:'B: تقدر تخسر مرة وحدة بس (10 أرواح)',C:'C: تكمل المرحلة وبس، الأرواح ما تخلص'})[pr.let];
+    else if(r==='inf')hint=pr.inf?'الضربة تومض بس، وتكمل لين آخر المرحلة':(pr.lv===1?'روح وحدة':ar(pr.lv)+' أرواح')+'، ولو خلصت ترجع لنقطة التدريب';
     else if(r==='ghost')hint='مربع أبيض شفاف يمشي طريق الـ S، ونقاط توريك وين بيروح';
     else hint='التدريب ما ينحسب له تقييم ولا نقاط';
     txt(hint,W/2,H-82,22,'rgba(255,255,255,0.6)',500);}
@@ -3901,20 +3909,22 @@ function drawPrEnd(now){overlay(0.7);txt('خلّصت التدريب!',W/2,H/2-12
 /* ================= الحلقة الرئيسية ================= */
 let last=performance.now();
 const tick=()=>{},pick=()=>{};
-let capAt=0,pumping=false,nextAt=0,fpsN=0,fpsAt=0,fpsVal=0;
+let capAt=0,pumping=false,vsDirty=false,nextAt=0,fpsN=0,fpsAt=0,fpsVal=0;
 const pumpCh=new MessageChannel();
 function frame(now){
-  if(!vsyncOn&&!document.hidden){if(!pumping){pumping=true;nextAt=performance.now();pumpCh.port2.postMessage(0);}return;}
+  if(!vsyncOn&&!document.hidden){if(!pumping){pumping=true;nextAt=performance.now();pumpCh.port2.postMessage(0);requestAnimationFrame(vsDraw);}return;}
   if(fpsCap){const iv=1000/fpsCap;if(capAt&&now-capAt<iv-0.7){requestAnimationFrame(frame);return;}capAt=(capAt&&now-capAt<iv*2)?capAt+iv:now;}
   step(now);requestAnimationFrame(frame);
 }
 pumpCh.port1.onmessage=()=>{
   if(vsyncOn||document.hidden){pumping=false;capAt=0;requestAnimationFrame(frame);return;}
   const now=performance.now(),iv=1000/fpsCap;
-  if(now>=nextAt){nextAt=now-nextAt>iv*2?now+iv:nextAt+iv;step(now);}
+  if(now>=nextAt){nextAt=now-nextAt>iv*2?now+iv:nextAt+iv;step(now,true);vsDirty=true;}
   if(nextAt-now>6)setTimeout(()=>pumpCh.port2.postMessage(0),nextAt-now-5);else pumpCh.port2.postMessage(0);
 };
-function step(now){
+// V-Sync طافي: اللعبة تمشي بسرعة الـ Framecap، والرسم مرة وحدة مع كل تحديث للشاشة (الرسم الزايد ما ينشاف ويسبب تقطيع)
+function vsDraw(){if(!pumping)return;if(vsDirty){vsDirty=false;draw(performance.now());}requestAnimationFrame(vsDraw);}
+function step(now,nd){
   const dt=Math.min(0.05,Math.max(0,now-last)/1000);last=now;fdt=dt;
   const inp=readInput();syncField();
   if(acc&&acc.dirty&&!syncing&&now-lastSyncTry>30000&&!['play','starting','levelIntro'].includes(state))sync();
@@ -3970,7 +3980,7 @@ function step(now){
     if(inp.up)setSel=(setSel+rows.length-1)%rows.length;else if(inp.down)setSel=(setSel+1)%rows.length;
     else if(d&&r==='vol')setVol(vol+0.1*d);
     else if((d||inp.confirm)&&r==='fs'){if(isFull())exitFS();else enterFS();}
-    else if(d&&r==='vsync')setVsync(!vsyncOn);
+    else if((d||inp.confirm)&&r==='vsync')setVsync(!vsyncOn);
     else if((d||inp.confirm)&&r==='counter')setFpsShow(!fpsShow);
     else if(d&&r==='fps'){let i=FPS_LIST.indexOf(fpsCap);if(i<0)i=4;setFps(FPS_LIST[clamp(i+d,0,FPS_LIST.length-1)]);}
     else if(d&&r==='res'){const L=resList();let i=L.indexOf(resSet);if(i<0)i=0;setRes(L[(i+L.length+d)%L.length]);}
@@ -4013,7 +4023,7 @@ function step(now){
   gloom+=(gloomT-gloom)*Math.min(1,edt*3);shake=Math.max(0,shake-edt*50);flash=Math.max(0,flash-edt*2.2);cpMsg-=edt;toastT-=dt;shakeCard=Math.max(0,shakeCard-dt);
   {const k=Math.min(1,dt*12);if(lvlSel<lvlFirst)lvlFirst=lvlSel;else if(lvlSel>lvlFirst+3)lvlFirst=lvlSel-3;if(friSel<friFirst)friFirst=friSel;else if(friSel>friFirst+3)friFirst=friSel-3;
   const lt=clamp(lvlFirst,0,Math.max(0,LEVELS.length-4)),ft=clamp(friFirst,0,Math.max(0,FRIENDS.length-4));lvlScr+=(lt-lvlScr)*k;friScr+=(ft-friScr)*k;if(Math.abs(lt-lvlScr)<0.001)lvlScr=lt;if(Math.abs(ft-friScr)<0.001)friScr=ft;}
-  draw(now);
+  if(!nd)draw(now);
   fpsN++;if(now-fpsAt>=500){fpsVal=fpsAt?Math.round(fpsN*1000/(now-fpsAt)):0;fpsN=0;fpsAt=now;}
   if(fpsShow&&fpsVal){g.setTransform(scale,0,0,scale,offX,offY);g.font=`800 22px ${FONT}`;g.textAlign='right';g.textBaseline='bottom';g.direction='ltr';
     g.lineWidth=4;g.strokeStyle='rgba(0,0,0,0.7)';g.strokeText(fpsVal+' FPS',W-14,H-10);g.fillStyle='rgba(255,255,255,0.85)';g.fillText(fpsVal+' FPS',W-14,H-10);g.direction='rtl';}
