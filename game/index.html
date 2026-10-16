@@ -6938,7 +6938,7 @@ function drawLevels(now){
     g.strokeStyle=sel?RED:'rgba(255,255,255,0.12)';g.lineWidth=sel?3:1.5;g.stroke();
     txt(ar(i+1),x,cy-90+lf,90,L.ok?(sel?RED:'#fff'):'rgba(255,255,255,0.15)',800);
     if(L.ok){
-      txt(L.name,x,cy+5+lf,28,'#fff',800);
+      {let fs=28;g.font=`800 ${fs}px ${FONT}`;while(fs>16&&g.measureText(L.name).width>cw-24){fs--;g.font=`800 ${fs}px ${FONT}`;}txt(L.name,x,cy+5+lf,fs,'#fff',800);}
       if(L.tag)txt(L.tag,x,cy+42+lf,20,'rgba(255,255,255,0.6)',500);
       g.font=`20px ${TFONT}`;g.fillStyle=RED3;g.textAlign='center';g.direction='ltr';g.textBaseline='middle';g.fillText(L.song,x,cy+(L.tag?78:52)+lf);
       if(L.err)txt('الأغنية ما اشتغلت',x,cy+125+lf,20,RED3,500);
