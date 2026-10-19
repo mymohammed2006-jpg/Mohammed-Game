@@ -32,6 +32,7 @@ public class PlatTest
 		performance.manual = 100000; AudioCtx.manualTime = 0; JS.SeedRandom(7);
 		G.InitSound(); G.gfx.Resize(1280, 720); G.scale = 1; G.offX = 0; G.offY = 0; G.gatePassed = true;
 		var sk = System.Environment.GetEnvironmentVariable("SKIN"); if (sk != null) G.skin = sk; if (System.Environment.GetEnvironmentVariable("EASY") == "1") G.setEasy(true);
+		if (System.Environment.GetEnvironmentVariable("BEST") is { Length: > 0 } bst) G.PLATS[0].lv.best = bst;
 		if (id == "menu") return;
 		if (id == "board")
 		{

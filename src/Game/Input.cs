@@ -47,7 +47,7 @@ public static partial class G
 	// keydown listener
 	public static void OnKeyDown(string code, bool repeat)
 	{
-		if (numKey(code)) { ensureAudio(); return; }
+		if (numKey(code) || netKey(code)) { ensureAudio(); return; }
 		if (Hooks.typing() && !new[] { "Enter", "NumpadEnter", "Escape", "ArrowUp", "ArrowDown", "Tab", "F11" }.Contains(code)) return;
 		if (code == "NumpadEnter") keys["Enter"] = true;
 		if (code == "F11") { if (!repeat) { if (isFull() && gatePassed) exitFS(); else enterFS(); f11Hit = true; } }
@@ -56,7 +56,7 @@ public static partial class G
 	}
 	public static void OnKeyUp(string code) { keys[code] = false; }
 	public static void OnPointerDown() { ensureAudio(); anyKeyFlag = true; }
-	public static void OnBlur() { foreach (var k in keys.Keys.ToList()) keys[k] = false; if (state == "play") pause(); if (state == "pltPlay") { state = "pltPause"; pauseSel = 0; actx.suspend(); } }
+	public static void OnBlur() { foreach (var k in keys.Keys.ToList()) keys[k] = false; if (state == "play") pause(); if (state == "pltPlay") { state = "pltPause"; pauseSel = 0; if (!online) actx.suspend(); } }
 
 	public static string padKind(int dev)
 	{

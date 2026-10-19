@@ -142,7 +142,7 @@ public static partial class G
 				pl.cx = tx * PT + PT / 2; pl.cy = (ty + 1) * PT - P_HALF; cpMsg = 1.8;
 				sfx(tt => { sTone(tt, 659, 0.25, "square", 0.06); sTone(tt + 0.08, 880, 0.3, "square", 0.06); });
 			}
-			else if (c == 'G' && plOpen() && state == "pltPlay") plWin();
+			else if (c == 'G' && plOpen() && state == "pltPlay") { if (online) netWin(); else plWin(); }
 		}
 	}
 	static int plPieces() { int n = 0; foreach (var r in pl.m) foreach (var c in r) if (c >= '1' && c <= '9') n++; return n; }
@@ -215,6 +215,7 @@ public static partial class G
 	// ---------- step ----------
 	public static bool stepPlat(Inp inp, double now, double dt)
 	{
+		if (stepNet(inp, now)) return true;
 		if (state == "modes")
 		{
 			if (inp.left || inp.right) modeSel = 1 - modeSel;
@@ -226,6 +227,7 @@ public static partial class G
 			int n = PLATS.Count;
 			if (inp.left && plSel < n - 1) plSel++; if (inp.right && plSel > 0) plSel--;
 			if (inp.confirm && n > 0) plStart(PLATS[plSel], true);
+			else if (inp.restart && n > 0) { if (acc == null) netNote("سجّل دخول من الحساب بالقائمة عشان تلعب أونلاين"); else { state = "pltOn"; onSel = 0; } }
 			else if (inp.back || inp.pz) state = "modes";
 		}
 		else if (state == "pltIntro")
@@ -237,7 +239,7 @@ public static partial class G
 		}
 		else if (state == "pltPlay")
 		{
-			if (inp.pz) { state = "pltPause"; pauseSel = 0; actx.suspend(); return true; }
+			if (inp.pz) { state = "pltPause"; pauseSel = 0; if (!online) actx.suspend(); return true; }   // online: the other player keeps going
 			if (inp.jump) pl.jumpQ = true; if (inp.pdash) pl.dashQ = true; pl.jumpHeld = inp.jumpHeld;
 			double target = actx.currentTime - pl.startWhen;
 			if (target - pl.t > SIM_MAX) { pl.n += (long)Math.Floor((target - SIM_MAX - pl.t) / STEP); pl.t = -0.12 + pl.n * STEP; }
@@ -250,6 +252,14 @@ public static partial class G
 			if (k > 0) pl.inX = inp.x;
 			pl.msgT -= dt;
 		}
+		else if (state == "pltPause" && online)
+		{
+			int pn = PL_PAUSE_ON.Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
+			if (inp.pz || inp.back || (inp.confirm && pauseSel == 0)) state = "pltPlay";
+			else if (inp.confirm && pauseSel == 1) plRespawn();
+			else if (inp.confirm && pauseSel == 2) { state = "pltSet"; setSel = 0; }
+			else if (inp.confirm) netEnd(null, true);
+		}
 		else if (state == "pltPause")
 		{
 			int pn = PL_PAUSE.Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
@@ -260,6 +270,11 @@ public static partial class G
 				actx.resume();
 				if (pauseSel == 1) plRespawn(); else if (pauseSel == 2) { plStopMusic(); plStart(pl.L); } else plExit();
 			}
+		}
+		else if (state == "pltDead" && online)
+		{
+			if (now - pl.deadAt > 700 && inp.confirm) plRespawn();
+			else if (inp.back) netEnd(null, true);
 		}
 		else if (state == "pltDead")
 		{

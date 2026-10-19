@@ -120,13 +120,15 @@ public static partial class G
 		for (double y = 0; y <= H; y += 80) { g.moveTo(0, y); g.lineTo(W, y); }
 		g.stroke();
 	}
-	public static void drawPlayer()
+	// p0 / sk0 / alpha: another square (the other player online: see-through, no trail)
+	public static void drawPlayer(Player p0 = null, string sk0 = null, double alpha = 1)
 	{
-		var p = player; if (p == null || state == "dead") return;
-		string sk = playerSkin();
-		if (classicUi) for (int i = 0; i < p.trail.Count; i++) { var q = p.trail[i]; g.globalAlpha = ((double)i / p.trail.Count) * (q.d ? 0.5 : 0.15); g.fillStyle = CYAN; g.fillRect(q.x - 7, q.y - 7, 14, 14); }
+		var p = p0 ?? player; if (p == null || state == "dead") return;
+		string sk = sk0 ?? playerSkin();
+		if (alpha < 1) { }
+		else if (classicUi) for (int i = 0; i < p.trail.Count; i++) { var q = p.trail[i]; g.globalAlpha = ((double)i / p.trail.Count) * (q.d ? 0.5 : 0.15); g.fillStyle = CYAN; g.fillRect(q.x - 7, q.y - 7, 14, 14); }
 		else { walkTrail(sk, p); if (sk != "") skinTrail(sk, p); }
-		g.globalAlpha = (p.hurt > 0 && Math.Floor(p.hurt * 18) % 2 != 0) ? 0.25 : 1;
+		g.globalAlpha = ((p.hurt > 0 && Math.Floor(p.hurt * 18) % 2 != 0) ? 0.25 : 1) * alpha;
 		g.save(); g.translate(p.x, p.y);
 		{
 			bool dsh = p.dash > 0; double a = dsh ? JS.atan2(p.ddy, p.ddx) : (p.sa ?? 0), s = p.sk ?? (dsh ? 1 : 0), sx = 1 + 0.75 * s, sy = 1 - 0.38 * s;

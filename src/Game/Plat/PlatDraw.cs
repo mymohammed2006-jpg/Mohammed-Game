@@ -17,7 +17,10 @@ public static partial class G
 		if (state == "modes") drawModes(now);
 		else if (state == "pltList") drawPltList(now);
 		else if (state == "pltIntro") drawPltIntro(now);
-		else if (state is "pltPlay" or "pltPause" or "pltSet" or "pltDead" or "pltWin") drawPlat(now);
+		else if (state is "pltPlay" or "pltPause" or "pltSet" or "pltDead" or "pltWin" or "pltVsEnd") drawPlat(now);
+		else if (state == "pltOn") drawPltOn(now);
+		else if (state == "pltJoin") drawPltJoin(now);
+		else if (state == "pltRoom") drawPltRoom(now);
 		else return false;
 		return true;
 	}
@@ -72,9 +75,10 @@ public static partial class G
 			txt(ar(i + 1), x, cy - 90 + lf, 90, sel ? RED : "#fff", 800);
 			txt(L.name, x, cy + 5 + lf, 28, "#fff", 800);
 			g.font = $"20px {TFONT}"; g.fillStyle = RED3; g.textAlign = "center"; g.direction = "ltr"; g.textBaseline = "middle"; g.fillText(L.best != null ? L.song : "؟؟؟", x, cy + 52 + lf);   // the song stays hidden until the level is finished g.direction = "rtl";
-			if (L.best != null) { g.font = $"46px {TFONT}"; g.textAlign = "center"; g.direction = "ltr"; g.fillStyle = "#ff2436"; g.fillText(L.best, x, cy + 115 + lf); g.direction = "rtl"; }
+			if (L.best != null) { g.font = $"46px {TFONT}"; g.textAlign = "center"; g.direction = "ltr"; if (L.best == "S") sShine("S", x, cy + 115 + lf, 37, now, 12); else { g.fillStyle = "#ff2436"; g.fillText(L.best, x, cy + 115 + lf); } g.direction = "rtl"; }   // S shines like the main list
 		}
-		row(new[] { (BTN[kind].confirm, "العب"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
+		row(new[] { (BTN[kind].confirm, "العب"), (BTN[kind].restart, "أونلاين"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
+		drawNetNote(now);
 	}
 
 	// ---------- the level ----------
@@ -160,6 +164,7 @@ public static partial class G
 		double ia = 1;   // the intro: the square drops in, then the HUD shows
 		if (state == "pltIntro") { double s = (now - pl.introAt) / 1000; ia = clamp((s - 2.85) / 0.15, 0, 1); if (s >= 2.4) { double f = clamp((s - 2.4) / 0.45, 0, 1), dy = -260 * (1 - f * f); player.y += dy; drawPlayer(); player.y -= dy; } }
 		else if (state != "pltDead") drawPlayer();
+		if (online && state != "pltIntro") drawNetGhost(now);
 		g.save(); g.globalAlpha = ia;
 		// HUD: lives, the pieces, messages
 		for (int i = 0; i < P_HP; i++)
@@ -178,11 +183,12 @@ public static partial class G
 		if (state == "pltPause")
 		{
 			overlay(0.75); txt("اللعبة متوقفة", W / 2, 150, 56, "#fff");
-			for (int i = 0; i < PL_PAUSE.Length; i++)
+			var PP = online ? PL_PAUSE_ON : PL_PAUSE;
+			for (int i = 0; i < PP.Length; i++)
 			{
 				double y = 270 + i * 80; bool sel = i == pauseSel; int ii = i; zone(W / 2 - 260, y - 34, 520, 68, () => pauseSel = ii);
 				if (sel) { rr(W / 2 - 260, y - 34, 520, 68, 16); g.fillStyle = $"rgba({RGB},0.12)"; g.fill(); g.strokeStyle = RED; g.lineWidth = 2; g.stroke(); }
-				txt(PL_PAUSE[i], W / 2, y, sel ? 38 : 32, sel ? "#fff" : "rgba(255,255,255,0.5)", 800);
+				txt(PP[i], W / 2, y, sel ? 38 : 32, sel ? "#fff" : "rgba(255,255,255,0.5)", 800);
 			}
 		}
 		if (state == "pltSet") { overlay(0.95); drawSettings(); }
@@ -190,13 +196,15 @@ public static partial class G
 		{
 			overlay(); double e = clamp((now - pl.deadAt) / 220, 0, 1), sc = 1 + 0.6 * JS.pow(1 - e, 3);
 			g.save(); g.translate(W / 2, H / 2 - 80); g.scale(sc, sc); g.globalAlpha = e; txt("خسرت!", 0, 0, 90, PINK); g.restore(); g.globalAlpha = 1;
-			if (now - pl.deadAt > 700)
+			if (now - pl.deadAt > 700 && online) { var K = BTN[kind]; row(new[] { (K.confirm, "كمّل من آخر حفظ") }, W / 2, H / 2 + 60, 38, "#fff", 30); row(new[] { (K.back, "اطلع من الغرفة") }, W / 2, H / 2 + 120); }
+			else if (now - pl.deadAt > 700)
 			{
 				var K = BTN[kind];
 				row(new[] { (K.confirm, "كمّل من آخر حفظ") }, W / 2, H / 2 + 60, 38, "#fff", 30);
 				row(new[] { (K.restart, "من بداية المرحلة"), (K.back, "المراحل") }, W / 2, H / 2 + 120);
 			}
 		}
+		if (state == "pltVsEnd") drawVsEnd(now);
 		if (state == "pltWin")
 		{
 			overlay(0.7); txt("خلّصت المرحلة!", W / 2, H / 2 - 160, 64, "#fff");
@@ -239,6 +247,7 @@ public static partial class G
 		txt(pl.L.name, W / 2, H / 2 - 30 + 30 * sl * sl - up, 72, "#fff", 800);
 		string song = pl.L.best != null ? pl.L.song : "؟؟؟";
 		g.font = $"36px {TFONT}"; g.fillStyle = PINK; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText(song, W / 2, H / 2 + 40 + 30 * sl * sl - up); g.direction = "rtl";
+		if (online) txt("ضد " + net.other, W / 2, H / 2 + 110 + 30 * sl * sl - up, 30, CYAN, 800);
 		g.restore();
 	}
 

@@ -23,8 +23,8 @@ public static partial class G
 	}
 
 	static readonly string[] IN_GAME = { "play", "paused", "pauseSet", "dead", "win", "starting", "replay", "rpGap", "rpEnd", "prEnd" };
-	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "pltList", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins" };
-	static readonly string[] FS_HINT = { "main", "levels", "modes", "pltList", "pltPause", "pltSet", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "chal", "skins" };
+	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins" };
+	static readonly string[] FS_HINT = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "pltPause", "pltSet", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "chal", "skins" };
 
 	public static void draw(double now)
 	{
@@ -139,12 +139,12 @@ public static partial class G
 		zonesFlip();
 	}
 
-	static readonly string[] MENU_MUSIC = { "main", "levels", "modes", "pltList", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "practice", "news", "chal", "skins" };
+	static readonly string[] MENU_MUSIC = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "practice", "news", "chal", "skins" };
 	public static void step(double now, bool nd = false)
 	{
 		double dt = Math.Min(0.05, Math.Max(0, now - last) / 1000); last = now; fdt = dt;
 		var inp = readInput(); mouseApply(inp); syncField();
-		syncTick(now);
+		syncTick(now); netTick(now);
 		if (state == "gate") { if ((f11Hit || fsOK()) && menuBuf != null) { ensureAudio(); gatePressAt = now; gatePassed = true; state = "gateWait"; } f11Hit = false; }
 		else if (state == "gateWait") { if (actx.state == "running") { playMenu(0); state = "splash"; } else if (now - gatePressAt > 600) { gateHint = true; if (inp.any) ensureAudio(); } }
 		else if (state == "splash") { if (menuPos() >= MENU_DROP) { goMain(now); } else if (inp.any && menuPos() > 1.2) { stopMenu(); playMenu(MENU_DROP); goMain(now); } }

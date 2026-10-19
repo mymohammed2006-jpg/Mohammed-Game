@@ -1,0 +1,117 @@
+using System;
+using System.Linq;
+using static MG.JS;
+
+namespace MG;
+
+// drawing the online screens of the platformer
+public static partial class G
+{
+	const string NGOLD = "#ffd25c";
+	static void codeTxt(string s, double x, double y, double size, string col)
+	{
+		g.font = $"{str(size)}px {TFONT}"; g.fillStyle = col; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText(s, x, y); g.direction = "rtl";
+	}
+	static string secs(double t) => ar(Math.Round(Math.Max(0, t) * 10) / 10) + " ث";
+
+	// a line on the level list: why the room ended, or why online is closed
+	static void drawNetNote(double now)
+	{
+		double a = 1 - clamp((now - netMsgAt - 3500) / 500, 0, 1); if (netMsg == null || a <= 0) return;
+		g.globalAlpha = a; txt(netMsg, W / 2, H - 80, 26, NGOLD, 700); g.globalAlpha = 1;
+	}
+
+	static void drawPltOn(double now)
+	{
+		bgShapes(now); txt("أونلاين", W / 2, 105, 48, "#fff");
+		txt(PLATS[plSel].name, W / 2, 165, 28, RED3, 700);
+		for (int i = 0; i < ON_OPTS.Length; i++)
+		{
+			double y = 300 + i * 100; bool sel = i == onSel; int ii = i; zone(W / 2 - 260, y - 38, 520, 76, () => onSel = ii);
+			rr(W / 2 - 260, y - 38, 520, 76, 18); g.fillStyle = sel ? CARDS : CARD; g.fill(); g.strokeStyle = sel ? RED : "rgba(255,255,255,0.12)"; g.lineWidth = sel ? 3 : 1.5; g.stroke();
+			txt(ON_OPTS[i], W / 2, y, sel ? 36 : 32, sel ? "#fff" : "rgba(255,255,255,0.6)", 800);
+		}
+		txt("تلعب أنت وصاحبك نفس المرحلة بنفس الوقت، وأول واحد يوصل البوابة يفوز", W / 2, 530, 24, "rgba(255,255,255,0.65)", 500);
+		row(new[] { (BTN[kind].confirm, "اختيار"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
+	}
+
+	static void drawPltJoin(double now)
+	{
+		bgShapes(now); txt("ادخل كود الغرفة", W / 2, 130, 48, "#fff");
+		double bw = 92, gap = 22, x0 = W / 2 - (5 * bw + 4 * gap) / 2, y = 320;
+		for (int i = 0; i < 5; i++)
+		{
+			double x = x0 + i * (bw + gap); bool cur = i == Math.Min(joinCode.Length, 4) && !usingPad || usingPad && i == joinDig;
+			rr(x, y - 60, bw, 120, 16); g.fillStyle = CARD; g.fill(); g.strokeStyle = cur ? RED : "rgba(255,255,255,0.18)"; g.lineWidth = cur ? 3 : 1.5; g.stroke();
+			if (i < joinCode.Length) codeTxt(joinCode[i].ToString(), x + bw / 2, y + 4, 64, "#fff");
+			else if (cur && Math.Floor(now / 500) % 2 == 0) { g.fillStyle = RED; g.fillRect(x + bw / 2 - 18, y + 36, 36, 4); }
+		}
+		txt(usingPad ? "فوق وتحت يغيّرون الرقم، يمين ويسار تنقل بين الخانات" : "اكتب الأرقام اللي عطاك إياها صاحبك", W / 2, 460, 24, "rgba(255,255,255,0.65)", 500);
+		row(new[] { (BTN[kind].confirm, "ادخل"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, joinCode.Length == 5 ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.5)", 18);
+	}
+
+	static void drawPltRoom(double now)
+	{
+		bgShapes(now); var n = net; if (n == null) return;
+		string ph = n.phase; string dots = new string('.', 1 + (int)Math.Floor(now / 400) % 3);
+		if (ph is "make" or "wait")
+		{
+			txt("غرفتك", W / 2, 105, 48, "#fff");
+			txt("عط صاحبك هذا الكود يدخله من: البلاتفورم ← أونلاين ← ادخل بكود", W / 2, 175, 24, "rgba(255,255,255,0.7)", 500);
+			if (ph == "wait") codeTxt(n.code, W / 2, 320, 130, RED);
+			else txt("أسوي الغرفة" + dots, W / 2, 320, 36, "rgba(255,255,255,0.7)", 700);
+			if (ph == "wait") txt("أستنى صاحبك يدخل" + dots, W / 2, 470, 30, "rgba(255,255,255,0.75)", 700);
+		}
+		else if (ph is "join" or "conn")
+		{
+			txt(n.host ? "صاحبك دخل!" : "أدخل الغرفة", W / 2, 105, 48, "#fff");
+			txt("جاري الاتصال" + dots, W / 2, H / 2, 36, "rgba(255,255,255,0.75)", 700);
+		}
+		else if (ph == "lobby")
+		{
+			txt("جاهزين؟", W / 2, 105, 48, "#fff");
+			txt(n.L?.name ?? "", W / 2, 165, 28, RED3, 700);
+			string me = acc?.name ?? "", ot = n.hello ? n.other : n.other + dots;
+			string left = n.host ? ot : me, right = n.host ? me : ot, lsk = n.host ? n.otherSk : skin, rsk = n.host ? skin : n.otherSk;
+			lobbySq(W / 2 + 200, 330, right, rsk, now); lobbySq(W / 2 - 200, 330, left, lsk, now);
+			txt("ضد", W / 2, 330, 40, "rgba(255,255,255,0.5)", 800);
+			if (n.rtt >= 0) { g.font = $"18px {TFONT}"; g.fillStyle = "rgba(255,255,255,0.4)"; g.textAlign = "center"; g.direction = "ltr"; g.fillText($"{Math.Round(n.rtt)} ms", W / 2, 520); g.direction = "rtl"; }
+			if (n.host && n.hello) row(new[] { (BTN[kind].confirm, "ابدأ") }, W / 2, 590, 38, "#fff", 30);
+			else if (!n.host) txt($"أستنى {n.other} يبدأ" + dots, W / 2, 590, 28, "rgba(255,255,255,0.75)", 700);
+		}
+		row(new[] { (BTN[kind].back, "اطلع من الغرفة") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
+	}
+	static void lobbySq(double x, double y, string name, string sk, double now)
+	{
+		g.save(); g.translate(x, y - 30); g.scale(3, 3); g.rotate(Math.Sin(now / 600) * 0.15);
+		if (string.IsNullOrEmpty(sk)) { g.shadowColor = CYAN; g.shadowBlur = 14; g.fillStyle = CYAN; g.fillRect(-9, -9, 18, 18); g.shadowBlur = 0; g.fillStyle = ARENA; g.fillRect(-3, -3, 6, 6); }
+		else skinBody(sk, 1, now);
+		g.restore();
+		txt(name, x, y + 70, 30, "#fff", 800);
+	}
+
+	// the other player's square and name (see-through)
+	static void drawNetGhost(double now)
+	{
+		var gp = netGhost(now); if (gp == null) return;
+		drawPlayer(gp, net.otherSk ?? "", 0.55);
+		g.globalAlpha = 0.7; txt(net.other, gp.x, gp.y - 30, 18, "#fff", 700); g.globalAlpha = 1;
+	}
+
+	static void drawVsEnd(double now)
+	{
+		var n = net; if (n == null) return;
+		overlay(0.72); double ts = now - n.endAt, e = clamp(ts / 220, 0, 1), sc = 1 + 0.6 * JS.pow(1 - e, 3);
+		g.save(); g.translate(W / 2, H / 2 - 120); g.scale(sc, sc); g.globalAlpha = e;
+		if (n.iWon) txt("فزت!", 0, 0, 100, NGOLD); else txt($"{n.other} فاز", 0, 0, 80, PINK);
+		g.restore(); g.globalAlpha = 1;
+		if (n.myFin >= 0) txt("وقتك: " + secs(n.myFin), W / 2, H / 2 + 10, 30, "#e9e6f5", 600);
+		if (n.otherFin >= 0) txt($"وقت {n.other}: " + secs(n.otherFin), W / 2, H / 2 + (n.myFin >= 0 ? 55 : 10), 30, "#e9e6f5", 600);
+		if (ts > 800)
+		{
+			if (n.host) row(new[] { (BTN[kind].confirm, "العب مرة ثانية") }, W / 2, H / 2 + 135);
+			else txt($"أستنى {n.other} يبدأ مرة ثانية", W / 2, H / 2 + 135, 28, "rgba(255,255,255,0.75)", 700);
+			row(new[] { (BTN[kind].back, "اطلع من الغرفة") }, W / 2, H / 2 + 190);
+		}
+	}
+}

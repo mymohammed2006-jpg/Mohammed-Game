@@ -12,5 +12,6 @@
   <ItemGroup>
     <PackageReference Include="Clipper2" Version="1.5.4" />
     <PackageReference Include="LibTessDotNet" Version="1.1.15" />
+    <PackageReference Include="SIPSorcery" Version="10.0.17" />
   </ItemGroup>
 </Project>

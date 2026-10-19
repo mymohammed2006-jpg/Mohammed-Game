@@ -14,6 +14,7 @@ public partial class Main : Node
 	BotRun botRun;
 	PvRun pvRun;
 	UiRun uiRun;
+	NetTest netTest;          // --net-test: two copies of the game online on the Firebase emulator (test/NetTest.cs)
 	PlatTest platTest;        // --plat-run: the platformer without a person (test/PlatTest.cs)              // --ui-run: the menus check (tools/compare/ui)
 	int frame;
 	Updater upd;
@@ -33,6 +34,7 @@ public partial class Main : Node
 			if (args[i] == "--bot-run") botRun = BotRun.FromArgs(args, i + 1);
 			if (args[i] == "--play-run") { botRun = BotRun.FromArgs(args, i + 1); botRun.play = true; }
 			if (args[i] == "--plat-run") platTest = PlatTest.FromArgs(args, i + 1);
+			if (args[i] == "--net-test") netTest = NetTest.FromArgs(args, i + 1);
 			if (args[i] == "--ui-run") uiRun = UiRun.FromArgs(args, i + 1);
 			if (args[i] == "--preview") pvRun = PvRun.FromArgs(args, i + 1);
 			if (args[i] == "--dev" && i + 1 < args.Length) devLevel = args[i + 1];
@@ -47,6 +49,7 @@ public partial class Main : Node
 		if (botRun != null) { botRun.Start(this); return; }
 		if (uiRun != null) { uiRun.Start(this); return; }
 		if (platTest != null) { platTest.Start(this); return; }
+		if (netTest != null) { netTest.Start(this); return; }
 		if (pvRun != null) { pvRun.Start(this); return; }
 
 		if (!WinApp.Start()) { GetTree().Quit(); return; }
@@ -94,7 +97,7 @@ public partial class Main : Node
 
 	public override void _Input(InputEvent e)
 	{
-		if (botRun != null || uiRun != null || pvRun != null || platTest != null || canvasTestOut != null) return;
+		if (botRun != null || uiRun != null || pvRun != null || platTest != null || netTest != null || canvasTestOut != null) return;
 		if (upd != null && upd.state != "done") return;
 		if (e is InputEventKey k)
 		{
@@ -139,6 +142,7 @@ public partial class Main : Node
 
 		if (uiRun != null) { uiRun.Process(); return; }
 		if (platTest != null) { platTest.Process(); return; }
+		if (netTest != null) { netTest.Process(); return; }
 		if (pvRun != null) { pvRun.Process(); return; }
 		double t0 = performance.now();
 		if (upd != null)
