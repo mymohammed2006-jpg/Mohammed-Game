@@ -20,8 +20,9 @@ public static partial class G
 		double b = tmBeat(), bp = ((b % 1) + 1) % 1; pulse = JS.exp(-bp * 5) * 0.8;
 		double prog = Math.Clamp((tm.got.Count + (tm.b.Count(q => q.gate) > 0 ? 0.5 : 0)) / Math.Max(1.0, tmPieces() + 0.5), 0, 1);
 		long bi = (long)Math.Floor(b);
-		bool storm = tm.P.theme == 1;
+		bool storm = tm.P.theme == 1, night = tm.P.theme == 2;
 		if (storm) tmStormSky(now, b, bi, bp);
+		else if (night) tmNightSky(now, b, bi, bp);
 		else {
 		// the sky: deep purple on top to a warm orange low, the sun going down as the pieces come in
 		var gr = g.createLinearGradient(0, 0, 0, H);
@@ -40,9 +41,9 @@ public static partial class G
 		}
 		}
 		// walls: deep plum with a warm edge (near black with a red edge in the storm)
-		g.fillStyle = storm ? "#10050a" : "#1b0f26";
+		g.fillStyle = storm ? "#10050a" : night ? "#0b0e24" : "#1b0f26";
 		for (int y = 0; y < tm.h; y++) for (int x = 0; x < tm.w; x++) if (tm.m[y][x] == '#') g.fillRect(x * PT, y * PT, PT + 0.5, PT + 0.5);
-		g.strokeStyle = storm ? $"rgba(255,70,90,{str(0.45 + 0.4 * pulse)})" : $"rgba(255,160,140,{str(0.5 + 0.35 * pulse)})"; g.lineWidth = 2; g.shadowColor = storm ? "#ff3048" : "#ff8a7a"; g.shadowBlur = 8; g.beginPath();
+		g.strokeStyle = storm ? $"rgba(255,70,90,{str(0.45 + 0.4 * pulse)})" : night ? $"rgba(255,207,90,{str(0.4 + 0.35 * pulse)})" : $"rgba(255,160,140,{str(0.5 + 0.35 * pulse)})"; g.lineWidth = 2; g.shadowColor = storm ? "#ff3048" : night ? "#ffcf5a" : "#ff8a7a"; g.shadowBlur = 8; g.beginPath();
 		for (int y = 0; y < tm.h; y++) for (int x = 0; x < tm.w; x++)
 		{
 			if (tm.m[y][x] != '#') continue; double X = x * PT, Y = y * PT;
@@ -52,6 +53,7 @@ public static partial class G
 			if (x < tm.w - 1 && tm.m[y][x + 1] != '#') { g.moveTo(X + PT - 1, Y); g.lineTo(X + PT - 1, Y + PT); }
 		}
 		g.stroke(); g.shadowBlur = 0;
+		if (tm.P.mirror > 0) tmDrawGlass(now);
 		// the scale's rope over the top, from pan L to pan R
 		foreach (var s in tm.th.Where(s => s.k == "scale"))
 		{
@@ -124,7 +126,7 @@ public static partial class G
 						break;
 					}
 				case "bridge": case "path":
-					if (s.s > 0.02) cloudBlob(s.X, s.Y - 4, s.W, 18, storm ? "#ffd9dd" : "#fff2e8", s.s * 0.95);
+					if (s.s > 0.02) cloudBlob(s.X, s.Y - 4, s.W, 18, storm ? "#ffd9dd" : night ? "#efeaff" : "#fff2e8", s.s * 0.95);
 					else { g.strokeStyle = "rgba(255,240,230,0.25)"; g.lineWidth = 2; g.setLineDash(new double[] { 5, 9 }); g.strokeRect(s.X + 2, s.Y, s.W - 4, 12); g.setLineDash(new double[0]); }
 					if (s.d.need != null) foreach (var n in tm.th.Where(o => s.d.need.Contains(o.d.id)))   // a thin light from each stone / button
 					{
@@ -160,10 +162,14 @@ public static partial class G
 					break;
 				case "btn":
 					{
-						double dn = s.on ? 4 : 0; g.fillStyle = s.on ? "#ffe08a" : "#b0906a"; g.shadowColor = GOLD; g.shadowBlur = s.on ? 18 : 4;
+						double dn = s.on ? 4 : 0; bool mir = s.d.a == 1;   // a button in the mirror: silver-blue
+						g.fillStyle = mir ? (s.on ? "#e6f0ff" : "#8fa6d8") : s.on ? "#ffe08a" : "#b0906a"; g.shadowColor = mir ? "#a8c8ff" : GOLD; g.shadowBlur = s.on ? 18 : mir ? 10 : 4;
 						rr(s.X + 6, s.Y - 10 + dn, s.W - 12, 10 - dn, 4); g.fill(); g.shadowBlur = 0; break;
 					}
-				case "cloud": cloudBlob(s.X, s.Y - 4, s.W, 24, storm ? "#ead0d4" : "#fff6f2", 0.95); break;
+				case "cloud": cloudBlob(s.X, s.Y - 4, s.W, 24, storm ? "#ead0d4" : night ? "#ece8ff" : "#fff6f2", 0.95); break;
+				case "cam": tmDrawCam(s, now, bp); break;
+				case "snap": tmDrawSnap(s, b); break;
+				case "mover": tmDrawFrame(s, now); break;
 				case "flip":
 					{
 						string c = TM_COL[(int)s.d.a];
@@ -192,6 +198,7 @@ public static partial class G
 					}
 			}
 		}
+		tmDrawPhoto(now, b);
 		// footprints on the clouds
 		foreach (var q in tm.steps) { g.fillStyle = TM_COL[q.who]; g.globalAlpha = 0.35 * (1 - (tm.t - q.t) / 2.5); g.fillRect(q.x - 4, q.y - 3, 8, 3); }
 		g.globalAlpha = 1;
@@ -235,6 +242,8 @@ public static partial class G
 		if (tm.swapA >= 0) tmDrawSwapWarn(now, b);
 		// the three
 		foreach (var p in tm.b) tmDrawBody(p, now);
+		if (tm.P.mirror > 0) foreach (var p in tm.b) tmDrawReflection(p, now);
+		foreach (var p in tm.b) if (p.carry != null && !p.down) tmDrawPic(p.carry, now);
 		// HUD: each one's lives in its colour, the song's pieces, messages
 		for (int i = 0; i < TM_N; i++)
 		{
@@ -253,7 +262,8 @@ public static partial class G
 		if (tm.msgT > 0) { g.globalAlpha = Math.Min(1, tm.msgT); txt(tm.msg, W / 2, 74, 30, GOLD); g.globalAlpha = 1; }
 		if (tm.restartAt >= 0) { double a = clamp(1 - (tm.restartAt - tm.t) / 0.9, 0, 1); g.fillStyle = $"rgba(20,8,30,{str(a * 0.85)})"; g.fillRect(0, 0, W, H); }
 		// between pages: warm clouds rise over the screen, then keep rising off the top on the next page
-		if (tm.doneAt >= 0) tmCloudSwap(1 - clamp((tm.t - tm.doneAt) / (TM_SWAP * 0.85), 0, 1), now, tm.P.theme);
+		if (tm.won) tmDrawWin(now);
+		else if (tm.doneAt >= 0) tmCloudSwap(1 - clamp((tm.t - tm.doneAt) / (TM_SWAP * 0.85), 0, 1), now, tm.P.theme);
 		else if (tm.fromClouds && tm.pageAt < TM_SWAP) tmCloudSwap(-clamp(tm.pageAt / TM_SWAP, 0, 1), now, tm.coverTheme);
 	}
 
@@ -266,10 +276,11 @@ public static partial class G
 		if (y1 <= y0 - 140) return;
 		var gr = g.createLinearGradient(0, 0, 0, H);
 		if (theme == 1) { gr.addColorStop(0, "#3a0c16"); gr.addColorStop(0.6, "#5e1222"); gr.addColorStop(1, "#7e1a2a"); }
+		else if (theme == 2) { gr.addColorStop(0, "#141238"); gr.addColorStop(0.6, "#2a1f5c"); gr.addColorStop(1, "#3d2a72"); }
 		else { gr.addColorStop(0, "#ffd9c7"); gr.addColorStop(0.6, "#ffb3b8"); gr.addColorStop(1, "#ff8f8f"); }
 		g.save(); g.fillStyle = gr; g.fillRect(0, Math.Max(0, y0), W, Math.Max(0, y1 - Math.Max(0, y0)));
 		// soft lighter puffs inside, drifting, so it reads as a thick cloud and not a flat wall
-		g.save(); g.beginPath(); g.rect(0, Math.Max(0, y0), W, Math.Max(0, y1 - Math.Max(0, y0))); g.clip(); g.fillStyle = theme == 1 ? "rgba(255,110,130,0.14)" : "rgba(255,240,232,0.35)";
+		g.save(); g.beginPath(); g.rect(0, Math.Max(0, y0), W, Math.Max(0, y1 - Math.Max(0, y0))); g.clip(); g.fillStyle = theme == 1 ? "rgba(255,110,130,0.14)" : theme == 2 ? "rgba(200,190,255,0.16)" : "rgba(255,240,232,0.35)";
 		for (int i = 0; i < 14; i++) { double cx = ((i * 211 + now / 40 * (1 + i % 3)) % (W + 300)) - 150, cy = (i * 149) % H, r = 70 + (i * 29) % 60; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.arc(cx + r * 0.9, cy + 10, r * 0.75, 0, TAU); g.fill(); }
 		g.restore(); g.fillStyle = gr;
 		// a row of big puffs along the moving edge, a second softer row behind it

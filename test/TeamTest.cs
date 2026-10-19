@@ -101,6 +101,10 @@ public class TeamTest
 			if (G.tm.P.things.Any(d => d.k == "flip")) log.Append(" f=").Append(string.Join(",", G.tm.flips));
 			if (G.tm.chaseX > -900) log.Append(" wall=").Append(str(Math.Round(G.tm.chaseX)));
 			if (G.tm.swapA >= 0) log.Append($" swap{G.tm.swapA}{G.tm.swapB}@").Append(str(G.tm.swapAt));
+			foreach (var b in G.tm.b) if (b.carry != null) log.Append(" carry").Append(b.i);
+			if (G.tm.th.Any(s => s.k == "slot")) log.Append(" placed=").Append(G.tm.th.Count(s => s.k == "slot" && s.on));
+			foreach (var s in G.tm.th) if (s.k == "mover") log.Append(s.d.need != null ? " lift=" : " mv=").Append(str(Math.Round(s.d.need != null ? s.Y : s.X)));
+			if (G.tm.won) log.Append(" WON");
 			if (G.tm.doneAt >= 0) log.Append(" DONE");
 			log.Append('\n');
 			if (!nodraw && i % every == 0)
