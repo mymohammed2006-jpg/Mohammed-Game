@@ -46,20 +46,29 @@ public class Peer
 		}
 		catch (Exception) { return url; }
 	}
+	// every server is checked at once (Stun.Check); the library gets the first relay that works and the first STUN that works
+	public static string Probe = "";   // what the check found: "s1 t0" (STUN yes, relay no), for the "can't connect" line
 	static async Task<List<RTCIceServer>> servers()
 	{
-		var l = new List<RTCIceServer>();
-		foreach (var s in ICE) l.Add(new RTCIceServer { urls = await byIp(s.urls), username = s.username, credential = s.credential, credentialType = s.credentialType });
-		if (!Relay) return l;
-		if (METERED_URL != "")
-			try
-			{
-				var a = System.Text.Json.Nodes.JsonNode.Parse(await http.GetStringAsync(METERED_URL)) as System.Text.Json.Nodes.JsonArray;
-				foreach (var s in a ?? new()) { string u = (string)s["urls"]; if (u != null && u.StartsWith("turn")) l.Add(new RTCIceServer { urls = u, username = (string)s["username"], credential = (string)s["credential"], credentialType = RTCIceCredentialType.password }); }
-			}
-			catch (Exception) { }
-		l.Add(openRelay(await byIp("turn:staticauth.openrelay.metered.ca:80")));
-		l.Add(openRelay(await byIp("turn:staticauth.openrelay.metered.ca:443?transport=tcp")));
+		var all = new List<RTCIceServer>();
+		foreach (var s in ICE) all.Add(new RTCIceServer { urls = await byIp(s.urls), username = s.username, credential = s.credential, credentialType = s.credentialType });
+		if (Relay)
+		{
+			if (METERED_URL != "")
+				try
+				{
+					var a = System.Text.Json.Nodes.JsonNode.Parse(await http.GetStringAsync(METERED_URL)) as System.Text.Json.Nodes.JsonArray;
+					foreach (var s in a ?? new()) { string u = (string)s["urls"]; if (u != null && u.StartsWith("turn:")) all.Add(new RTCIceServer { urls = await byIp(u), username = (string)s["username"], credential = (string)s["credential"], credentialType = RTCIceCredentialType.password }); }
+				}
+				catch (Exception) { }
+			all.Add(openRelay(await byIp("turn:staticauth.openrelay.metered.ca:80")));
+			all.Add(openRelay(await byIp("turn:staticauth.openrelay.metered.ca:443?transport=tcp")));
+		}
+		var ok = await Task.WhenAll(all.ConvertAll(s => Stun.Check(s, 2500)));
+		RTCIceServer st = null, tu = null;
+		for (int i = 0; i < all.Count; i++) if (ok[i]) { if (all[i].urls.StartsWith("turn")) tu ??= all[i]; else st ??= all[i]; }
+		Probe = $"s{(st != null ? 1 : 0)} t{(tu != null ? 1 : 0)}";
+		var l = new List<RTCIceServer>(); if (tu != null) l.Add(tu); if (st != null) l.Add(st);
 		return l;
 	}
 
@@ -91,12 +100,14 @@ public class Peer
 	{
 		await Task.WhenAny(found.Task, Task.Delay(GatherMs));
 		await pc.setLocalDescription(d());
-		return mine = pc.localDescription.sdp.ToString();
+		// the check's result rides in the SDP's free name line, so a failed room shows it for both players
+		return mine = pc.localDescription.sdp.ToString().Replace("s=sipsorcery", "s=mg " + Probe);
 	}
 	// what each side found (for the "can't connect" line): direct addresses, internet address, relay
 	string mine = "", theirs = "";
 	static string kinds(string sdp) { int c(string t) => sdp.Split("typ " + t).Length - 1; return $"{c("host")}/{c("srflx")}/{c("relay")}"; }
-	public string Diag() => $"أنت {kinds(mine)} · صاحبك {kinds(theirs)}";
+	static string probe(string sdp) { int i = sdp.IndexOf("s=mg "); return i < 0 ? "" : " " + sdp[(i + 5)..].Split('\r', '\n')[0]; }
+	public string Diag() => $"أنت {kinds(mine)}{probe(mine)} · صاحبك {kinds(theirs)}{probe(theirs)}";
 
 	// the room's maker: the offer to put in the room
 	public async Task<string> Offer()
