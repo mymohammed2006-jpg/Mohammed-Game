@@ -34,9 +34,8 @@ public static partial class G
 			double lf = lift("M" + i, sel);
 			rr(x - cw / 2, cy - chh / 2 + lf, cw, chh, 22); g.fillStyle = sel ? CARDS : CARD; g.fill();
 			g.strokeStyle = sel ? RED : "rgba(255,255,255,0.12)"; g.lineWidth = sel ? 3 : 1.5; g.stroke();
-			g.save(); g.translate(x, cy - 55 + lf); if (i == 0) modeIconDodge(now, sel); else modeIconPlat(now, sel); g.restore();
-			txt(i == 0 ? "الطور الرئيسي" : "البلاتفورم", x, cy + 70 + lf, sel ? 40 : 36, "#fff", 800);
-			txt(i == 0 ? "تفادى الهجمات على الإيقاع" : "اقفز وجمّع الأغنية", x, cy + 120 + lf, 22, sel ? RED3 : "rgba(255,255,255,0.5)", 500);
+			g.save(); g.translate(x, cy - 40 + lf); if (i == 0) modeIconDodge(now, sel); else modeIconPlat(now, sel); g.restore();
+			txt(i == 0 ? "الطور الرئيسي" : "البلاتفورم", x, cy + 95 + lf, sel ? 40 : 36, "#fff", 800);
 		}
 		row(new[] { (BTN[kind].confirm, "اختيار"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
 	}
@@ -53,7 +52,7 @@ public static partial class G
 		double t = now / 1000, ph = t * 1.4 % 2, k = ph < 1 ? ph : 2 - ph, jx = -60 + 120 * k, jy = 30 - 70 * 4 * k * (1 - k);
 		g.fillStyle = "#1a1330"; g.strokeStyle = "rgba(170,130,255,0.8)"; g.lineWidth = 2;
 		g.fillRect(-110, 40, 80, 16); g.strokeRect(-110, 40, 80, 16); g.fillRect(30, 40, 80, 16); g.strokeRect(30, 40, 80, 16);
-		g.fillStyle = PINK; g.shadowColor = PINK; g.shadowBlur = 8; for (int i = 0; i < 4; i++) { double sx = -24 + i * 14; g.beginPath(); g.moveTo(sx, 58); g.lineTo(sx + 7, 44); g.lineTo(sx + 14, 58); g.closePath(); g.fill(); }
+		g.fillStyle = PINK; g.shadowColor = PINK; g.shadowBlur = 8; for (int i = 0; i < 4; i++) { double sx = -28 + i * 14; g.beginPath(); g.moveTo(sx, 58); g.lineTo(sx + 7, 44); g.lineTo(sx + 14, 58); g.closePath(); g.fill(); }
 		g.shadowBlur = 0; plPieceIcon(0, -62 + 4 * JS.sin(t * 3), 1, 0, 1);
 		g.shadowColor = CYAN; g.shadowBlur = 14; g.fillStyle = CYAN; g.fillRect(jx - 11, jy - 11, 22, 22); g.shadowBlur = 0; g.fillStyle = "#000"; g.fillRect(jx - 4, jy - 4, 8, 8);
 	}
@@ -246,7 +245,7 @@ public static partial class G
 			double a0 = pl.t - pl.taken[i].at; if (a0 < 0) continue;
 			double f = (a0 % PASS_EVERY) / PASS_T; if (f >= 1) continue;
 			double x = W + 60 - (W + 120) * f, a = 0.28 * Math.Min(1, Math.Min(f, 1 - f) * 8);
-			g.save(); g.globalAlpha = a; plPieceIcon(x, PASS_Y[i] + 8 * JS.sin(f * Math.PI * 4), 2.2, pl.taken[i].k, 1, false);   // no frame: it must not look like a piece to take g.restore();
+			g.save(); g.globalAlpha = a; plPieceIcon(x, PASS_Y[i] + 8 * JS.sin(f * Math.PI * 4), 2.2, pl.taken[i].k, 1, false); g.restore();   // no frame: it must not look like a piece to take
 		}
 	}
 	// each level's own touch behind the map (same colours): disco = I Will Survive

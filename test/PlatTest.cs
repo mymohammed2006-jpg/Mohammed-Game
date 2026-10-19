@@ -9,6 +9,7 @@ using static MG.JS;
 // The platformer without a person: -- --plat-run <levelId> <script.txt|-> <outDir> [fps=60] [every=1]
 // The script: one line per moment, "<seconds> <keys>" with keys from L R U D (held), J (jump held), X (dash press), P (Esc held), E (Enter held); later lines replace earlier ones.
 // Writes state.log (frame time x y state pieces hits deaths) and a PNG every `every` frames.
+// With <levelId> = flow: starts on the platformer list (press E to go in).
 // With <levelId> = menu: draws the main menu, the mode screen and the platformer list (menu-*.png).
 public class PlatTest
 {
@@ -31,7 +32,8 @@ public class PlatTest
 		var sk = System.Environment.GetEnvironmentVariable("SKIN"); if (sk != null) G.skin = sk; if (System.Environment.GetEnvironmentVariable("EASY") == "1") G.setEasy(true);
 		if (id == "menu") return;
 		lines = script == "-" ? new (double, string)[0] : File.ReadAllLines(script).Where(l => l.Trim().Length > 0 && !l.StartsWith("#")).Select(l => { var f = l.Trim().Split(' ', 2); return (double.Parse(f[0]), f.Length > 1 ? f[1].Trim() : ""); }).ToArray();
-		G.plStart(G.PLATS.First(x => x.id == id), System.Environment.GetEnvironmentVariable("INTRO") == "1");
+		if (id == "flow") { G.state = "pltList"; G.plSel = 0; var _ = G.PLATS; }   // from the level list, as a player goes in
+		else	G.plStart(G.PLATS.First(x => x.id == id), System.Environment.GetEnvironmentVariable("INTRO") == "1");
 		T = lines.Length > 0 ? lines[^1].t : 10;
 	}
 	public void Process()
