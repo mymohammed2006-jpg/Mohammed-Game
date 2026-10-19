@@ -14,6 +14,7 @@ public class TeamTest
 {
 	string id, outDir; int page, fps = 60, every = 1, i; double T; bool done, shot, nodraw = System.Environment.GetEnvironmentVariable("NODRAW") == "1";
 	int hits0; string[] routes; (int room, double t, string k)[][] lines; System.Collections.Generic.Dictionary<int, double> entry = new(); G.TeamRun lastTm; string[] lastK = new string[G.TM_N]; StringBuilder log = new(); Main host;
+	double from = double.TryParse(System.Environment.GetEnvironmentVariable("FROM"), out var fr) ? fr : 0;   // env FROM: pictures only after this time
 	string view;   // env VIEW: a player's screen (0-2), or "cycle" (each one's screen in turn in the dark rooms); else everyone's
 	BinaryWriter wav = System.Environment.GetEnvironmentVariable("WAV") != null ? new BinaryWriter(new MemoryStream()) : null;
 
@@ -107,7 +108,9 @@ public class TeamTest
 			if (G.tm.won) log.Append(" WON");
 			if (G.tm.doneAt >= 0) log.Append(" DONE");
 			log.Append('\n');
-			if (!nodraw && i % every == 0)
+			if (G.tm.won && System.Environment.GetEnvironmentVariable("TEAM_FALLS") is string tf) { var fs = tf.Split(','); for (int k = 0; k < G.TM_N; k++) G.tm.falls[k] = int.Parse(fs[k]); G.tm.restarts = int.Parse(System.Environment.GetEnvironmentVariable("TEAM_RESTARTS") ?? "0"); }
+			if (System.Environment.GetEnvironmentVariable("TEAM_NAMES") is string tn) G.tm.names = tn.Split(',');
+			if (!nodraw && i % every == 0 && t >= from)
 			{
 				var g = G.g; g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#000"; g.fillRect(0, 0, 1280, 720);
 				double sx = (random() * 2 - 1) * G.shake, sy = (random() * 2 - 1) * G.shake; g.setTransform(1, 0, 0, 1, sx, sy);

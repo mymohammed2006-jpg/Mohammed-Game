@@ -119,7 +119,8 @@ public static partial class G
 		public double[] sx = new double[TM_N], sy = new double[TM_N];
 		public string msg; public double msgT, restartAt = -1, doneAt = -1, pageAt; public int restarts, hits; public bool fromClouds; public int coverTheme;
 		public List<(int k, double at)> taken = new();
-		public int[] flips = new int[TM_N]; public double reveal, chaseX = -999, beat0, swapAt = -9, swapFx = -9; public int swapA = -1, swapB = -1, snapAt = -1; public double snapT = -9, prevBt, wonAt = -1; public bool won;
+		public int[] flips = new int[TM_N]; public double reveal, chaseX = -999, beat0, swapAt = -9, swapFx = -9; public int swapA = -1, swapB = -1, snapAt = -1; public double snapT = -9, prevBt, wonAt = -1, playT; public bool won;
+		public int[] falls = new int[TM_N]; public string[] names = { "الأحمر", "الأزرق", "الأصفر" };   // the whole level's, for the win screen
 	}
 	public static int tmView = -1;                                  // whose screen this is (-1: everyone's, for the tests)
 	static readonly int[,] TM_PAIRS = { { 0, 1 }, { 1, 2 }, { 2, 0 } };
@@ -155,6 +156,7 @@ public static partial class G
 	{
 		var old = tm; var P = L.pages[page];
 		tm = new TeamRun { L = L, page = page, P = P, fromClouds = fromClouds, coverTheme = old?.P.theme ?? 0 };
+		if (old != null && old.L == L) { tm.falls = old.falls; tm.playT = old.playT; tm.names = old.names; }
 		if (P.cont && old != null && old.L == L)
 		{
 			tm.stemOn = old.stemOn; tm.voices = old.voices; tm.t = old.t; tm.beatN = old.beatN; tm.restarts = old.restarts; tm.hits = old.hits;
@@ -253,7 +255,7 @@ public static partial class G
 	// ---------- one fixed step for everyone ----------
 	public static void tmStep(double dt, TIn[] ins)
 	{
-		tm.t += dt; tm.pageAt += dt; tm.msgT -= dt; songT = tm.t;
+		tm.t += dt; tm.pageAt += dt; if (!tm.won) tm.playT += dt; tm.msgT -= dt; songT = tm.t;
 		double bt = tmBeat(), spb = tm.L.spb, dB = bt - tm.prevBt; long bi = (long)Math.Floor(bt); tm.prevBt = bt;
 		if (tm.restartAt >= 0) { if (tm.t >= tm.restartAt) tmRestart(); return; }
 		if (tm.doneAt >= 0) { if (tm.t - tm.doneAt >= TM_SWAP && tm.page + 1 < tm.L.pages.Count) tmStart(tm.L, tm.page + 1, true); return; }
@@ -444,6 +446,9 @@ public static partial class G
 		}
 	}
 
+	// each one's letter by their own falls over the whole level (like the first level: S none, A one, B two, C three or more)
+	public static string tmRank(int i) { int d = tm.falls[i]; return d >= 3 ? "C" : d == 2 ? "B" : d == 1 ? "A" : "S"; }
+
 	static int tmPieces() { int n = 0; foreach (var r in tm.m) foreach (var c in r) if (c >= '1' && c <= '9') n++; return n; }
 	static bool tmOpen() => tm.got.Count >= tmPieces();
 	static void tmTiles(TBody b, double bx, bool refl)
@@ -497,6 +502,7 @@ public static partial class G
 		b.hp--; tm.hits++; b.inv = 2.0; b.hurt = 2.0; shake = 14; flash = 0.25; b.vy = Math.Min(b.vy, -520);
 		burst(b.x, b.y, TM_COL[b.i], 22, 380); sfx(t => { sTone(t, 110, 0.3, "square", 0.18); sNoise(t, 0.25, "lowpass", 900, 0.3); });
 		if (b.hp <= 0 && b.carry != null) { b.carry.X = b.carry.d.x * PT; b.carry.Y = b.carry.d.y * PT; b.carry = null; }
+		if (b.hp <= 0) tm.falls[b.i]++;
 		if (b.hp <= 0) { b.down = true; b.revT = 0; b.downAt = tm.t; b.vx = b.vy = 0; b.onT = null; burst(b.x, b.y, TM_COL[b.i], 50, 520); }
 	}
 

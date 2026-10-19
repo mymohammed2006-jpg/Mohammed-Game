@@ -162,15 +162,64 @@ public static partial class G
 		var (fx, fy, fw, fh) = tmFrameRect();
 		double tw = 720, th = tw * fh / fw; if (th > 520) { th = 520; tw = th * fw / fh; }
 		double x = fx + (W / 2 - tw / 2 - fx) * z, y = fy + (H / 2 - th / 2 - fy) * z, w = fw + (tw - fw) * z, h = fh + (th - fh) * z;
-		if (z > 0) { g.fillStyle = $"rgba(6,6,20,{str(0.75 * z)})"; g.fillRect(0, 0, W, H); }
+		// then it goes up and makes room for each one's card
+		double u = ease(clamp((f - 4.8) / 0.9, 0, 1)), uw = 440, uh = uw * th / tw;
+		x += (W / 2 - uw / 2 - x) * u; y += (34 - y) * u; w += (uw - w) * u; h += (uh - h) * u;
+		if (z > 0) { g.fillStyle = $"rgba(6,6,20,{str(0.75 * z + 0.15 * u)})"; g.fillRect(0, 0, W, H); }
 		g.save(); g.shadowColor = GOLD; g.shadowBlur = 24 + 12 * pulse; g.strokeStyle = "#ffcf5a"; g.lineWidth = 8 + 6 * z; g.strokeRect(x - 6, y - 6, w + 12, h + 12); g.restore();
 		tmPhotoScene(x, y, w, h, a);
 		if (f < 0.6) { g.fillStyle = $"rgba(255,255,255,{str(0.8 * (1 - f / 0.6))})"; g.fillRect(0, 0, W, H); }
+		if (u > 0) tmDrawResults(now, f - 5.3, y + h + 30);
 		// gold sparkles falling over it
 		for (int i = 0; i < 40; i++)
 		{
 			double sx = (i * 97 + 30) % W, sy = ((f * (60 + i % 5 * 20) + i * 53) % (H + 40)) - 20, r = 2 + i % 3;
 			g.fillStyle = $"rgba(255,215,120,{str(clamp(f / 2, 0, 0.8) * (0.5 + 0.5 * Math.Sin(now / 200 + i)))})"; g.fillRect(sx - r / 2, sy - r / 2, r, r);
+		}
+	}
+
+	// the win screen: a card for each one (name, their own letter, their falls, their XP), then the team's time
+	public static double TM_XP_MUL = 2;   // proposal: harder than the first platformer level (x1.5), easier than Link (x3.3)
+	static void tmDrawResults(double now, double f, double top)
+	{
+		if (f < -0.5) return;
+		double cw = 330, ch = 300, gap = 30;
+		for (int i = 0; i < TM_N; i++)
+		{
+			double fi = f - i * 0.35, a = clamp((fi + 0.5) / 0.4, 0, 1); if (a <= 0) continue;
+			double cx = W / 2 + (i - 1) * (cw + gap), cy = top + ch / 2 + 20 * (1 - a); string c = TM_COL[i], rk = tmRank(i); int d = tm.falls[i];
+			g.save(); g.globalAlpha = a;
+			g.fillStyle = "rgba(12,10,34,0.88)"; g.shadowColor = c; g.shadowBlur = 18; rr(cx - cw / 2, cy - ch / 2, cw, ch, 18); g.fill(); g.shadowBlur = 0;
+			g.strokeStyle = c; g.lineWidth = 3; rr(cx - cw / 2, cy - ch / 2, cw, ch, 18); g.stroke();
+			g.fillStyle = c; g.fillRect(cx - 9, cy - ch / 2 + 22, 18, 18); g.fillStyle = "#1b0f26"; g.fillRect(cx - 3, cy - ch / 2 + 28, 6, 6);
+			txt(tm.names[i], cx, cy - ch / 2 + 66, 30, "#fff", 800);
+			g.restore();
+			// the letter slams in like the first level's
+			if (fi > 0)
+			{
+				double e = clamp(fi / 0.18, 0, 1), sc = e < 1 ? 1 + 2.2 * JS.pow(1 - e, 2) : 1 + 0.12 * JS.exp(-(fi - 0.18) / 0.09);
+				g.save(); g.translate(cx, cy + 10); g.scale(sc, sc); g.globalAlpha = Math.Min(1, e * 1.5);
+				g.font = $"110px {TFONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr";
+				if (rk == "S") sShine("S", 0, 0, 80, now, 26); else { g.fillStyle = c; g.shadowColor = c; g.shadowBlur = 26; g.fillText(rk, 0, 0); g.shadowBlur = 0; }
+				g.direction = "rtl"; g.restore(); g.globalAlpha = 1;
+			}
+			if (fi > 0.3)
+			{
+				g.globalAlpha = clamp((fi - 0.3) / 0.3, 0, 1);
+				txt(d == 0 ? "بدون ولا طيحة" : d == 1 ? "طاح مرة" : $"طاح {ar(d)} مرات", cx, cy + 88, 24, "#e9e6f5", 500);
+				int xp = (int)Math.Round((rk == "S" ? 100 : rk == "A" ? 60 : rk == "B" ? 40 : 20) * TM_XP_MUL);
+				g.font = $"800 28px {FONT}"; g.fillStyle = GOLD; g.shadowColor = GOLD; g.shadowBlur = 10; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText($"+{ar(xp)} XP", cx, cy + 124); g.shadowBlur = 0; g.direction = "rtl";
+				g.globalAlpha = 1;
+			}
+		}
+		double fe = f - 1.4;
+		if (fe > 0)
+		{
+			int sec = (int)tm.playT; g.globalAlpha = clamp(fe / 0.4, 0, 1);
+			string tt = $"{ar(sec / 60)}:{(sec % 60 < 10 ? "٠" : "")}{ar(sec % 60)}";
+			txt($"وقت الفريق {tt}   •   رجعتوا لبداية صفحة {ar(tm.restarts)} مرات", W / 2, top + ch + 40, 24, "#cfc8ff", 600);
+			if (fe > 0.6) row(new[] { (BTN[kind].back, "المراحل") }, W / 2, top + ch + 88);
+			g.globalAlpha = 1;
 		}
 	}
 }
