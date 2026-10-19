@@ -12,7 +12,7 @@ public static partial class G
 {
 	public const double PT = 40;                                   // tile size
 	const double P_SPEED = 370, P_ACC = 5200, P_AIR = 3600, P_GRAV = 2600, P_JUMP = 880, P_CUT = 0.45, P_FALL = 1100;
-	public const int P_HP = 3;   // lives (his words 14:27 10-19)
+	public const int P_HP = 1;   // one heart: every hit is a death (his words 19:55 10-19, was 3)
 	const double P_COYOTE = 0.08, P_BUFFER = 0.1, P_DASH = 950, P_DASH_T = 0.18, P_HALF = 9;
 	public static int modeSel = 0, plSel = 0;
 
@@ -208,8 +208,8 @@ public static partial class G
 	}
 	static void plWin()
 	{
-		// S no hit, A one hit, B one death (or two hits), C two deaths or more (his words 14:27 10-19)
-		lastRank = deaths >= 2 ? "C" : deaths == 1 || hitsTotal >= 2 ? "B" : hitsTotal == 1 ? "A" : "S"; lastEz = false;
+		// one heart, so a hit is a death: S none, A one, B two, C three or more (agreed 19:59 10-19)
+		lastRank = deaths >= 3 ? "C" : deaths == 2 ? "B" : deaths == 1 ? "A" : "S"; lastEz = false;
 		// the letter counts like the main mode's: points, XP and the online board (a better letter only)
 		var lv = pl.L.lv; double p0 = ptsOf(false); xpMark();
 		int rb = lv.best != null ? Array.IndexOf(RANKS, lv.best) : 99;

@@ -220,11 +220,32 @@ public static partial class G
 		}
 		if (tm.msgT > 0) { g.globalAlpha = Math.Min(1, tm.msgT); txt(tm.msg, W / 2, 74, 30, GOLD); g.globalAlpha = 1; }
 		if (tm.restartAt >= 0) { double a = clamp(1 - (tm.restartAt - tm.t) / 0.9, 0, 1); g.fillStyle = $"rgba(20,8,30,{str(a * 0.85)})"; g.fillRect(0, 0, W, H); }
-		if (tm.doneAt >= 0)
-		{
-			double a = clamp((tm.t - tm.doneAt) / 0.6, 0, 1); overlay(0.6 * a); g.globalAlpha = a;
-			txt("خلّصتوا الصفحة الأولى!", W / 2, H / 2 - 30, 64, "#fff"); txt("الصفحة الثانية: الغيمة الحمراء", W / 2, H / 2 + 50, 32, "#ff8a8a", 700); g.globalAlpha = 1;
-		}
+		// between pages: warm clouds rise over the screen, then keep rising off the top on the next page
+		if (tm.doneAt >= 0) tmCloudSwap(1 - clamp((tm.t - tm.doneAt) / (TM_SWAP * 0.85), 0, 1), now);
+		else if (tm.fromClouds && tm.pageAt < TM_SWAP) tmCloudSwap(-clamp(tm.pageAt / TM_SWAP, 0, 1), now);
+	}
+
+	static double ease(double x) => x * x * (3 - 2 * x);
+	// p 1..0: the cloud edge comes up from under the screen to its top; p 0..-1: its lower edge goes on up and away
+	static void tmCloudSwap(double p, double now)
+	{
+		double e = p >= 0 ? -140 + (H + 280) * ease(p) : H + 140 - (H + 280) * ease(-p);
+		bool up = p >= 0; double y0 = up ? e : 0, y1 = up ? H : e;
+		if (y1 <= y0 - 140) return;
+		var gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#ffd9c7"); gr.addColorStop(0.6, "#ffb3b8"); gr.addColorStop(1, "#ff8f8f");
+		g.save(); g.fillStyle = gr; g.fillRect(0, Math.Max(0, y0), W, Math.Max(0, y1 - Math.Max(0, y0)));
+		// soft lighter puffs inside, drifting, so it reads as a thick cloud and not a flat wall
+		g.save(); g.beginPath(); g.rect(0, Math.Max(0, y0), W, Math.Max(0, y1 - Math.Max(0, y0))); g.clip(); g.fillStyle = "rgba(255,240,232,0.35)";
+		for (int i = 0; i < 14; i++) { double cx = ((i * 211 + now / 40 * (1 + i % 3)) % (W + 300)) - 150, cy = (i * 149) % H, r = 70 + (i * 29) % 60; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.arc(cx + r * 0.9, cy + 10, r * 0.75, 0, TAU); g.fill(); }
+		g.restore(); g.fillStyle = gr;
+		// a row of big puffs along the moving edge, a second softer row behind it
+		for (int row = 1; row >= 0; row--)
+			for (int i = -1; i < 12; i++)
+			{
+				double cx = i * 118 + (row * 59) + Math.Sin(now / 900 + i) * 10, r = 80 + ((i * 37 + row * 17) % 40), cy = up ? e + row * 40 + 20 : e - row * 40 - 20;
+				g.globalAlpha = row == 0 ? 1 : 0.55; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.fill();
+			}
+		g.restore(); g.globalAlpha = 1;
 	}
 
 	static void tmDrawBody(TBody p, double now)
@@ -235,7 +256,9 @@ public static partial class G
 		{
 			double k = 0.5 + 0.5 * Math.Sin(now / 180), left = clamp(1 - (tm.t - p.downAt) / TM_REVIVE, 0, 1);
 			g.save(); g.translate(p.x, p.y); g.strokeStyle = col; g.lineWidth = 2; g.shadowColor = col; g.shadowBlur = 8 + 8 * k;
-			g.strokeRect(-9, -9, 18, 18); g.beginPath(); g.arc(0, 0, 22, -Math.PI / 2, -Math.PI / 2 + TAU * left); g.stroke(); g.shadowBlur = 0; g.restore();
+			g.strokeRect(-9, -9, 18, 18); g.beginPath(); g.arc(0, 0, 22, -Math.PI / 2, -Math.PI / 2 + TAU * left); g.stroke(); g.shadowBlur = 0;
+			if (p.revT > 0) { double f = clamp(p.revT / TM_REV_HOLD, 0, 1); g.fillStyle = col; g.globalAlpha = 0.85; g.fillRect(-9, 9 - 18 * f, 18, 18 * f); g.globalAlpha = 1; }
+			g.restore();
 			return;
 		}
 		for (int i = 0; i < p.trail.Count; i++) { var q = p.trail[i]; g.globalAlpha = (double)i / p.trail.Count * 0.3; g.fillStyle = col; g.fillRect(q.x - 6, q.y - 6, 12, 12); }

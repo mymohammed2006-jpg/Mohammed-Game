@@ -240,7 +240,7 @@ public static partial class G
 				txt($"+{ar(cv)} نقطة", W / 2 - 190, H / 2 - 40, 34, "#ff2436", 800, "right"); g.globalAlpha = 1;
 			}
 			drawWinXp(now);
-			txt((hitsTotal == 0 ? "بدون ولا ضربة" : $"انضربت {ar(hitsTotal)} مرة") + "    " + (deaths == 0 ? "بدون خسارة" : $"خسرت {ar(deaths)} مرة"), W / 2, H / 2 + 70, 28, "#e9e6f5", 500);
+			txt(deaths == 0 ? "بدون ولا موتة" : $"متّ {ar(deaths)} مرة", W / 2, H / 2 + 70, 28, "#e9e6f5", 500);
 			if (ts > 800) { row(new[] { (BTN[kind].confirm, "العب مرة ثانية") }, W / 2, H / 2 + 135); row(new[] { (BTN[kind].back, "المراحل") }, W / 2, H / 2 + 190); }
 		}
 	}

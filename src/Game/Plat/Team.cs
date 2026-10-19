@@ -65,6 +65,8 @@ public static partial class G
 {
 	public const int TM_N = 3;                                      // exactly three players (his words)
 	public const double TM_REVIVE = 6;                              // seconds to bring a fallen one back by touching it
+	public const double TM_REV_HOLD = 1;                            // one heart, so a revive takes a full second of touching (not a free one in passing)
+	public const double TM_SWAP = 1.6;                              // the clouds rise over the page, then part on the next one (no page names, his words 20:00 10-19)
 	public static readonly string[] TM_COL = { "#ff4d5e", "#2de2e6", "#ffcf5a" };   // each player's own colour
 	public class TS                                                  // a thing while playing
 	{
@@ -73,7 +75,7 @@ public static partial class G
 	public class TBody
 	{
 		public int i; public double x, y, vx, vy, coyote, jbuf, dash, ddx, ddy, fx = 1, sa, sk, inv, hurt, ex, downAt, dt0 = -9, prevB;
-		public int hp = P_HP; public bool ground, canDash = true, jumpHeld, down, gate; public TS onT;
+		public double revT; public int hp = P_HP; public bool ground, canDash = true, jumpHeld, down, gate; public TS onT;
 		public List<(double x, double y, double t)> trail = new();
 	}
 	public struct TIn { public double x, y; public bool jump, jumpHeld, dash; }
@@ -85,7 +87,7 @@ public static partial class G
 		public bool[] stemOn; public Voice[] voices; public List<THail> hail = new(); public long beatN = -1;
 		public List<(double x, double y, double t, int who)> steps = new();   // footprints on the clouds
 		public double[] sx = new double[TM_N], sy = new double[TM_N];
-		public string msg; public double msgT, restartAt = -1, doneAt = -1, pageAt; public int restarts, hits;
+		public string msg; public double msgT, restartAt = -1, doneAt = -1, pageAt; public int restarts, hits; public bool fromClouds;
 		public List<(int k, double at)> taken = new();
 	}
 	public static TeamRun tm;
@@ -114,11 +116,10 @@ public static partial class G
 	}
 
 	// ---------- a page ----------
-	public static void tmStart(TeamLevel L, int page)
+	public static void tmStart(TeamLevel L, int page, bool fromClouds = false)
 	{
-		tm = new TeamRun { L = L, page = page, P = L.pages[page] }; tm.stemOn = (bool[])L.on.Clone();
+		tm = new TeamRun { L = L, page = page, P = L.pages[page], fromClouds = fromClouds }; tm.stemOn = (bool[])L.on.Clone();
 		tmBuild(); tmMusic();
-		tm.msg = tm.P.name; tm.msgT = 3; tm.pageAt = 0;
 	}
 	static void tmBuild()
 	{
@@ -200,7 +201,7 @@ public static partial class G
 		tm.t += dt; tm.pageAt += dt; tm.msgT -= dt; songT = tm.t;
 		double bt = tmBeat(), spb = tm.L.spb; long bi = (long)Math.Floor(bt);
 		if (tm.restartAt >= 0) { if (tm.t >= tm.restartAt) tmRestart(); return; }
-		if (tm.doneAt >= 0) return;
+		if (tm.doneAt >= 0) { if (tm.t - tm.doneAt >= TM_SWAP && tm.page + 1 < tm.L.pages.Count) tmStart(tm.L, tm.page + 1, true); return; }
 		// buttons and stones first (from where everyone stood last step)
 		foreach (var s in tm.th)
 		{
@@ -276,7 +277,8 @@ public static partial class G
 		{
 			if (!b.down) continue;
 			var h = tm.b.FirstOrDefault(o => o != b && !o.down && !o.gate && hypot(o.x - b.x, o.y - b.y) < 30);
-			if (h != null) { b.down = false; b.hp = P_HP; b.inv = 1.5; b.vx = b.vy = 0; burst(b.x, b.y, TM_COL[b.i], 30, 320); sfx(tt => { sTone(tt, 523, 0.12, "triangle", 0.1); sTone(tt + 0.08, 784, 0.18, "triangle", 0.1); }); }
+			b.revT = h != null ? b.revT + dt : 0;
+			if (b.revT >= TM_REV_HOLD) { b.revT = 0; b.down = false; b.hp = P_HP; b.inv = 1.5; b.vx = b.vy = 0; burst(b.x, b.y, TM_COL[b.i], 30, 320); sfx(tt => { sTone(tt, 523, 0.12, "triangle", 0.1); sTone(tt + 0.08, 784, 0.18, "triangle", 0.1); }); }
 		}
 		if (tm.b.Any(b => b.down) && tm.b.Any(b => b.gate)) foreach (var b in tm.b) if (b.gate) b.gate = false;   // out of the gate to help
 		if (tm.b.All(b => b.down) || tm.b.Any(b => b.down && tm.t - b.downAt > TM_REVIVE)) { tm.restartAt = tm.t + 0.9; flash = 0.3; }
@@ -331,7 +333,7 @@ public static partial class G
 	{
 		b.hp--; tm.hits++; b.inv = 2.0; b.hurt = 2.0; shake = 14; flash = 0.25; b.vy = Math.Min(b.vy, -520);
 		burst(b.x, b.y, TM_COL[b.i], 22, 380); sfx(t => { sTone(t, 110, 0.3, "square", 0.18); sNoise(t, 0.25, "lowpass", 900, 0.3); });
-		if (b.hp <= 0) { b.down = true; b.downAt = tm.t; b.vx = b.vy = 0; b.onT = null; burst(b.x, b.y, TM_COL[b.i], 50, 520); }
+		if (b.hp <= 0) { b.down = true; b.revT = 0; b.downAt = tm.t; b.vx = b.vy = 0; b.onT = null; burst(b.x, b.y, TM_COL[b.i], 50, 520); }
 	}
 
 	// one player: the platformer's moves (one jump, one dash back on the ground), on tiles and on the clouds
