@@ -180,7 +180,7 @@ public static partial class G
 		var L = boardLv(board.idx); double cy = 128;
 		// the board's name with arrows right and left
 		txt(L != null ? L.name : boardXp ? "اللفل" : "النقاط", W / 2, cy, 34, "#fff", 800);
-		if (L != null) { g.font = $"17px {TFONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillStyle = RED3; g.fillText(!string.IsNullOrEmpty(L.song) ? L.song : "by " + L.by, W / 2, cy + 32); }
+		if (L != null) { g.font = $"17px {TFONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillStyle = RED3; g.fillText(L.plat && L.best == null ? "؟؟؟" : !string.IsNullOrEmpty(L.song) ? L.song : "by " + L.by, W / 2, cy + 32); }   // a platformer song stays hidden until you finish it
 		g.fillStyle = "rgba(255,255,255,0.75)";
 		if (board.idx < ALL_LV().Count + bOff) zone(W / 2 - 320, cy - 26, 56, 52, null, "left");
 		if (board.idx > 0) zone(W / 2 + 264, cy - 26, 56, 52, null, "right");
@@ -224,7 +224,7 @@ public static partial class G
 			if (mine != null && mine.pos > 10) { txt("…", W / 2, top + 10 * rh - 8, 22, "rgba(255,255,255,0.4)", 500); drawRow(mine, top + 10 * rh + 16); }
 			if (acc == null) txt("سجّل دخول من القائمة عشان يطلع اسمك هنا", W / 2, H - 82, 20, "rgba(255,255,255,0.5)", 500);
 		}
-		row(new[] { (BTN[kind].move, "اختيار"), (BTN[kind].confirm, "البروفايل"), (BTN[kind].restart, "NORMAL / EASY"), (BTN[kind].back, "رجوع") }.Where(it => !boardXp || it.Item2 != "NORMAL / EASY").ToArray(), W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
+		row(new[] { (BTN[kind].move, "اختيار"), (BTN[kind].confirm, "البروفايل"), (BTN[kind].restart, "NORMAL / EASY"), (BTN[kind].back, "رجوع") }.Where(it => boardModes().Length > 1 || it.Item2 != "NORMAL / EASY").ToArray(), W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
 	}
 	// the profile: best letter per level (normal and Easy) and a ▶ mark when there is a replay of it
 	static void drawProfile(double now)
@@ -245,6 +245,7 @@ public static partial class G
 			txt(L.name, lx, y + 1, 22, selR ? "#fff" : "#e9e6f5", selR ? 800 : 500, "right");
 			foreach (var (m, cx, col, c) in new[] { ("n", nx, 0, "#ff2436"), ("e", ex, 1, "#7cc8ff") })
 			{
+				if (L.plat && m == "e") continue;   // no Easy in the platformer
 				string r = gv(p.F(m), L.id); bool sel = selR && prof.col == col, hr = hasRp(p, L, m);
 				int ri = i, ci = col; if (y - rh / 2 >= y0 - rh / 2 - 1 && y + rh / 2 <= y0 - rh / 2 + boxH + 1) zone(cx - 62, y - rh / 2 + 5, 124, rh - 10, () => { prof.row = ri; prof.col = ci; });
 				if (sel) { rr(cx - 62, y - rh / 2 + 5, 124, rh - 10, 9); g.strokeStyle = RED; g.lineWidth = 2.5; g.stroke(); }

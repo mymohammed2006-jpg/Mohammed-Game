@@ -210,6 +210,14 @@ public static partial class G
 				if (lastRank == "S") sShine("S", 0, 0, 110, now, 30); else { g.fillStyle = "#ff2436"; g.shadowColor = "#ff2436"; g.shadowBlur = 30; g.fillText(lastRank, 0, 0); g.shadowBlur = 0; }
 				g.restore(); g.globalAlpha = 1;
 			}
+			// what this finish added: points on the left, XP on the right (like the main mode)
+			if (lastGain > 0 && now > winSlam)
+			{
+				double ce = clamp((now - winSlam - 120) / 700, 0, 1), cv = round(lastGain * (1 - JS.pow(1 - ce, 3)));
+				g.globalAlpha = clamp((now - winSlam) / 150, 0, 1); g.save(); g.translate(W / 2 - 170, H / 2 - 40); g.rotate(now / 420); g.fillStyle = "#ff2436"; g.shadowColor = "#ff2436"; g.shadowBlur = 10; g.fillRect(-7, -7, 14, 14); g.restore();
+				txt($"+{ar(cv)} نقطة", W / 2 - 190, H / 2 - 40, 34, "#ff2436", 800, "right"); g.globalAlpha = 1;
+			}
+			drawWinXp(now);
 			txt((hitsTotal == 0 ? "بدون ولا ضربة" : $"انضربت {ar(hitsTotal)} مرة") + "    " + (deaths == 0 ? "بدون خسارة" : $"خسرت {ar(deaths)} مرة"), W / 2, H / 2 + 70, 28, "#e9e6f5", 500);
 			if (ts > 800) { row(new[] { (BTN[kind].confirm, "العب مرة ثانية") }, W / 2, H / 2 + 135); row(new[] { (BTN[kind].back, "المراحل") }, W / 2, H / 2 + 190); }
 		}

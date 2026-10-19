@@ -156,11 +156,12 @@ public static partial class G
 		{
 			int n = ALL_LV().Count; prof.msgT -= dt; { double t = profScT(); prof.sc += (t - prof.sc) * Math.Min(1, dt * 14); if (Math.Abs(t - prof.sc) < 0.002) prof.sc = t; }
 			if (inp.down && prof.row < n - 1) prof.row++; else if (inp.up && prof.row > 0) prof.row--;
-			if (inp.left && prof.col == 0) prof.col = 1; else if (inp.right && prof.col == 1) prof.col = 0;
+			if (inp.left && prof.col == 0 && !ALL_LV()[prof.row].plat) prof.col = 1; else if (inp.right && prof.col == 1) prof.col = 0;
+			if (ALL_LV()[prof.row].plat) prof.col = 0;
 			if (inp.confirm)
 			{
 				var L = ALL_LV()[prof.row]; string m = prof.col != 0 ? "e" : "n", r = gv(prof.p.F(m), L.id);
-				if (r != null && hasRp(prof.p, L, m)) openReplay(prof.p, L, m); else { prof.msg = r == null ? "ما خلّص هذي المرحلة للحين" : prof.busy ? "لحظة، جاري التحميل…" : "ما فيه Replay لهذي المرحلة"; prof.msgT = 2.2; }
+				if (r != null && !L.plat && hasRp(prof.p, L, m)) openReplay(prof.p, L, m); else { prof.msg = r == null ? "ما خلّص هذي المرحلة للحين" : prof.busy && !L.plat ? "لحظة، جاري التحميل…" : "ما فيه Replay لهذي المرحلة"; prof.msgT = 2.2; }
 			}
 			else if (inp.back || inp.pz) state = "board";
 		}

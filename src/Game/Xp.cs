@@ -15,6 +15,7 @@ public static partial class G
 	{
 		["L1"] = 1.0, ["F6"] = 1.1, ["F1"] = 1.1, ["F2"] = 1.1, ["L2"] = 1.3, ["L11"] = 1.4, ["L3"] = 1.5, ["L9"] = 1.5, ["L4"] = 1.7, ["L10"] = 1.7,
 		["L8"] = 1.8, ["L5"] = 1.8, ["F5"] = 2.4, ["F3"] = 2.5, ["F4"] = 2.5, ["L6"] = 2.7, ["L7"] = 3.1, ["F7"] = 3.2, ["F8"] = 3.3,
+		["P1"] = 1.5,   // the platformer's first level
 	};
 	static readonly Dictionary<string, int> XP_BASE = new() { ["S"] = 100, ["A"] = 60, ["B"] = 40, ["C"] = 20 };
 	public static int xpFor(Level L, string r, bool ez) => r == null || !XP_BASE.ContainsKey(r) ? 0 : (int)round(XP_BASE[r] * (XP_MULT.TryGetValue(L.id, out var m) ? m : 1) * (ez ? 0.5 : 1));

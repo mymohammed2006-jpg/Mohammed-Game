@@ -31,6 +31,16 @@ public class PlatTest
 		G.InitSound(); G.gfx.Resize(1280, 720); G.scale = 1; G.offX = 0; G.offY = 0; G.gatePassed = true;
 		var sk = System.Environment.GetEnvironmentVariable("SKIN"); if (sk != null) G.skin = sk; if (System.Environment.GetEnvironmentVariable("EASY") == "1") G.setEasy(true);
 		if (id == "menu") return;
+		if (id == "board")
+		{
+			// fake online players: the P1 board page and a profile (rows down to the platformer)
+			System.Collections.Generic.Dictionary<string, string> D(params string[] kv) { var d = new System.Collections.Generic.Dictionary<string, string>(); for (int j = 0; j + 1 < kv.Length; j += 2) d[kv[j]] = kv[j + 1]; return d; }
+			G.board.list = new() {
+				new G.PlayerDoc { uid = "a", name = "Mohammed", xp = 4200, n = D("L1", "S", "P1", "S"), e = D("L1", "A"), nt = D("L1", "2026-10-19T10:00:00Z", "P1", "2026-10-19T16:00:00Z"), et = D("L1", "2026-10-19T10:00:00Z") },
+				new G.PlayerDoc { uid = "b", name = "Link", xp = 3000, n = D("L1", "A", "P1", "B"), e = D(), nt = D("L1", "2026-10-19T10:00:00Z", "P1", "2026-10-19T16:05:00Z"), et = D() } };
+			G.board.at = 1e18; G.board.idx = G.ALL_LV().Count + 1; G.board.mode = "n"; G.state = "board"; G.PLATS[0].lv.best = "S";
+			return;
+		}
 		lines = script == "-" ? new (double, string)[0] : File.ReadAllLines(script).Where(l => l.Trim().Length > 0 && !l.StartsWith("#")).Select(l => { var f = l.Trim().Split(' ', 2); return (double.Parse(f[0]), f.Length > 1 ? f[1].Trim() : ""); }).ToArray();
 		if (id == "flow") { G.state = "pltList"; G.plSel = 0; var _ = G.PLATS; }   // from the level list, as a player goes in
 		else	G.plStart(G.PLATS.First(x => x.id == id), System.Environment.GetEnvironmentVariable("INTRO") == "1");
@@ -38,8 +48,18 @@ public class PlatTest
 	}
 	public void Process()
 	{
-		if (shot) { G.gfx.game.GetTexture().GetImage().SavePng(Path.Combine(outDir, id == "menu" ? $"menu-{i}.png" : $"f{i:D6}.png")); shot = false; }
+		if (shot) { G.gfx.game.GetTexture().GetImage().SavePng(Path.Combine(outDir, id is "menu" or "board" ? $"{id}-{i}.png" : $"f{i:D6}.png")); shot = false; }
 		if (done) { File.WriteAllText(Path.Combine(outDir, "state.log"), log.ToString()); host.GetTree().Quit(); return; }
+		if (id == "board")
+		{
+			if (menuStep >= 3) { done = true; return; }
+			if (menuStep == 1) { G.prof.p = G.board.list[0]; G.prof.row = G.ALL_LV().Count - 1; G.prof.sc = G.ALL_LV().Count - 11; G.prof.col = 0; G.state = "profile"; }
+			if (menuStep == 2) { G.keys["ArrowLeft"] = true; G.OnKeyDown("ArrowLeft", false); }
+			for (int k = 0; k < 40; k++) { performance.manual += 1000.0 / 60; G.gfx.BeginFrame(); G.draw(performance.manual.Value); G.gfx.EndFrame(); }
+			G.gfx.BeginFrame(); G.draw(performance.manual.Value);
+			i = menuStep++; shot = true; G.gfx.EndFrame();
+			return;
+		}
 		if (id == "menu")
 		{
 			// main menu, then the mode screen (each mode selected), then the list

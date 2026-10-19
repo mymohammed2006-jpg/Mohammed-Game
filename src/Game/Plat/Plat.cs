@@ -202,9 +202,13 @@ public static partial class G
 	{
 		// S no hit, A one hit, B one death (or two hits), C two deaths or more (his words 14:27 10-19)
 		lastRank = deaths >= 2 ? "C" : deaths == 1 || hitsTotal >= 2 ? "B" : hitsTotal == 1 ? "A" : "S"; lastEz = false;
-		int rb = pl.L.best != null ? Array.IndexOf(RANKS, pl.L.best) : 99;
-		if (Array.IndexOf(RANKS, lastRank) < rb) { pl.L.best = lastRank; localStorage.setItem("mg_plbest_" + pl.L.id, lastRank); }
-		state = "pltWin"; pl.winAt = performance.now(); winSlam = pl.winAt + 300; winHit = false; lastGain = 0;
+		// the letter counts like the main mode's: points, XP and the online board (a better letter only)
+		var lv = pl.L.lv; double p0 = ptsOf(false); xpMark();
+		int rb = lv.best != null ? Array.IndexOf(RANKS, lv.best) : 99;
+		if (Array.IndexOf(RANKS, lastRank) < rb) { lv.best = lastRank; localStorage.setItem("mg_best_" + lv.name, lastRank); markDirty(); }
+		else if (acc != null && !acc.dirty) sync();
+		lastGain = ptsOf(false) - p0; awardXp();
+		state = "pltWin"; pl.winAt = performance.now(); winSlam = pl.winAt + 300; winHit = false;
 		burst(player.x, player.y, CYAN, 40, 450);
 	}
 

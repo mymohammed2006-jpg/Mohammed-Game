@@ -17,8 +17,8 @@ namespace MG;
 public static partial class G
 {
 	public static readonly Dictionary<string, double> PTS = new() { ["S"] = 100, ["A"] = 70, ["B"] = 40, ["C"] = 20 };
-	public static double ptsOf(bool e) { double s = 0; foreach (var L in LEVELS.Concat(FRIENDS)) { if (L.name == null) continue; var r = e ? L.bestE : L.best; if (r != null) s += e ? PTS[r] / 2 : PTS[r]; } return s; }
-	public static double ptsMax(bool e) => LEVELS.Concat(FRIENDS).Count(L => L.name != null) * (e ? PTS["S"] / 2 : PTS["S"]);
+	public static double ptsOf(bool e) { double s = 0; foreach (var L in ALL_LV()) { var r = e ? L.bestE : L.best; if (r != null) s += e ? PTS[r] / 2 : PTS[r]; } return s; }
+	public static double ptsMax(bool e) => ALL_LV().Count(L => !(e && L.plat)) * (e ? PTS["S"] / 2 : PTS["S"]);   // no Easy in the platformer
 
 	// ---------- the online part ----------
 	const string FB_KEY = "AIzaSyCgg3Wd_ZN4o_c-2xg_hGlXq2o0mfH75CU", FB_PROJECT = "mohammed-game-f7563";
@@ -229,7 +229,7 @@ public static partial class G
 	static int bOff => classicUi ? 0 : 1;
 	static bool boardXp => !classicUi && board.idx == 0;
 	static Level boardLv(int i) => i - bOff >= 1 ? ALL_LV()[i - bOff - 1] : null;
-	static string[] boardModes() => boardXp ? new[] { "x" } : board.idx != bOff ? new[] { "n", "e" } : new[] { "n", "e", "t" };
+	static string[] boardModes() => boardXp ? new[] { "x" } : boardLv(board.idx)?.plat == true ? new[] { "n" } : board.idx != bOff ? new[] { "n", "e" } : new[] { "n", "e", "t" };
 	public static double ptsOfP(PlayerDoc p, string f) { double s = 0; foreach (var L in ALL_LV()) { var r = gv(p.F(f), L.id); if (r != null) s += f == "e" ? PTS[r] / 2 : PTS[r]; } return s; }
 	static List<BoardRow> boardRows()
 	{
