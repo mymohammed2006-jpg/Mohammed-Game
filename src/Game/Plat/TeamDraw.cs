@@ -19,6 +19,10 @@ public static partial class G
 	{
 		double b = tmBeat(), bp = ((b % 1) + 1) % 1; pulse = JS.exp(-bp * 5) * 0.8;
 		double prog = Math.Clamp((tm.got.Count + (tm.b.Count(q => q.gate) > 0 ? 0.5 : 0)) / Math.Max(1.0, tmPieces() + 0.5), 0, 1);
+		long bi = (long)Math.Floor(b);
+		bool storm = tm.P.theme == 1;
+		if (storm) tmStormSky(now, b, bi, bp);
+		else {
 		// the sky: deep purple on top to a warm orange low, the sun going down as the pieces come in
 		var gr = g.createLinearGradient(0, 0, 0, H);
 		gr.addColorStop(0, "#1c1033"); gr.addColorStop(0.45, prog < 0.5 ? "#4a1f4f" : "#3d1846"); gr.addColorStop(0.8, "#c2475a"); gr.addColorStop(1, "#ff9a5c");
@@ -34,10 +38,11 @@ public static partial class G
 			double sp = 6 + i * 2, x = ((i * 233 + now / 1000 * sp) % (W + 400)) - 200, y = 110 + (i * 97) % 520;
 			cloudBlob(x, y, 180 + (i * 53) % 140, 40, "rgba(255,200,210,1)", 0.06 + 0.02 * (i % 3));
 		}
-		// walls: deep plum with a warm edge
-		g.fillStyle = "#1b0f26";
+		}
+		// walls: deep plum with a warm edge (near black with a red edge in the storm)
+		g.fillStyle = storm ? "#10050a" : "#1b0f26";
 		for (int y = 0; y < tm.h; y++) for (int x = 0; x < tm.w; x++) if (tm.m[y][x] == '#') g.fillRect(x * PT, y * PT, PT + 0.5, PT + 0.5);
-		g.strokeStyle = $"rgba(255,160,140,{str(0.5 + 0.35 * pulse)})"; g.lineWidth = 2; g.shadowColor = "#ff8a7a"; g.shadowBlur = 8; g.beginPath();
+		g.strokeStyle = storm ? $"rgba(255,70,90,{str(0.45 + 0.4 * pulse)})" : $"rgba(255,160,140,{str(0.5 + 0.35 * pulse)})"; g.lineWidth = 2; g.shadowColor = storm ? "#ff3048" : "#ff8a7a"; g.shadowBlur = 8; g.beginPath();
 		for (int y = 0; y < tm.h; y++) for (int x = 0; x < tm.w; x++)
 		{
 			if (tm.m[y][x] != '#') continue; double X = x * PT, Y = y * PT;
@@ -55,7 +60,6 @@ public static partial class G
 			foreach (double px in new[] { lx, rx }) { g.fillStyle = "#ffe0c8"; g.beginPath(); g.arc(px, 22, 6, 0, TAU); g.fill(); }
 		}
 		// lightning warnings (the beat before) and strikes
-		long bi = (long)Math.Floor(b);
 		foreach (var s in tm.th.Where(s => s.k == "bolt" && tmBoltLive(s)))
 		{
 			foreach (int c in tmBolts(s, bi + 1)) { double a = 0.15 + 0.35 * bp, cx = s.of.X + c * PT; g.fillStyle = $"rgba(220,200,255,{str(a * 0.35)})"; g.fillRect(cx, s.Y, PT, s.H); g.strokeStyle = $"rgba(230,215,255,{str(a)})"; g.lineWidth = 1.5; g.setLineDash(new double[] { 6, 8 }); g.beginPath(); g.moveTo(cx + PT / 2, s.Y); g.lineTo(cx + PT / 2, s.Y + s.H); g.stroke(); g.setLineDash(new double[0]); }
@@ -120,11 +124,12 @@ public static partial class G
 						break;
 					}
 				case "bridge": case "path":
-					if (s.s > 0.02) cloudBlob(s.X, s.Y - 4, s.W, 18, "#fff2e8", s.s * 0.95);
+					if (s.s > 0.02) cloudBlob(s.X, s.Y - 4, s.W, 18, storm ? "#ffd9dd" : "#fff2e8", s.s * 0.95);
 					else { g.strokeStyle = "rgba(255,240,230,0.25)"; g.lineWidth = 2; g.setLineDash(new double[] { 5, 9 }); g.strokeRect(s.X + 2, s.Y, s.W - 4, 12); g.setLineDash(new double[0]); }
 					if (s.d.need != null) foreach (var n in tm.th.Where(o => s.d.need.Contains(o.d.id)))   // a thin light from each stone / button
 					{
 						double sx = n.k == "stone" ? n.d.x * PT : n.X + n.W / 2, sy = n.k == "stone" ? (n.of?.Y ?? n.Y) - 12 : n.Y - 6;
+						if (n.k == "cbtn") { g.strokeStyle = n.on ? "rgba(255,90,110,0.45)" : "rgba(255,90,110,0.1)"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(sx, sy); g.lineTo(Math.Clamp(sx, s.X, s.X + s.W), s.Y + 4); g.stroke(); continue; }
 						g.strokeStyle = n.on ? "rgba(255,224,138,0.45)" : "rgba(255,224,138,0.08)"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(sx, sy); g.lineTo(s.X + (sx < s.X ? 0 : s.W), s.Y + 4); g.stroke();
 					}
 					break;
@@ -157,6 +162,27 @@ public static partial class G
 					{
 						double dn = s.on ? 4 : 0; g.fillStyle = s.on ? "#ffe08a" : "#b0906a"; g.shadowColor = GOLD; g.shadowBlur = s.on ? 18 : 4;
 						rr(s.X + 6, s.Y - 10 + dn, s.W - 12, 10 - dn, 4); g.fill(); g.shadowBlur = 0; break;
+					}
+				case "cloud": cloudBlob(s.X, s.Y - 4, s.W, 24, storm ? "#ead0d4" : "#fff6f2", 0.95); break;
+				case "flip":
+					{
+						string c = TM_COL[(int)s.d.a];
+						if (s.s > 0.02) { g.save(); g.shadowColor = c; g.shadowBlur = 14; cloudBlob(s.X, s.Y - 4, s.W, 24, c, s.s * 0.95); g.restore(); cloudBlob(s.X + 6, s.Y - 1, s.W - 12, 10, "#ffffff", s.s * 0.35); }
+						if (s.s < 0.98) { g.strokeStyle = c; g.globalAlpha = 0.4 * (1 - s.s); g.lineWidth = 2; g.setLineDash(new double[] { 5, 7 }); g.strokeRect(s.X + 3, s.Y - 2, s.W - 6, 14); g.setLineDash(new double[0]); g.globalAlpha = 1; }
+						tmMoveIcon((int)s.d.a, s.X + s.W / 2, s.Y + 22, 0.5 + 0.5 * s.s);
+						break;
+					}
+				case "cwall":
+					{
+						string c = TM_COL[(int)s.d.a]; g.save(); g.globalAlpha = 0.16; g.fillStyle = c; g.fillRect(s.X, s.Y, s.W, s.H); g.globalAlpha = 0.75;
+						g.strokeStyle = c; g.shadowColor = c; g.shadowBlur = 10; g.lineWidth = 2; g.beginPath();
+						for (int i = 0; i < 4; i++) { double x = s.X + 5 + i * (s.W - 10) / 3; g.moveTo(x, s.Y); for (double y = s.Y; y < s.Y + s.H; y += 10) g.lineTo(x + Math.Sin(y / 9 + now / 150 + i) * 3, y + 10); }
+						g.stroke(); g.restore(); break;
+					}
+				case "cbtn":
+					{
+						string c = TM_COL[(int)s.d.a]; double dn = s.on ? 4 : 0; g.save(); g.fillStyle = c; g.globalAlpha = s.on ? 1 : 0.55; g.shadowColor = c; g.shadowBlur = s.on ? 20 : 6;
+						rr(s.X + 6, s.Y - 10 + dn, s.W - 12, 10 - dn, 4); g.fill(); g.restore(); break;
 					}
 				case "ride":
 					{
@@ -199,8 +225,14 @@ public static partial class G
 			int teeth = 10; for (int i = 0; i < teeth * 2; i++) { double a = i * Math.PI / teeth, r2 = i % 2 == 0 ? s.r : s.r * 0.72; if (i == 0) g.moveTo(JS.cos(a) * r2, JS.sin(a) * r2); else g.lineTo(JS.cos(a) * r2, JS.sin(a) * r2); }
 			g.closePath(); g.fill(); g.shadowBlur = 0; g.fillStyle = "#000"; g.beginPath(); g.arc(0, 0, s.r * 0.25, 0, TAU); g.fill(); g.restore();
 		}
+		// the red lightning wall from the left
+		if (tm.chaseX > -900) tmDrawChase(now, bp);
+		if (tm.P.dark) tmDark(now);
+		tmDrawVis(now);
 		foreach (var q in particles) { g.globalAlpha = Math.Max(0, q.life / q.max); g.fillStyle = q.col; g.fillRect(q.x - q.s / 2, q.y - q.s / 2, q.s, q.s); }
 		g.globalAlpha = 1;
+		if (tm.P.tether > 0) tmDrawTether(now);
+		if (tm.swapA >= 0) tmDrawSwapWarn(now, b);
 		// the three
 		foreach (var p in tm.b) tmDrawBody(p, now);
 		// HUD: each one's lives in its colour, the song's pieces, messages
@@ -221,21 +253,23 @@ public static partial class G
 		if (tm.msgT > 0) { g.globalAlpha = Math.Min(1, tm.msgT); txt(tm.msg, W / 2, 74, 30, GOLD); g.globalAlpha = 1; }
 		if (tm.restartAt >= 0) { double a = clamp(1 - (tm.restartAt - tm.t) / 0.9, 0, 1); g.fillStyle = $"rgba(20,8,30,{str(a * 0.85)})"; g.fillRect(0, 0, W, H); }
 		// between pages: warm clouds rise over the screen, then keep rising off the top on the next page
-		if (tm.doneAt >= 0) tmCloudSwap(1 - clamp((tm.t - tm.doneAt) / (TM_SWAP * 0.85), 0, 1), now);
-		else if (tm.fromClouds && tm.pageAt < TM_SWAP) tmCloudSwap(-clamp(tm.pageAt / TM_SWAP, 0, 1), now);
+		if (tm.doneAt >= 0) tmCloudSwap(1 - clamp((tm.t - tm.doneAt) / (TM_SWAP * 0.85), 0, 1), now, tm.P.theme);
+		else if (tm.fromClouds && tm.pageAt < TM_SWAP) tmCloudSwap(-clamp(tm.pageAt / TM_SWAP, 0, 1), now, tm.coverTheme);
 	}
 
 	static double ease(double x) => x * x * (3 - 2 * x);
 	// p 1..0: the cloud edge comes up from under the screen to its top; p 0..-1: its lower edge goes on up and away
-	static void tmCloudSwap(double p, double now)
+	static void tmCloudSwap(double p, double now, int theme)
 	{
 		double e = p >= 0 ? -140 + (H + 280) * ease(p) : H + 140 - (H + 280) * ease(-p);
 		bool up = p >= 0; double y0 = up ? e : 0, y1 = up ? H : e;
 		if (y1 <= y0 - 140) return;
-		var gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#ffd9c7"); gr.addColorStop(0.6, "#ffb3b8"); gr.addColorStop(1, "#ff8f8f");
+		var gr = g.createLinearGradient(0, 0, 0, H);
+		if (theme == 1) { gr.addColorStop(0, "#3a0c16"); gr.addColorStop(0.6, "#5e1222"); gr.addColorStop(1, "#7e1a2a"); }
+		else { gr.addColorStop(0, "#ffd9c7"); gr.addColorStop(0.6, "#ffb3b8"); gr.addColorStop(1, "#ff8f8f"); }
 		g.save(); g.fillStyle = gr; g.fillRect(0, Math.Max(0, y0), W, Math.Max(0, y1 - Math.Max(0, y0)));
 		// soft lighter puffs inside, drifting, so it reads as a thick cloud and not a flat wall
-		g.save(); g.beginPath(); g.rect(0, Math.Max(0, y0), W, Math.Max(0, y1 - Math.Max(0, y0))); g.clip(); g.fillStyle = "rgba(255,240,232,0.35)";
+		g.save(); g.beginPath(); g.rect(0, Math.Max(0, y0), W, Math.Max(0, y1 - Math.Max(0, y0))); g.clip(); g.fillStyle = theme == 1 ? "rgba(255,110,130,0.14)" : "rgba(255,240,232,0.35)";
 		for (int i = 0; i < 14; i++) { double cx = ((i * 211 + now / 40 * (1 + i % 3)) % (W + 300)) - 150, cy = (i * 149) % H, r = 70 + (i * 29) % 60; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.arc(cx + r * 0.9, cy + 10, r * 0.75, 0, TAU); g.fill(); }
 		g.restore(); g.fillStyle = gr;
 		// a row of big puffs along the moving edge, a second softer row behind it
@@ -268,5 +302,104 @@ public static partial class G
 		{ double q = Math.PI / 2; double r = a; r -= round(r / q) * q; g.rotate(a - r); g.scale(sx, sy); }
 		g.shadowColor = col; g.shadowBlur = 14; g.fillStyle = col; g.fillRect(-9, -9, 18, 18); g.shadowBlur = 0; g.fillStyle = "#1b0f26"; g.fillRect(-3, -3, 6, 6);
 		g.restore(); g.globalAlpha = 1;
+		if (p.i == 2 && p.armed && p.still > 0.08 && tm.th.Any(s => s.k == "flip" && s.d.a == 2))
+		{ g.strokeStyle = col; g.lineWidth = 3; g.globalAlpha = 0.8; g.beginPath(); g.arc(p.x, p.y, 17, -Math.PI / 2, -Math.PI / 2 + TAU * Math.Min(1, p.still)); g.stroke(); g.globalAlpha = 1; }
+	}
+
+	// ---------- page two: the red storm ----------
+	static void tmStormSky(double now, double b, long bi, double bp)
+	{
+		var gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#0c0306"); gr.addColorStop(0.5, "#2a0710"); gr.addColorStop(1, "#4a0d1a");
+		g.fillStyle = gr; g.fillRect(0, 0, W, H);
+		// far lightning inside the cloud on the bar's first beat (the drum)
+		if (bi % 4 == 0 && bp < 0.35) { double a = (1 - bp / 0.35) * 0.35, x = ((bi * 389) % 900 + 900) % 900 + 190; var rg = g.createRadialGradient(x, 120, 20, x, 120, 520); rg.addColorStop(0, $"rgba(255,90,110,{str(a)})"); rg.addColorStop(1, "rgba(255,90,110,0)"); g.fillStyle = rg; g.fillRect(0, 0, W, H); }
+		// dark heavy clouds drifting, a red rim underneath
+		for (int i = 0; i < 8; i++)
+		{
+			double sp = 10 + i * 3, x = ((i * 271 + now / 1000 * sp) % (W + 500)) - 250, y = 60 + (i * 89) % 560;
+			cloudBlob(x, y, 260 + (i * 67) % 160, 60, "#2a0a12", 0.55);
+			g.fillStyle = "rgba(255,60,80,0.06)"; g.fillRect(x + 20, y + 52, 200, 3);
+		}
+		// rain, slanted
+		g.strokeStyle = "rgba(255,170,180,0.12)"; g.lineWidth = 1.5; g.beginPath();
+		for (int i = 0; i < 70; i++) { double x = ((i * 97 + now / 1000 * 260) % (W + 200)) - 100, y = ((i * 53 + now / 1000 * 900) % (H + 100)) - 50; g.moveTo(x, y); g.lineTo(x - 7, y + 22); }
+		g.stroke();
+	}
+	// the move that changes a flip cloud: red a jump arrow, cyan a dash, gold an hourglass
+	static void tmMoveIcon(int who, double x, double y, double a)
+	{
+		g.save(); g.globalAlpha = a; g.strokeStyle = TM_COL[who]; g.lineWidth = 2; g.beginPath();
+		if (who == 0) { g.moveTo(x, y + 5); g.lineTo(x, y - 5); g.moveTo(x - 4, y - 1); g.lineTo(x, y - 5); g.lineTo(x + 4, y - 1); }
+		else if (who == 1) { g.moveTo(x - 7, y); g.lineTo(x + 5, y); g.moveTo(x + 1, y - 4); g.lineTo(x + 5, y); g.lineTo(x + 1, y + 4); g.moveTo(x - 7, y - 3); g.lineTo(x - 3, y - 3); }
+		else { g.moveTo(x - 4, y - 5); g.lineTo(x + 4, y - 5); g.lineTo(x - 4, y + 5); g.lineTo(x + 4, y + 5); g.closePath(); }
+		g.stroke(); g.restore();
+	}
+	// the clouds only one player sees: theirs always, everyone's when the bar's lightning lights the room
+	static void tmDrawVis(double now)
+	{
+		foreach (var s in tm.th.Where(s => s.k == "vis"))
+		{
+			int who = (int)s.d.a; double a = tmView < 0 || tmView == who ? 1 : tm.reveal; if (a <= 0.01) continue;
+			string c = TM_COL[who]; g.save(); g.shadowColor = c; g.shadowBlur = 16; cloudBlob(s.X, s.Y - 4, s.W, 24, c, 0.9 * a); g.restore();
+			cloudBlob(s.X + 6, s.Y - 1, s.W - 12, 10, "#ffffff", 0.3 * a);
+		}
+	}
+	// the dark: only a light around each player (a fallen one's is small); the gate glows through it
+	static void tmDark(double now)
+	{
+		const double C = 8, R = 115, E = 55; double dark = 0.97 * (1 - 0.88 * tm.reveal);
+		var L = tm.b.Where(q => !q.gate).Select(q => (q.x, q.y, r: q.down ? R * 0.45 : R)).ToArray();
+		for (double y = 0; y < H; y += C)
+		{
+			double runX = 0, runA = -1;
+			for (double x = 0; x <= W; x += C)
+			{
+				double a = -1;
+				if (x < W)
+				{
+					double cx = x + C / 2, cy = y + C / 2, d = 1e9;
+					foreach (var l in L) d = Math.Min(d, hypot(cx - l.x, cy - l.y) - l.r);
+					a = Math.Round(clamp(d / E, 0, 1) * 16) / 16 * dark;
+				}
+				if (a != runA) { if (runA > 0.01) { g.fillStyle = $"rgba(8,2,5,{str(runA)})"; g.fillRect(runX, y, x - runX + 0.5, C + 0.5); } runX = x; runA = a; }
+			}
+		}
+		for (int y = 0; y < tm.h; y++) for (int x = 0; x < tm.w; x++) if (tm.m[y][x] == 'G')
+		{ var rg = g.createRadialGradient(x * PT + PT / 2, y * PT + 12, 4, x * PT + PT / 2, y * PT + 12, 60); rg.addColorStop(0, "rgba(45,226,230,0.55)"); rg.addColorStop(1, "rgba(45,226,230,0)"); g.fillStyle = rg; g.fillRect(x * PT - 40, y * PT - 50, PT + 80, 120); }
+	}
+	static void tmDrawChase(double now, double bp)
+	{
+		double x = tm.chaseX; if (x < -40) return;
+		g.save(); var gr = g.createLinearGradient(x - 160, 0, x, 0); gr.addColorStop(0, "rgba(120,0,20,0.75)"); gr.addColorStop(1, "rgba(255,40,70,0.45)");
+		g.fillStyle = gr; g.fillRect(0, 0, Math.Max(0, x), H);
+		g.strokeStyle = "#ffd0d8"; g.shadowColor = "#ff2850"; g.shadowBlur = 22 + 14 * pulse; g.lineWidth = 3; g.beginPath(); g.moveTo(x, 0);
+		long seed = (long)(now / 70);
+		for (double y = 0; y < H; y += 24) g.lineTo(x + (((long)(y * 13) + seed * 7) % 9 - 4) * 3, y + 24);
+		g.stroke(); g.restore();
+	}
+	// the chain between the three: white while close, red near breaking
+	static void tmDrawTether(double now)
+	{
+		if (tm.snapAt >= 0) return;
+		for (int i = 0; i < TM_N; i++) for (int j = i + 1; j < TM_N; j++)
+		{
+			var p = tm.b[i]; var q = tm.b[j]; if (p.gate || q.gate) continue;
+			double f = clamp(hypot(p.x - q.x, p.y - q.y) / tm.P.tether, 0, 1), k = clamp((f - 0.6) / 0.4, 0, 1);
+			g.strokeStyle = k > 0 ? $"rgba(255,{str(Math.Round(230 - 190 * k))},{str(Math.Round(240 - 180 * k))},{str(0.25 + 0.6 * k)})" : "rgba(255,230,240,0.22)";
+			g.lineWidth = 1.5 + 2.5 * k; g.beginPath(); g.moveTo(p.x, p.y);
+			int n = 8; for (int s = 1; s <= n; s++) { double t = (double)s / n, jx = s < n ? Math.Sin(now / 40 + s * 2.1 + i) * (2 + 5 * k) : 0; g.lineTo(p.x + (q.x - p.x) * t + jx, p.y + (q.y - p.y) * t - jx); }
+			g.stroke();
+		}
+	}
+	// the two the lightning will swap: a crackling line between them, stronger as the bar's first beat comes
+	static void tmDrawSwapWarn(double now, double b)
+	{
+		var p = tm.b[tm.swapA]; var q = tm.b[tm.swapB]; if (p.down || q.down || p.gate || q.gate) return;
+		double left = clamp(tm.swapAt - b, 0, 2), k = 1 - left / 2, fl = (long)(now / 60) % 2 == 0 ? 1 : 0.6;
+		g.save(); g.strokeStyle = "#fff0f4"; g.shadowColor = "#ff4060"; g.shadowBlur = 10 + 16 * k; g.lineWidth = 1 + 2.5 * k; g.globalAlpha = (0.25 + 0.7 * k) * fl; g.beginPath(); g.moveTo(p.x, p.y);
+		int n = 10; for (int s = 1; s <= n; s++) { double t = (double)s / n, j = s < n ? ((((long)(now / 50) + s * 7) % 5) - 2) * (3 + 5 * k) : 0; g.lineTo(p.x + (q.x - p.x) * t + j, p.y + (q.y - p.y) * t + j); }
+		g.stroke();
+		foreach (var r in new[] { p, q }) { g.beginPath(); g.arc(r.x, r.y, 16 + 6 * (1 - k), 0, TAU); g.stroke(); }
+		g.restore();
 	}
 }

@@ -13,7 +13,8 @@ using static MG.JS;
 public class TeamTest
 {
 	string id, outDir; int page, fps = 60, every = 1, i; double T; bool done, shot, nodraw = System.Environment.GetEnvironmentVariable("NODRAW") == "1";
-	int hits0; string[] routes; (double t, string k)[][] lines; string[] lastK = new string[G.TM_N]; StringBuilder log = new(); Main host;
+	int hits0; string[] routes; (int room, double t, string k)[][] lines; System.Collections.Generic.Dictionary<int, double> entry = new(); G.TeamRun lastTm; string[] lastK = new string[G.TM_N]; StringBuilder log = new(); Main host;
+	string view;   // env VIEW: a player's screen (0-2), or "cycle" (each one's screen in turn in the dark rooms); else everyone's
 	BinaryWriter wav = System.Environment.GetEnvironmentVariable("WAV") != null ? new BinaryWriter(new MemoryStream()) : null;
 
 	// the ride's part (0-3) this player should be on for the next strike: stay if it is safe, else the nearest safe part
@@ -41,11 +42,16 @@ public class TeamTest
 		localStorage.Memory = true; G.padsDisabled = true; G.classicUi = false;
 		performance.manual = 100000; AudioCtx.manualTime = 0; JS.SeedRandom(7);
 		G.InitSound(); G.gfx.Resize(1280, 720); G.scale = 1; G.offX = 0; G.offY = 0; G.gatePassed = true;
-		lines = routes.Select(r => File.ReadAllLines(r).Where(l => l.Trim().Length > 0 && !l.StartsWith("#")).Select(l => { var f = l.Trim().Split(' ', 2); return (double.Parse(f[0]), f.Length > 1 ? f[1].Split('#')[0].Trim() : ""); }).ToArray()).ToArray();
+		// "ROOM <page>" starts a part whose times count from when that page (room) begins
+		lines = routes.Select(r => { int room = page; var o = new System.Collections.Generic.List<(int, double, string)>();
+			foreach (var l in File.ReadAllLines(r).Where(l => l.Trim().Length > 0 && !l.StartsWith("#")))
+			{ var f = l.Trim().Split(' ', 2); if (f[0] == "ROOM") { room = int.Parse(f[1].Split('#')[0].Trim()); continue; } o.Add((room, double.Parse(f[0]), f.Length > 1 ? f[1].Split('#')[0].Trim() : "")); }
+			return o.ToArray(); }).ToArray();
 		for (int k = 0; k < G.TM_N; k++) lastK[k] = "";
 		T = double.TryParse(System.Environment.GetEnvironmentVariable("T"), out var tt) ? tt : lines.Max(l => l.Length > 0 ? l[^1].t : 0) + 3;
 		G.ensureAudio(); G.stopMenu();
 		G.tmStart(G.LoadTeam(id), page); G.state = "team";
+		view = System.Environment.GetEnvironmentVariable("VIEW");
 	}
 	public void Process()
 	{
@@ -65,9 +71,11 @@ public class TeamTest
 		{
 			i++; double t = (double)i / fps; if (t > T) { done = true; if (!nodraw) G.gfx.EndFrame(); return; }
 			var ins = new G.TIn[G.TM_N];
+			if (G.tm != lastTm) { lastTm = G.tm; if (!entry.ContainsKey(G.tm.page) || G.tm.page == page) entry[G.tm.page] = t; }
+			int rm = G.tm.page; double rt = t - entry[rm];
 			for (int k = 0; k < G.TM_N; k++)
 			{
-				string kk = ""; foreach (var l in lines[k]) if (l.t <= t + 1e-9) kk = l.k;
+				string kk = ""; foreach (var l in lines[k]) if (l.room == rm && l.t <= rt + 1e-9) kk = l.k;
 				bool dashNow = kk.Contains('X') && !lastK[k].Contains('X'), jumpNow = kk.Contains('J') && !lastK[k].Contains('J'); lastK[k] = kk;
 				ins[k] = new G.TIn { x = (kk.Contains('R') ? 1 : 0) - (kk.Contains('L') ? 1 : 0), y = (kk.Contains('D') ? 1 : 0) - (kk.Contains('U') ? 1 : 0), jump = jumpNow, jumpHeld = kk.Contains('J'), dash = dashNow };
 				// "@<x>": walk to x and stop there; "A": on the ride, step to a part the next lightning misses
@@ -81,7 +89,7 @@ public class TeamTest
 			int n0 = G.tm.restarts; G.tmStep(1.0 / fps, ins);
 			if (wav != null) { int n = AudioCtx.SR / fps; var l = new float[n]; var r = new float[n]; AudioCtx.RenderAt(l, r, n, AudioCtx.manualTime.Value); for (int j = 0; j < n; j++) { wav.Write((short)(Math.Clamp(l[j], -1, 1) * 32767)); wav.Write((short)(Math.Clamp(r[j], -1, 1) * 32767)); } }
 			G.particlesStep(1.0 / fps);
-			log.Append(str(Math.Round(t, 3))).Append(' ').Append(str(Math.Round(G.tm.t / G.tm.L.spb, 2)));
+			log.Append(str(Math.Round(t, 3))).Append(" r").Append(rm).Append(' ').Append(str(Math.Round(rt, 2))).Append(' ').Append(str(Math.Round(G.tmBeatPub(), 2)));
 			foreach (var b in G.tm.b) log.Append(" | ").Append(str(Math.Round(b.x))).Append(',').Append(str(Math.Round(b.y))).Append(' ').Append(b.hp).Append(b.down ? "d" : "").Append(b.gate ? "g" : "").Append(b.onT != null ? " " + b.onT.k : "");
 			if (G.tm.restarts != n0) log.Append(" RESTART");
 			if (G.tm.hits != hits0) { log.Append(" HIT"); hits0 = G.tm.hits; }
@@ -89,13 +97,19 @@ public class TeamTest
 			foreach (var s in G.tm.th) if (s.k is "stone" or "btn" && s.on) log.Append(' ').Append(s.d.id);
 			foreach (var s in G.tm.th) if (s.k == "scale") log.Append(" s=").Append(str(Math.Round(s.s, 2)));
 			foreach (var s in G.tm.th) if (s.k == "ride") log.Append(" ride=").Append(str(Math.Round(s.X)));
+			foreach (var s in G.tm.th) if (s.k == "cbtn" && s.on) log.Append(' ').Append(s.d.id);
+			if (G.tm.P.things.Any(d => d.k == "flip")) log.Append(" f=").Append(string.Join(",", G.tm.flips));
+			if (G.tm.chaseX > -900) log.Append(" wall=").Append(str(Math.Round(G.tm.chaseX)));
+			if (G.tm.swapA >= 0) log.Append($" swap{G.tm.swapA}{G.tm.swapB}@").Append(str(G.tm.swapAt));
 			if (G.tm.doneAt >= 0) log.Append(" DONE");
 			log.Append('\n');
 			if (!nodraw && i % every == 0)
 			{
 				var g = G.g; g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#000"; g.fillRect(0, 0, 1280, 720);
 				double sx = (random() * 2 - 1) * G.shake, sy = (random() * 2 - 1) * G.shake; g.setTransform(1, 0, 0, 1, sx, sy);
+				G.tmView = view == "cycle" ? (G.tm.P.dark ? (int)(G.tm.pageAt / 3.2) % 3 : -1) : int.TryParse(view, out var vv) ? vv : -1;
 				G.drawTeam(performance.manual.Value);
+				if (G.tmView >= 0) { string[] nm = { "شاشة الأحمر", "شاشة الأزرق", "شاشة الأصفر" }; G.g.setTransform(1, 0, 0, 1, 0, 0); G.txt(nm[G.tmView], 1150, 30, 22, G.TM_COL[G.tmView]); }
 				if (G.flash > 0) { g.fillStyle = $"rgba(255,255,255,{str(Math.Min(0.8, G.flash))})"; g.fillRect(0, 0, 1280, 720); }
 				G.gfx.EndFrame(); shot = true; return;
 			}

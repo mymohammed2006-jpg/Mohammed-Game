@@ -22,6 +22,17 @@ namespace MG;
 //   wind   gusts in a zone on the beat (a = px a second, every b beats, c beats long, the side changes each gust)
 //   hail   ice falling in a zone's columns on every beat (a = px a second, the warning half a beat before)
 //   bolt   lightning over a ride (of) on every beat: one tile of the ride, two on the bar's first beat (warning one beat before)
+// Page two's things (a = a player: 0 red, 1 cyan, 2 gold):
+//   cloud  a plain cloud that stays
+//   vis    a cloud everyone can stand on but only player a sees (on their own screen; everyone on the bar's lightning)
+//   flip   a cloud that comes and goes each time player a does their move: red jumps, cyan dashes, gold stands still a second
+//          (b = 0: there at the start, 1: not there at the start)
+//   cwall  a curtain only player a walks through;  cbtn: a button only player a presses (bridge/door/path `need` it)
+//   chase  a red lightning wall from the left: starts at x, a tiles every beat, after c beats
+// A page with "cont" goes on from the one before it (the same part of the song, no checkpoint): a falling team goes back to
+// the first page of the run. Flags: dark (only lights around the players), stack (stand on each other's heads),
+// swap (on each bar's first beat lightning swaps two players: red-cyan, cyan-gold, gold-red, warned two beats before),
+// tether (no one more than this many px from the others, or the chain breaks and all fall).
 public class TThing
 {
 	public string k { get; set; }
@@ -47,6 +58,13 @@ public class TeamPage
 	public double[] loop { get; set; }                 // the part of the song this page plays (seconds, from a beat to a beat)
 	public double[] beats { get; set; }                // the song's beats in that part (seconds): the song is sung freely, so its beats are not even
 	public Dictionary<string, int> pieces { get; set; }
+	public bool[] on { get; set; }                     // the stems playing at its start (else the level's)
+	public bool cont { get; set; }
+	public bool dark { get; set; }
+	public bool stack { get; set; }
+	public bool swap { get; set; }
+	public double tether { get; set; }
+	public int theme { get; set; }                     // 0 the sunset, 1 the red storm
 }
 public class TeamLevel
 {
@@ -75,7 +93,7 @@ public static partial class G
 	public class TBody
 	{
 		public int i; public double x, y, vx, vy, coyote, jbuf, dash, ddx, ddy, fx = 1, sa, sk, inv, hurt, ex, downAt, dt0 = -9, prevB;
-		public double revT; public int hp = P_HP; public bool ground, canDash = true, jumpHeld, down, gate; public TS onT;
+		public double revT, mdx, mdy, still; public bool armed = true; public TBody onB; public int hp = P_HP; public bool ground, canDash = true, jumpHeld, down, gate; public TS onT;
 		public List<(double x, double y, double t)> trail = new();
 	}
 	public struct TIn { public double x, y; public bool jump, jumpHeld, dash; }
@@ -87,9 +105,13 @@ public static partial class G
 		public bool[] stemOn; public Voice[] voices; public List<THail> hail = new(); public long beatN = -1;
 		public List<(double x, double y, double t, int who)> steps = new();   // footprints on the clouds
 		public double[] sx = new double[TM_N], sy = new double[TM_N];
-		public string msg; public double msgT, restartAt = -1, doneAt = -1, pageAt; public int restarts, hits; public bool fromClouds;
+		public string msg; public double msgT, restartAt = -1, doneAt = -1, pageAt; public int restarts, hits; public bool fromClouds; public int coverTheme;
 		public List<(int k, double at)> taken = new();
+		public int[] flips = new int[TM_N]; public double reveal, chaseX = -999, beat0, swapAt = -9, swapFx = -9; public int swapA = -1, swapB = -1, snapAt = -1; public double snapT = -9;
 	}
+	public static int tmView = -1;                                  // whose screen this is (-1: everyone's, for the tests)
+	static readonly int[,] TM_PAIRS = { { 0, 1 }, { 1, 2 }, { 2, 0 } };
+	public static (int a, int b) tmSwapPair(long bar) { int k = (int)(((bar % 3) + 3) % 3); return (TM_PAIRS[k, 0], TM_PAIRS[k, 1]); }
 	public static TeamRun tm;
 	public static double tmBeatPub() => tmBeat();
 	// the beat number at the page's music time (following the song's own beats, again each time the part loops)
@@ -112,25 +134,36 @@ public static partial class G
 		using var f = Godot.FileAccess.Open($"res://data/team_{id}.json", Godot.FileAccess.ModeFlags.Read);
 		var L = JsonSerializer.Deserialize<TeamLevel>(f.GetAsText());
 		L.bufs = L.stems.Select(s => LoadSong(s)).ToArray();
+		for (int i = 1; i < L.pages.Count; i++) if (L.pages[i].cont) { var p = L.pages[i]; var q = L.pages[i - 1]; p.loop ??= q.loop; p.beats ??= q.beats; p.on ??= q.on; p.theme = p.theme == 0 ? q.theme : p.theme; }
 		return L;
 	}
 
 	// ---------- a page ----------
 	public static void tmStart(TeamLevel L, int page, bool fromClouds = false)
 	{
-		tm = new TeamRun { L = L, page = page, P = L.pages[page], fromClouds = fromClouds }; tm.stemOn = (bool[])L.on.Clone();
+		var old = tm; var P = L.pages[page];
+		tm = new TeamRun { L = L, page = page, P = P, fromClouds = fromClouds, coverTheme = old?.P.theme ?? 0 };
+		if (P.cont && old != null && old.L == L)
+		{
+			tm.stemOn = old.stemOn; tm.voices = old.voices; tm.t = old.t; tm.beatN = old.beatN; tm.restarts = old.restarts; tm.hits = old.hits;
+			tmBuild(); return;
+		}
+		tm.stemOn = (bool[])(P.on ?? L.on).Clone();
 		tmBuild(); tmMusic();
 	}
 	static void tmBuild()
 	{
 		var P = tm.P; tm.m = P.map.Select(r => r.ToCharArray()).ToArray(); tm.h = tm.m.Length; tm.w = tm.m[0].Length;
 		tm.th.Clear(); tm.hail.Clear(); tm.got.Clear(); tm.taken.Clear(); tm.steps.Clear();
+		tm.flips = new int[TM_N]; tm.chaseX = -999; tm.beat0 = tm.L != null && tm.P.beats != null ? tmBeat() : 0; tm.swapA = tm.swapB = -1; tm.snapAt = -1; tm.pageAt = 0;
 		var byId = new Dictionary<string, TS>();
 		foreach (var d in P.things)
 		{
 			var s = new TS { d = d, k = d.k, X = d.x * PT, Y = d.y * PT, W = d.w * PT, H = d.h * PT };
-			s.one = d.k is "sink" or "fall" or "bridge" or "path" or "ride";
-			s.solid = d.k is "sink" or "fall" or "door" or "hatch" or "ride";
+			s.one = d.k is "sink" or "fall" or "bridge" or "path" or "ride" or "cloud" or "vis" or "flip";
+			s.solid = d.k is "sink" or "fall" or "door" or "hatch" or "ride" or "cloud" or "vis" or "cwall";
+			if (d.k == "flip") { s.solid = d.b == 0; s.s = s.solid ? 1 : 0; }
+			if (d.k == "chase") tm.chaseX = d.x * PT;
 			if (d.k == "door") s.H = d.h * PT;
 			tm.th.Add(s); if (d.id != null) byId[d.id] = s;
 			if (d.k == "scale")
@@ -164,14 +197,17 @@ public static partial class G
 	static void tmRestart()
 	{
 		tm.restarts++; tm.restartAt = -1;
-		for (int i = 0; i < tm.stemOn.Length; i++) if (tm.stemOn[i] && !tm.L.on[i]) { tm.stemOn[i] = false; tm.voices?[i]?.gain.setTargetAtTime(0, actx.currentTime, 0.2); }
+		int g0 = tm.page; while (g0 > 0 && tm.L.pages[g0].cont) g0--;
+		if (g0 != tm.page) { tm.page = g0; tm.P = tm.L.pages[g0]; }
+		var want = tm.P.on ?? tm.L.on;
+		for (int i = 0; i < tm.stemOn.Length; i++) if (tm.stemOn[i] != want[i]) { tm.stemOn[i] = want[i]; tm.voices?[i]?.gain.setTargetAtTime(want[i] ? 1 : 0, actx.currentTime, 0.2); }
 		tmBuild(); tm.msg = "ترجعون لبداية الصفحة"; tm.msgT = 2;
 		sfx(tt => { sTone(tt, 330, 0.25, "square", 0.06); sTone(tt + 0.12, 220, 0.35, "square", 0.06); });
 	}
 
 	// ---------- where things are ----------
 	static bool tmTile(int tx, int ty) => tx < 0 || ty < 0 || tx >= tm.w || ty >= tm.h || tm.m[ty][tx] == '#';
-	static bool tmPressed(string id) { var s = tm.th.FirstOrDefault(q => q.d.id == id && q.k is "stone" or "btn"); return s != null && s.on; }
+	static bool tmPressed(string id) { var s = tm.th.FirstOrDefault(q => q.d.id == id && q.k is "stone" or "btn" or "cbtn"); return s != null && s.on; }
 	static bool tmAll(string[] ids) => ids != null && ids.All(tmPressed);
 	static int tmOnIt(TS s) { int n = 0; foreach (var b in tm.b) if (!b.down && !b.gate && b.onT == s) n++; return n; }
 	static double tmSawPos(PlatSaw s, out double y)
@@ -207,6 +243,7 @@ public static partial class G
 		{
 			if (s.k == "stone") { double sx0 = s.d.x * PT; s.on = s.of != null && !s.of.melt && tm.b.Any(b => !b.down && b.onT == s.of && Math.Abs(b.x - sx0) < 26); }
 			else if (s.k == "btn") s.on = tm.b.Any(b => !b.down && b.ground && Math.Abs(b.y + P_HALF - s.Y) < 3 && b.x > s.X - 4 && b.x < s.X + s.W + 4);
+			else if (s.k == "cbtn") { var who = tm.b[(int)s.d.a]; s.on = !who.down && !who.gate && who.ground && Math.Abs(who.y + P_HALF - s.Y) < 3 && who.x > s.X - 4 && who.x < s.X + s.W + 4; }
 		}
 		// then the things move
 		foreach (var s in tm.th)
@@ -236,6 +273,13 @@ public static partial class G
 						s.L.dy = ly - s.L.Y; s.L.Y = ly; s.R.dy = ry - s.R.Y; s.R.Y = ry;
 						break;
 					}
+				case "flip": s.solid = (tm.flips[(int)d.a] + (int)d.b) % 2 == 0; s.s = Math.Clamp(s.s + (s.solid ? 8 : -8) * dt, 0, 1); break;
+				case "chase":
+					{
+						double k = bt - tm.beat0 - d.c; if (k < 0) break;
+						double f = k - Math.Floor(k); f = 1 - Math.Pow(1 - Math.Min(1, f * 3), 3);   // a lurch on each beat
+						tm.chaseX = d.x * PT + (Math.Floor(k) + f) * d.a * PT; break;
+					}
 				case "hatch": s.solid = !(s.of != null && s.of.s > 0.02); s.s = Math.Clamp(s.s + (s.solid ? -4 : 4) * dt, 0, 1); break;
 				case "ride":
 					{
@@ -256,6 +300,9 @@ public static partial class G
 				if (s.k == "hail") foreach (int c in tmHailCols(s, bi)) tm.hail.Add(new THail { x = c * PT + PT / 2, y = s.Y + 6 });
 				if (s.k == "bolt" && tmBoltLive(s) && bi >= 0) { shake = Math.Max(shake, 5); flash = Math.Max(flash, 0.12); sfx(tt => { sNoise(tt, 0.35, "highpass", 2400, 0.16); sTone(tt, 70, 0.3, "sawtooth", 0.08); }); }
 			}
+			if (tm.P.dark && bi % 4 == 0) { tm.reveal = 1; sfx(tt => { sNoise(tt, 0.6, "lowpass", 500, 0.14); sNoise(tt, 0.15, "highpass", 3000, 0.06); }); }
+			if (tm.P.swap && bi % 4 == 2 && bi + 2 >= tm.beat0 + 3) { var (pa, pb) = tmSwapPair((bi + 2) / 4); tm.swapA = pa; tm.swapB = pb; tm.swapAt = (bi + 2); sfx(tt => sNoise(tt, 0.25, "highpass", 4000, 0.05)); }
+			if (tm.P.swap && bi % 4 == 0 && tm.swapA >= 0 && bi == (long)tm.swapAt) tmDoSwap();
 		}
 		foreach (var q in tm.hail)
 		{
@@ -264,8 +311,21 @@ public static partial class G
 			if (tmTile(tx, ty) || tm.th.Any(s => s.solid && s.k != "door" && q.x > s.X && q.x < s.X + s.W && q.y + 6 > s.Y && q.y < s.Y + s.H)) { q.dead = true; burst(q.x, q.y, "rgba(200,235,255,0.9)", 6, 140); }
 		}
 		tm.hail.RemoveAll(q => q.dead);
+		tm.reveal = Math.Max(0, tm.reveal - dt * 1.8);
 		// everyone moves
-		for (int i = 0; i < TM_N; i++) tmBody(tm.b[i], ins[i], dt);
+		for (int i = 0; i < TM_N; i++) { var b = tm.b[i]; double px = b.x, py = b.y; tmBody(b, ins[i], dt); b.mdx = b.x - px; b.mdy = b.y - py; }
+		// the chain: no one too far from the others
+		if (tm.P.tether > 0 && tm.snapAt < 0)
+			for (int i = 0; i < TM_N; i++) for (int j = i + 1; j < TM_N; j++)
+			{
+				var p = tm.b[i]; var q = tm.b[j]; if (p.gate || q.gate || (p.down && q.down)) continue;
+				if (hypot(p.x - q.x, p.y - q.y) > tm.P.tether && tm.snapAt < 0)
+				{
+					tm.snapAt = i * 3 + j; tm.snapT = tm.t; shake = 18; flash = 0.4;
+					sfx(tt => { sNoise(tt, 0.5, "highpass", 2000, 0.2); sTone(tt, 60, 0.5, "sawtooth", 0.12); });
+					foreach (var r in tm.b) if (!r.down && !r.gate) { r.inv = 0; r.hp = 1; tmDamage(r); }
+				}
+			}
 		// hurt, fall, bring back
 		foreach (var b in tm.b)
 		{
@@ -288,6 +348,18 @@ public static partial class G
 		foreach (var b in tm.b) { b.trail.Add((b.x, b.y, tm.t)); b.trail.RemoveAll(q => tm.t - q.t > 0.18); }
 		tm.steps.RemoveAll(q => tm.t - q.t > 2.5);
 	}
+
+	// lightning swaps the two (both must be up and out of the gate)
+	static void tmDoSwap()
+	{
+		var p = tm.b[tm.swapA]; var q = tm.b[tm.swapB]; tm.swapA = tm.swapB = -1;
+		if (p.down || q.down || p.gate || q.gate) return;
+		(p.x, q.x) = (q.x, p.x); (p.y, q.y) = (q.y, p.y);
+		foreach (var b in new[] { p, q }) { b.vy = 0; b.onT = null; b.onB = null; b.ground = false; b.dash = 0; b.trail.Clear(); burst(b.x, b.y, TM_COL[b.i], 24, 300); }
+		tm.swapFx = tm.t; shake = Math.Max(shake, 8); flash = Math.Max(flash, 0.2);
+		sfx(tt => { sNoise(tt, 0.3, "highpass", 2600, 0.18); sTone(tt, 1200, 0.1, "square", 0.05); sTone(tt + 0.05, 300, 0.2, "square", 0.05); });
+	}
+	public static bool tmSwapLive() => tm.swapA >= 0;
 
 	static int tmPieces() { int n = 0; foreach (var r in tm.m) foreach (var c in r) if (c >= '1' && c <= '9') n++; return n; }
 	static bool tmOpen() => tm.got.Count >= tmPieces();
@@ -324,6 +396,7 @@ public static partial class G
 		}
 		foreach (var s in tm.P.saws) { double sx = tmSawPos(s, out double sy); if (hypot(b.x - sx, b.y - sy) < s.r + r) return true; }
 		foreach (var q in tm.hail) if (Math.Abs(q.x - b.x) < 5 + r && Math.Abs(q.y - b.y) < 9 + r) { q.dead = true; return true; }
+		if (tm.chaseX > -900 && b.x - r < tm.chaseX) return true;
 		double bf = tmBeat() - Math.Floor(tmBeat());
 		if (bf < 0.2) foreach (var s in tm.th) if (s.k == "bolt" && tmBoltLive(s))
 			foreach (int c in tmBolts(s, tm.beatN)) { double cx = s.of.X + c * PT; if (b.x + r > cx && b.x - r < cx + PT && b.y > s.Y && b.y < s.Y + s.H) return true; }
@@ -336,12 +409,19 @@ public static partial class G
 		if (b.hp <= 0) { b.down = true; b.revT = 0; b.downAt = tm.t; b.vx = b.vy = 0; b.onT = null; burst(b.x, b.y, TM_COL[b.i], 50, 520); }
 	}
 
+	static void tmFlip(int who)
+	{
+		tm.flips[who]++;
+		if (tm.th.Any(s => s.k == "flip" && (int)s.d.a == who)) sfx(tt => { sTone(tt, 660 + who * 110, 0.06, "triangle", 0.05); sTone(tt + 0.05, 990 + who * 110, 0.08, "triangle", 0.04); });
+	}
+
 	// one player: the platformer's moves (one jump, one dash back on the ground), on tiles and on the clouds
 	static void tmBody(TBody b, TIn inp, double dt)
 	{
 		if (b.down || b.gate) return;
 		// carried by what it stands on
 		if (b.onT != null) { if (b.onT.solid) { b.x += b.onT.dx; b.y += b.onT.dy; } else { b.onT = null; b.ground = false; } }
+		if (b.onB != null) { if (!b.onB.down && !b.onB.gate) { b.x += b.onB.mdx; b.y += b.onB.mdy; } else { b.onB = null; b.ground = false; } }
 		double mx = Math.Abs(inp.x) < 0.25 ? 0 : inp.x, my = inp.y;
 		b.jumpHeld = inp.jumpHeld; if (inp.jump) b.jbuf = P_BUFFER;
 		if (inp.dash && b.canDash && b.dash <= 0)
@@ -349,6 +429,7 @@ public static partial class G
 			double m = hypot(mx, my), dx = m > 0.3 ? mx / m : b.fx, dy = m > 0.3 ? my / m : 0;
 			b.ddx = dx; b.ddy = dy; b.dash = P_DASH_T; b.inv = Math.Max(b.inv, 0.28); b.canDash = false; b.dt0 = tm.t; b.sa = JS.atan2(dy, dx);
 			burst(b.x, b.y, TM_COL[b.i], 8, 200); sfx(tt => sNoise(tt, 0.12, "bandpass", 3200, 0.14, 1));
+			if (b.i == 1) tmFlip(1);
 		}
 		if (mx != 0) b.fx = Math.Sign(mx);
 		if (b.dash > 0)
@@ -360,7 +441,7 @@ public static partial class G
 		{
 			double target = mx * P_SPEED, acc = b.ground ? P_ACC : P_AIR;
 			b.vx = b.vx < target ? Math.Min(target, b.vx + acc * dt) : Math.Max(target, b.vx - acc * dt);
-			if (b.jbuf > 0 && b.coyote > 0) { b.vy = -P_JUMP; b.jbuf = 0; b.coyote = 0; b.ground = false; b.onT = null; sfx(tt => sTone(tt, 520, 0.08, "square", 0.03)); }
+			if (b.jbuf > 0 && b.coyote > 0) { b.vy = -P_JUMP; b.jbuf = 0; b.coyote = 0; b.ground = false; b.onT = null; b.onB = null; sfx(tt => sTone(tt, 520, 0.08, "square", 0.03)); if (b.i == 0) tmFlip(0); }
 			if (!b.jumpHeld && b.vy < -300) b.vy *= P_CUT;
 			b.vy = Math.Min(P_FALL, b.vy + P_GRAV * dt);
 		}
@@ -377,10 +458,10 @@ public static partial class G
 			int ty0 = (int)Math.Floor((b.y - P_HALF + 0.01) / PT), ty1 = (int)Math.Floor((b.y + P_HALF - 0.01) / PT);
 			if (mvx > 0) { int tx = (int)Math.Floor((b.x + P_HALF) / PT); for (int ty = ty0; ty <= ty1; ty++) if (tmTile(tx, ty)) { b.x = tx * PT - P_HALF; b.vx = Math.Min(0, b.vx); break; } }
 			else if (mvx < 0) { int tx = (int)Math.Floor((b.x - P_HALF) / PT); for (int ty = ty0; ty <= ty1; ty++) if (tmTile(tx, ty)) { b.x = (tx + 1) * PT + P_HALF; b.vx = Math.Max(0, b.vx); break; } }
-			foreach (var s in tm.th) if (s.solid && !s.one && b.y + P_HALF > s.Y + 0.5 && b.y - P_HALF < s.Y + s.H - 0.5 && b.x + P_HALF > s.X && b.x - P_HALF < s.X + s.W)
+			foreach (var s in tm.th) if (s.solid && !s.one && !(s.k == "cwall" && (int)s.d.a == b.i) && b.y + P_HALF > s.Y + 0.5 && b.y - P_HALF < s.Y + s.H - 0.5 && b.x + P_HALF > s.X && b.x - P_HALF < s.X + s.W)
 			{ if (mvx >= 0 && ox + P_HALF <= s.X + 1) { b.x = s.X - P_HALF; b.vx = Math.Min(0, b.vx); } else if (mvx <= 0 && ox - P_HALF >= s.X + s.W - 1) { b.x = s.X + s.W + P_HALF; b.vx = Math.Max(0, b.vx); } }
 		}
-		bool was = b.ground; b.ground = false; var oldOn = b.onT; b.onT = null;
+		bool was = b.ground; b.ground = false; var oldOn = b.onT; b.onT = null; b.onB = null;
 		double oy = b.y, ob = b.y + P_HALF; b.y += b.vy * dt;
 		{
 			int tx0 = (int)Math.Floor((b.x - P_HALF + 0.01) / PT), tx1 = (int)Math.Floor((b.x + P_HALF - 0.01) / PT);
@@ -393,12 +474,27 @@ public static partial class G
 				{
 					if (b.vy >= 0 && ob <= s.Y + Math.Max(0, s.dy) + 1 && b.y + P_HALF >= s.Y) { b.y = s.Y - P_HALF; b.vy = 0; b.ground = true; b.onT = s; }
 				}
+				else if (s.k == "cwall" && (int)s.d.a == b.i) { }
 				else if (b.y + P_HALF > s.Y && b.y - P_HALF < s.Y + s.H)
 				{
 					if (b.vy >= 0 && ob <= s.Y + 2) { b.y = s.Y - P_HALF; b.vy = 0; b.ground = true; b.onT = s; }
 					else if (b.vy < 0) { b.y = s.Y + s.H + P_HALF; b.vy = 0; if (b.dash > 0) b.dash = 0; }
 				}
 			}
+		}
+		// standing on someone's head (page two)
+		if (tm.P.stack && b.vy >= 0 && !b.ground)
+			foreach (var o in tm.b)
+			{
+				if (o == b || o.down || o.gate || Math.Abs(b.x - o.x) >= P_HALF * 2 - 2) continue;
+				double top = o.y - P_HALF;
+				if (ob <= top + Math.Max(0, o.mdy) + 1 && b.y + P_HALF >= top) { b.y = top - P_HALF; b.vy = 0; b.ground = true; b.onB = o; break; }
+			}
+		// gold's move: standing still a second (then it must move before the next)
+		if (b.i == 2)
+		{
+			if (b.ground && Math.Abs(b.vx) < 5 && b.dash <= 0) { b.still += dt; if (b.still >= 1 && b.armed) { b.armed = false; tmFlip(2); } }
+			else { b.still = 0; if (Math.Abs(b.vx) > 40 || !b.ground) b.armed = true; }
 		}
 		if (b.ground)
 		{
