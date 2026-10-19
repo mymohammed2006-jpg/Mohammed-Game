@@ -11,6 +11,7 @@ public class Inp
 {
 	public double x, y;
 	public bool dash, confirm, pz, back, restart, sq, l1, r1, padAny, left, right, up, down, any;
+	public bool jump, jumpHeld, pdash;   // the platformer: jump (Space / Z / ✕ / A) and its dash (Shift / J / K / X / □ / L1 / R1)
 }
 
 // original index.html lines 6837-6882 (keyboard, gamepads, readInput)
@@ -55,7 +56,7 @@ public static partial class G
 	}
 	public static void OnKeyUp(string code) { keys[code] = false; }
 	public static void OnPointerDown() { ensureAudio(); anyKeyFlag = true; }
-	public static void OnBlur() { foreach (var k in keys.Keys.ToList()) keys[k] = false; if (state == "play") pause(); }
+	public static void OnBlur() { foreach (var k in keys.Keys.ToList()) keys[k] = false; if (state == "play") pause(); if (state == "pltPlay") { state = "pltPause"; pauseSel = 0; actx.suspend(); } }
 
 	public static string padKind(int dev)
 	{
@@ -107,6 +108,7 @@ public static partial class G
 		if (K("Backspace")) back = true;
 		if (K("KeyR")) restart = true; if (K("KeyT")) sq = true;
 		if (K("KeyQ")) l1 = true; if (K("KeyE")) r1 = true;
+		bool jump = K("Space") || K("KeyZ"), pdash = K("ShiftLeft") || K("ShiftRight") || K("KeyJ") || K("KeyK") || K("KeyX");
 		kind = "kb"; bool padAny = false;
 		if (!padsDisabled)
 			foreach (int dev in Input.GetConnectedJoypads())
@@ -119,19 +121,20 @@ public static partial class G
 				if (mag > 0.22) { double k = Math.Min(1, (mag - 0.22) / 0.7) / mag; x += ax * k; y += ay * k; }
 				if (b(14)) x -= 1; if (b(15)) x += 1; if (b(12)) y -= 1; if (b(13)) y += 1;
 				if (b(0) || b(2) || b(4) || b(5) || b(6) || b(7)) dash = true;
+				if (b(0)) jump = true; if (b(2) || b(4) || b(5) || b(6) || b(7)) pdash = true;
 				if (b(0)) confirm = true; if (b(9)) pz = true; if (b(1)) back = true; if (b(3) || b(8)) restart = true; if (b(2)) sq = true; if (b(4)) l1 = true; if (b(5)) r1 = true;
 			}
 		if (padAny) usingPad = true;
 		var cur_ = new Dictionary<string, bool>
 		{
 			["dash"] = dash, ["confirm"] = confirm, ["pz"] = pz, ["back"] = back, ["restart"] = restart, ["sq"] = sq, ["l1"] = l1, ["r1"] = r1,
-			["padAny"] = padAny, ["left"] = x < -0.5, ["right"] = x > 0.5, ["up"] = y < -0.5, ["down"] = y > 0.5,
+			["padAny"] = padAny, ["jump"] = jump, ["pdash"] = pdash, ["left"] = x < -0.5, ["right"] = x > 0.5, ["up"] = y < -0.5, ["down"] = y > 0.5,
 		};
 		bool E(string k) => cur_[k] && !(prev.TryGetValue(k, out var v) && v);
 		var o = new Inp
 		{
 			x = x, y = y, dash = E("dash"), confirm = E("confirm"), pz = E("pz"), back = E("back"), restart = E("restart"), sq = E("sq"),
-			l1 = E("l1"), r1 = E("r1"), padAny = E("padAny"), left = E("left"), right = E("right"), up = E("up"), down = E("down"),
+			l1 = E("l1"), r1 = E("r1"), padAny = E("padAny"), jump = E("jump"), jumpHeld = jump, pdash = E("pdash"), left = E("left"), right = E("right"), up = E("up"), down = E("down"),
 		};
 		o.any = anyKeyFlag || o.padAny; anyKeyFlag = false;
 		prev = cur_; return o;

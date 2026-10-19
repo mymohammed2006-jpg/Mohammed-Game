@@ -23,8 +23,8 @@ public static partial class G
 	}
 
 	static readonly string[] IN_GAME = { "play", "paused", "pauseSet", "dead", "win", "starting", "replay", "rpGap", "rpEnd", "prEnd" };
-	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins" };
-	static readonly string[] FS_HINT = { "main", "levels", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "chal", "skins" };
+	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "pltList", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins" };
+	static readonly string[] FS_HINT = { "main", "levels", "modes", "pltList", "pltPause", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "chal", "skins" };
 
 	public static void draw(double now)
 	{
@@ -138,7 +138,7 @@ public static partial class G
 		zonesFlip();
 	}
 
-	static readonly string[] MENU_MUSIC = { "main", "levels", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "practice", "news", "chal", "skins" };
+	static readonly string[] MENU_MUSIC = { "main", "levels", "modes", "pltList", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "practice", "news", "chal", "skins" };
 	public static void step(double now, bool nd = false)
 	{
 		double dt = Math.Min(0.05, Math.Max(0, now - last) / 1000); last = now; fdt = dt;

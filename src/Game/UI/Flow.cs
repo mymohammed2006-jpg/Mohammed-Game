@@ -22,7 +22,7 @@ public static partial class G
 	}
 
 	// ---------- screen transitions: the old picture fades into the new screen's background, then the new screen fades in ----------
-	static readonly string[] TR_ST = { "main", "levels", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "news", "chal", "skins" };
+	static readonly string[] TR_ST = { "main", "levels", "modes", "pltList", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "news", "chal", "skins" };
 	const double TR_OUT = 110, TR_IN = 170;
 	static ImageTexture trSnap; static string trLast = ""; static bool trOn = false; static double trAt = -1e9;
 	public static void trCheck(double now)
@@ -65,6 +65,7 @@ public static partial class G
 		else if (state == "profile") drawProfile(now);
 		else if (state == "rpLoad") drawRpLoad(now);
 		else if (state == "practice") drawPractice(now);
+		else if (drawPlatScreens(now)) { }
 		else return false;
 		return true;
 	}
@@ -89,7 +90,7 @@ public static partial class G
 				else if (menuSel == CHAL) { state = "chal"; chalView = 0; }
 				else if (menuSel == SKINSM) { state = "skins"; skinInfo = false; chalSel = Math.Max(0, Array.IndexOf(SKINS, skin)); }
 				else if (menuSel == BOARD) { if (!classicUi) board.idx = 0; state = "board"; board.mode = easy ? "e" : "n"; board.sel = -1; _ = loadBoard(false); }
-				else state = new[] { "levels", "friends", "howto", "settings" }[menuSel];
+				else state = new[] { classicUi ? "levels" : "modes", "friends", "howto", "settings" }[menuSel];
 			}
 		}
 		else if (state == "levels")
@@ -98,7 +99,7 @@ public static partial class G
 			if (inp.right && lvlSel > 0) lvlSel--;
 			if ((inp.sq || inp.restart) && !inp.confirm) { var L = LEVELS[lvlSel]; if (L.ok && L.buf != null) { if (inp.sq) openPractice(L, "levels"); else openBot(L, "levels"); } else shakeCard = 0.4; }
 			else if (inp.confirm) { var L = LEVELS[lvlSel]; if (L.ok && L.buf != null) startLevel(L, "levels"); else shakeCard = 0.4; }
-			else if (inp.back || inp.pz) state = "main";
+			else if (inp.back || inp.pz) state = classicUi ? "main" : "modes";
 		}
 		else if (state == "friends")
 		{
@@ -109,6 +110,7 @@ public static partial class G
 			else if (inp.back || inp.pz) state = "main";
 		}
 		else if (state == "chal") stepChal(inp, dt);
+		else if (stepPlat(inp, now, dt)) { }
 		else if (state == "skins") stepSkins(inp, dt);
 		else if (state == "howto") { if (inp.back || inp.pz || inp.confirm) state = "main"; }
 		else if (state == "points") { if (inp.back || inp.pz || inp.confirm) state = "main"; }
