@@ -29,7 +29,8 @@ public class PlatLevel
 	public double spb { get; set; }
 	public string[] map { get; set; }
 	public string theme { get; set; }   // the level's own touch behind the map ("disco")
-	public bool coop { get; set; }      // two players online only
+	public bool coop { get; set; }      // played together online only (versus otherwise: alone, or against others online)
+	public int players { get; set; } = 2;   // co-op: how many players it needs
 	public bool test { get; set; }      // a test map: no letter, not on the boards (remove before going public)
 	public List<PlatSaw> saws { get; set; } = new();
 	[System.Text.Json.Serialization.JsonIgnore] public AudioStream[] bufs;
@@ -39,7 +40,7 @@ public class PlatLevel
 
 public static partial class G
 {
-	public static readonly string[] PLAT_IDS = { "P1", "C0" };   // C0 = the co-op test map (test builds only)
+	public static readonly string[] PLAT_IDS = { "P1" };
 	static List<PlatLevel> _plats;
 	public static List<Level> PLAT_LV => PLATS.Where(p => !p.test).Select(p => p.lv).ToList();
 	public static List<PlatLevel> PLATS

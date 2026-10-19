@@ -64,7 +64,7 @@ public static partial class G
 	static void drawPltList(double now)
 	{
 		bgShapes(now); txt("البلاتفورم", W / 2, 105, 48, "#fff");
-		var list = PLATS; int n = list.Count; double cw = 240, chh = 330, gp = 28, cy = H / 2 + 20, total = n * cw + (n - 1) * gp;
+		var list = PLATS; int n = list.Count; double cw = 240, chh = 350, gp = 28, cy = H / 2 + 20, total = n * cw + (n - 1) * gp;
 		for (int i = 0; i < n; i++)
 		{
 			var L = list[i]; bool sel = i == plSel; double x = W / 2 + total / 2 - cw / 2 - i * (cw + gp); int ii = i;
@@ -72,14 +72,25 @@ public static partial class G
 			double lf = lift("P" + i, sel);
 			rr(x - cw / 2, cy - chh / 2 + lf, cw, chh, 18); g.fillStyle = sel ? CARDS : CARD; g.fill();
 			g.strokeStyle = sel ? RED : "rgba(255,255,255,0.12)"; g.lineWidth = sel ? 3 : 1.5; g.stroke();
-			txt(ar(i + 1), x, cy - 90 + lf, 90, sel ? RED : "#fff", 800);
+			txt(ar(i + 1), x, cy - 78 + lf, 90, sel ? RED : "#fff", 800);
 			txt(L.name, x, cy + 5 + lf, 28, "#fff", 800);
-			if (L.coop) txt("تعاوني: لاعبين أونلاين", x, cy + 140 + lf, 18, CYAN, 700);
+			modeTag(L, x, cy - 145 + lf, sel);
 			g.font = $"20px {TFONT}"; g.fillStyle = RED3; g.textAlign = "center"; g.direction = "ltr"; g.textBaseline = "middle"; g.fillText(L.best != null ? L.song : "؟؟؟", x, cy + 52 + lf);   // the song stays hidden until the level is finished g.direction = "rtl";
 			if (L.best != null) { g.font = $"46px {TFONT}"; g.textAlign = "center"; g.direction = "ltr"; if (L.best == "S") sShine("S", x, cy + 115 + lf, 37, now, 12); else { g.fillStyle = "#ff2436"; g.fillText(L.best, x, cy + 115 + lf); } g.direction = "rtl"; }   // S shines like the main list
 		}
 		row(new[] { (BTN[kind].confirm, "العب"), (BTN[kind].restart, "أونلاين"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
 		drawNetNote(now);
+	}
+
+	// the card's tag: how the level is played, "ضد أو سولو" (pink) or "تعاوني: N لاعبين" (cyan)
+	static void modeTag(PlatLevel L, double x, double y, bool sel)
+	{
+		string t = L.coop ? $"تعاوني: {ar(L.players)} لاعبين" : "ضد أو سولو", col = L.coop ? CYAN : PINK;
+		g.font = $"800 20px {TFONT}"; double w = g.measureText(t).width + 36, h = 34;
+		g.globalAlpha = sel ? 1 : 0.7;
+		rr(x - w / 2, y - h / 2, w, h, h / 2); g.fillStyle = L.coop ? "rgba(45,226,230,0.13)" : "rgba(255,42,109,0.13)"; g.fill(); g.strokeStyle = col; g.lineWidth = 1.5; g.stroke();
+		txt(t, x, y + 1, 20, col, 800);
+		g.globalAlpha = 1;
 	}
 
 	// ---------- the level ----------
