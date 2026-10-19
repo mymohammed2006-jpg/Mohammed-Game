@@ -26,7 +26,7 @@ public static partial class G
 		public double t; public long n;             // music time (seconds since the loop started) on the fixed steps
 		public double inX; public bool dashQ, jumpQ;
 		public string msg; public double msgT;
-		public double winAt, deadAt;
+		public double winAt, deadAt, introAt; public int introSfx;
 		public long beatN = -1;                    // the last beat the tick played on
 		public List<(int k, double at)> taken = new();   // the pieces taken, in order (they pass behind the map)
 	}
@@ -36,7 +36,8 @@ public static partial class G
 	static double plBeat() => pl.t / pl.L.spb;
 
 	// ---------- start / music ----------
-	public static void plStart(PlatLevel L)
+	// intro: entering from the level list shows the level's card and draws the map in first (his words 15:13 10-19: no skip, only on entry)
+	public static void plStart(PlatLevel L, bool intro = false)
 	{
 		pl = new PlatRun { L = L, m = L.map.Select(r => r.ToCharArray()).ToArray() }; pl.h = pl.m.Length; pl.w = pl.m[0].Length;
 		pl.stemOn = (bool[])L.on.Clone();
@@ -45,6 +46,13 @@ public static partial class G
 		player = new Player { x = pl.cx, y = pl.cy, r = 5, hp = P_HP, inv = 1.0, fx = 1, fy = 0, ddx = 1, ddy = 0, ang = 0 };
 		particles = new List<Particle>(); hazards = new List<Hz>();
 		stopMenu(); ensureAudio();
+		if (intro) { state = "pltIntro"; pl.introAt = performance.now(); pl.t = -0.12; songT = pl.t; return; }
+		plGo();
+	}
+	public const double PL_INTRO = 3000;   // ms
+	static void plGo()
+	{
+		var L = pl.L;
 		double when = actx.currentTime + 0.12; pl.startWhen = when; pl.voices = new Voice[L.stems.Length];
 		for (int i = 0; i < L.stems.Length; i++)
 		{
@@ -213,8 +221,15 @@ public static partial class G
 		{
 			int n = PLATS.Count;
 			if (inp.left && plSel < n - 1) plSel++; if (inp.right && plSel > 0) plSel--;
-			if (inp.confirm && n > 0) plStart(PLATS[plSel]);
+			if (inp.confirm && n > 0) plStart(PLATS[plSel], true);
 			else if (inp.back || inp.pz) state = "modes";
+		}
+		else if (state == "pltIntro")
+		{
+			double s = now - pl.introAt;
+			if (pl.introSfx == 0 && s > 1300) { pl.introSfx = 1; sfx(tt => sNoise(tt, 1.0, "bandpass", 1400, 0.08, 0.7)); }
+			if (pl.introSfx == 1 && s > 2850) { pl.introSfx = 2; burst(pl.cx, pl.cy + P_HALF, CYAN, 18, 260); shake = 5; rumble(90, 0.4, 0.3); sfx(tt => { sTone(tt, 180, 0.12, "square", 0.08); sNoise(tt, 0.1, "lowpass", 700, 0.15); }); }
+			if (s >= PL_INTRO) plGo();
 		}
 		else if (state == "pltPlay")
 		{

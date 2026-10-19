@@ -16,6 +16,7 @@ public static partial class G
 	{
 		if (state == "modes") drawModes(now);
 		else if (state == "pltList") drawPltList(now);
+		else if (state == "pltIntro") drawPltIntro(now);
 		else if (state is "pltPlay" or "pltPause" or "pltSet" or "pltDead" or "pltWin") drawPlat(now);
 		else return false;
 		return true;
@@ -157,7 +158,10 @@ public static partial class G
 		}
 		foreach (var q in particles) { g.globalAlpha = Math.Max(0, q.life / q.max); g.fillStyle = q.col; g.fillRect(q.x - q.s / 2, q.y - q.s / 2, q.s, q.s); }
 		g.globalAlpha = 1;
-		if (state != "pltDead") drawPlayer();
+		double ia = 1;   // the intro: the square drops in, then the HUD shows
+		if (state == "pltIntro") { double s = (now - pl.introAt) / 1000; ia = clamp((s - 2.85) / 0.15, 0, 1); if (s >= 2.4) { double f = clamp((s - 2.4) / 0.45, 0, 1), dy = -260 * (1 - f * f); player.y += dy; drawPlayer(); player.y -= dy; } }
+		else if (state != "pltDead") drawPlayer();
+		g.save(); g.globalAlpha = ia;
 		// HUD: lives, the pieces, messages
 		for (int i = 0; i < P_HP; i++)
 		{
@@ -171,6 +175,7 @@ public static partial class G
 		}
 		if (pl.msgT > 0) { g.globalAlpha = Math.Min(1, pl.msgT); txt(pl.msg, W / 2, 70, 30, GOLD); g.globalAlpha = 1; }
 		if (cpMsg > 0) { g.globalAlpha = Math.Min(1, cpMsg); txt("✓ تم الحفظ", W / 2, pl.msgT > 0 ? 118 : 70, 24, CYAN); g.globalAlpha = 1; }
+		g.restore();
 		if (state == "pltPause")
 		{
 			overlay(0.75); txt("اللعبة متوقفة", W / 2, 150, 56, "#fff");
@@ -209,6 +214,25 @@ public static partial class G
 			txt((hitsTotal == 0 ? "بدون ولا ضربة" : $"انضربت {ar(hitsTotal)} مرة") + "    " + (deaths == 0 ? "بدون خسارة" : $"خسرت {ar(deaths)} مرة"), W / 2, H / 2 + 70, 28, "#e9e6f5", 500);
 			if (ts > 800) { row(new[] { (BTN[kind].confirm, "العب مرة ثانية") }, W / 2, H / 2 + 135); row(new[] { (BTN[kind].back, "المراحل") }, W / 2, H / 2 + 190); }
 		}
+	}
+
+	// the intro: the level's name and song (؟؟؟ until finished) on black, then the map draws in from the bottom up, then the square drops in
+	static void drawPltIntro(double now)
+	{
+		double s = (now - pl.introAt) / 1000;
+		if (s >= 1.3)
+		{
+			double r = clamp((s - 1.3) / 1.1, 0, 1); r = 1 - JS.pow(1 - r, 3); double ly = H - (H + 20) * r;
+			g.save(); g.beginPath(); g.rect(0, ly, W, H - ly + 20); g.clip(); drawPlat(now); g.restore();
+			if (r < 1) { g.fillStyle = "rgba(170,130,255,0.9)"; g.shadowColor = "#9a6bff"; g.shadowBlur = 18; g.fillRect(0, ly - 1.5, W, 3); g.shadowBlur = 0; }
+		}
+		double a = s < 0.4 ? s / 0.4 : s < 1.2 ? 1 : clamp(1 - (s - 1.2) / 0.4, 0, 1), sl = 1 - clamp(s / 0.5, 0, 1), up = s > 1.2 ? (s - 1.2) * 60 : 0;
+		if (a <= 0) return;
+		g.save(); g.globalAlpha = a;
+		txt(pl.L.name, W / 2, H / 2 - 30 + 30 * sl * sl - up, 72, "#fff", 800);
+		string song = pl.L.best != null ? pl.L.song : "؟؟؟";
+		g.font = $"36px {TFONT}"; g.fillStyle = PINK; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText(song, W / 2, H / 2 + 40 + 30 * sl * sl - up); g.direction = "rtl";
+		g.restore();
 	}
 
 	// the pieces taken pass small and faint behind the map, right to left, again every while:

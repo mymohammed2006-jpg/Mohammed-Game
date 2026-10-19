@@ -31,7 +31,7 @@ public class PlatTest
 		var sk = System.Environment.GetEnvironmentVariable("SKIN"); if (sk != null) G.skin = sk; if (System.Environment.GetEnvironmentVariable("EASY") == "1") G.setEasy(true);
 		if (id == "menu") return;
 		lines = script == "-" ? new (double, string)[0] : File.ReadAllLines(script).Where(l => l.Trim().Length > 0 && !l.StartsWith("#")).Select(l => { var f = l.Trim().Split(' ', 2); return (double.Parse(f[0]), f.Length > 1 ? f[1].Trim() : ""); }).ToArray();
-		G.plStart(G.PLATS.First(x => x.id == id));
+		G.plStart(G.PLATS.First(x => x.id == id), System.Environment.GetEnvironmentVariable("INTRO") == "1");
 		T = lines.Length > 0 ? lines[^1].t : 10;
 	}
 	public void Process()
