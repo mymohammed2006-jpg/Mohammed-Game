@@ -1,4 +1,4 @@
-# تجربة بناء: كل ما ينرفع تعديل، يبني البرنامج على ويندوز بدون ما ينشر شي للاعبين.
+# تجربة بناء: كل ما ينرفع تعديل، يبني اللعبة والمثبّت بدون ما ينشر شي للاعبين.
 name: تجربة بناء (بدون نشر)
 on:
   push:
@@ -8,20 +8,33 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npx electron-builder --win --x64 --publish never
+      - run: sudo apt-get update -q && sudo apt-get install -y -q nsis
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-4.4.1-mono
+      - run: |
+          if [ ! -f ~/godot/Godot_v4.4.1-stable_mono_linux_x86_64/Godot_v4.4.1-stable_mono_linux.x86_64 ]; then
+            mkdir -p ~/godot && cd ~/godot
+            curl -sSLo g.zip https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_mono_linux_x86_64.zip
+            unzip -q g.zip && rm g.zip
+          fi
+      - run: bash tools/release/build.sh
       - uses: actions/upload-artifact@v4
         with:
           name: test-build
           path: |
-            dist/*.exe
-            dist/*.blockmap
-            dist/latest.yml
+            build/release/Mohammed-Game-Setup.exe
+            build/release/latest.yml
           retention-days: 7

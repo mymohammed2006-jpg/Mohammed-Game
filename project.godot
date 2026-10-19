@@ -1,0 +1,28 @@
+config_version=5
+
+[application]
+config/name="Mohammed Game"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.4", "C#", "GL Compatibility")
+config/icon="res://assets/icon.png"
+config/version="40.0.0"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="Mohammed Game"
+run/max_fps=0
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="disabled"
+window/vsync/vsync_mode=1
+window/energy_saving/keep_screen_on=true
+
+[dotnet]
+project/assembly_name="MohammedGame"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0, 0, 0, 1)
+textures/canvas_textures/default_texture_filter=1
+2d/snap/snap_2d_transforms_to_pixel=false

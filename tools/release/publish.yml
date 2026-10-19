@@ -1,0 +1,66 @@
+# حدث للكل: يبني اللعبة (Godot) والمثبّت وينشرهم، وكل اللي عندهم اللعبة يتحدثون لحالهم أول ما يفتحونها.
+# يتشغل بس لما محمد يضغط Run workflow بنفسه.
+name: حدث للكل
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: publish
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: جهز الأدوات
+        run: sudo apt-get update -q && sudo apt-get install -y -q nsis
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-4.4.1-mono
+      - name: نزّل Godot
+        run: |
+          if [ ! -f ~/godot/Godot_v4.4.1-stable_mono_linux_x86_64/Godot_v4.4.1-stable_mono_linux.x86_64 ]; then
+            mkdir -p ~/godot && cd ~/godot
+            curl -sSLo g.zip https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_mono_linux_x86_64.zip
+            unzip -q g.zip && rm g.zip
+          fi
+      - name: تأكد إن هالنسخة ما انتشرت قبل
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          V=$(sed -n 's/^config\/version="\(.*\)"/\1/p' project.godot)
+          echo "النسخة: $V"
+          if D=$(gh release view "v$V" --repo "$GITHUB_REPOSITORY" --json isDraft -q .isDraft 2>/dev/null); then
+            if [ "$D" != "true" ]; then
+              echo "::error::النسخة v$V منشورة من قبل. ما فيه شي جديد تنشره."
+              exit 1
+            fi
+            gh release delete "v$V" --repo "$GITHUB_REPOSITORY" --yes
+          fi
+      - name: ابن اللعبة والمثبّت
+        run: bash tools/release/build.sh
+      # النشر على 3 خطوات عشان الملفات كلها تنرفع قبل ما اللاعبين يشوفون النسخة:
+      # 1) نسوي النسخة مخفية (draft) مع الملفات، 2) نتأكد إنها كاملة، 3) نخليها ظاهرة للكل.
+      - name: انشر النسخة للكل
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          V=$(sed -n 's/^config\/version="\(.*\)"/\1/p' project.godot)
+          gh release create "v$V" --repo "$GITHUB_REPOSITORY" --draft --title "v$V" --target "$GITHUB_SHA" --notes "Mohammed Game $V" \
+            build/release/Mohammed-Game-Setup.exe build/release/latest.yml
+          FILES=$(gh release view "v$V" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')
+          echo "$FILES"
+          for f in Mohammed-Game-Setup.exe latest.yml; do
+            echo "$FILES" | grep -qx "$f" || { echo "::error::الملف $f ما انرفع، النسخة باقية مخفية."; exit 1; }
+          done
+          gh release edit "v$V" --repo "$GITHUB_REPOSITORY" --draft=false --latest
