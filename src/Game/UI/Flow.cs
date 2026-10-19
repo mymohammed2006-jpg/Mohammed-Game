@@ -200,12 +200,13 @@ public static partial class G
 	{
 		var d = pr.doc; double T = pr.t;
 		noMus = true; beginRun(0, d != null ? d.segs[0].seed : 777); noMus = false;
-		var p = player; double end = T > 0 ? T - 0.12 * spd : -1, st = 1.0 / 60, t = -0.12; dry = true;
-		while (t < end) { t = Math.Min(end, t + st); songT = t; var q = botPos(d, t); if (q != null) { p.x = q.x; p.y = q.y; } fireEvents(t); stepHazards(t, st); hazards = hazards.Where(h => !h.dead).ToList(); }
+		var p = player; double end = T > 0 ? T - 0.12 * spd : -1; dry = true;
+		// the same fixed steps as real play (v41), so the attacks are exactly where they'd be
+		while (sim0 + (simN + 1) * STEP <= end + 1e-9) { simN++; double t = sim0 + simN * STEP; songT = t; var q = botPos(d, t); if (q != null) { p.x = q.x; p.y = q.y; } fireEvents(t); stepHazards(t, STEP); hazards = hazards.Where(h => !h.dead).ToList(); }
 		dry = false; particles = new List<Particle>(); shake = 0; flash = 0; gloom = gloomT;
 		if (T > 0) { var q = botPos(d, T); if (q != null) { p.x = q.x; p.y = q.y; } }
 		p.inv = 1.0; p.trail = new List<TrailPt>(); if (!pr.inf) p.hp = pr.lv; checkpoint = 0; double bt = BT(T); foreach (var c in cur.cps) if (bt >= c) checkpoint = c;
-		playMusic(T); songT = T - 0.12 * spd; state = "play";
+		playMusic(T); songT = sim0 + simN * STEP; state = "play";
 	}
 	public static void prFinish() { stopMusic(); state = "prEnd"; winAt = performance.now(); }
 	static void prStop() { stopMusic(); pr.on = false; spd = 1; player = null; hazards = new List<Hz>(); particles = new List<Particle>(); gloom = gloomT = 0; actx.resume(); }

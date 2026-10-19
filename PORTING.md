@@ -94,3 +94,14 @@ The UI thread ports everything in `Stubs.cs`, in the same exact way:
 
 The settings screen gets one new row for the screen mode: Window, Borderless or Fullscreen. `Window.cs` already has `screenMode`, `setScreen` and `screenLabel`. This is the only new feature in the port.
 Its check is the same idea: drive the menus with a key script in both games and compare frames. The driver's `MODE=play` shows how.
+
+## v41: fixed steps
+
+Since v41 the game moves in fixed steps of song time (`STEP` = 1/240 s, `Play.cs`), whatever the frame rate.
+A frame runs every step up to the audio clock; the input read by a frame starts at that frame's last step (earlier steps keep the previous frame's input),
+so the same input at the same moment gives the same game at 30, 60, 144, 240 or 500 FPS. At 240 FPS it plays like v40 did.
+- New replays are `v: 4` and play back on the same steps (`rpFixed()` in `Replay.cs`). Replays v1-3 and the bot's runs play back the old way, unchanged.
+- Practice runs the level to its start second on the same steps.
+- Check: `bash tools/compare/fps.sh <id> <n|e> ["60 144 240"]` plays a key script (in song time, 1/KU s units, KU=12; use KU=15 for 30 or 75) at each rate and must print `RESULT: SAME`.
+  `RP4=<rec.txt> FPS=<n>` with `--bot-run` plays a `--play-run` recording back as a v4 replay; `PRT=<second>` times practice's start.
+- `run.sh` (bot runs, RPV=1/2) still matches the original; `MODE=play` no longer does (the original moves per frame).

@@ -124,12 +124,12 @@ public static partial class G
 
 	public static void beginRun(double cp, int? seed = null)
 	{
-		runSeed = seed ?? i32(random() * 4294967296); rngS = hstr(str(runSeed) + ":b");
+		runSeed = seed ?? (testSeed != null ? testSeed() : i32(random() * 4294967296)); rngS = hstr(str(runSeed) + ":b");
 		hazards = new List<Hz>(); particles = new List<Particle>(); gloom = gloomT = 0; events = cur.build(); ezStart();
 		double fromB = cp == 0 ? 0 : cp - 2, fromT = cp == 0 ? 0 : B(fromB);
 		evIdx = events.FindIndex(e => e.b >= fromB); if (evIdx < 0) evIdx = events.Count; afkStart(fromB);
 		player = new Player { x = 200, y = H / 2, r = easy ? EZ_R : 5, hp = 5, inv = 1.0, hurt = 0, dash = 0, cd = 0, fx = 1, fy = 0, ddx = 1, ddy = 0, ang = 0 };
-		playMusic(fromT); songT = fromT - 0.12;
+		playMusic(fromT); songT = fromT - 0.12; sim0 = songT; simN = 0; dashQ = false; inX = inY = 0;
 		// a checkpoint: long-lived things (backgrounds and such, keep) come back with the player
 		if (cp > 0)
 		{
@@ -186,14 +186,40 @@ public static partial class G
 		if (p.hp <= 0) { state = "dead"; deaths++; deadAt = performance.now(); deadPct = clamp(songT / B(cur.end), 0, 1); stopMusic(); burst(p.x, p.y, CYAN, 50, 520); rumble(500, 1, 1); }
 	}
 
+	// v41: the game moves in fixed steps of song time, whatever the frame rate, so every screen (60, 144, 240 Hz...) plays exactly the same.
+	// One step is what a 240 Hz frame used to be. sim0 is where the run started; step n is at sim0 + n*STEP.
+	public const double STEP = 1.0 / 240, SIM_MAX = 0.5;
+	public static double sim0 = 0; public static long simN = 0;
+	public static bool dashQ = false;      // a dash press waiting for the next step (a frame can have no step above 240 FPS)
+	static double inX = 0, inY = 0;        // the stick/arrows as the previous frame read them
+	public static Func<int> testSeed;      // tests only: run seeds that don't depend on the frame rate
+
 	public static void updatePlay(double dt, Inp inp)
 	{
-		songT = (actx.currentTime - songStart) * spd; double t = songT;
+		double target = (actx.currentTime - songStart) * spd;
+		if (inp.dash) dashQ = true;
+		// a long freeze (window dragged, PC busy): jump ahead instead of running half a second of steps at once
+		if (target - (sim0 + simN * STEP) > SIM_MAX) simN = (long)Math.Floor((target - SIM_MAX - sim0) / STEP);
+		// steps before this frame's moment still use what the previous frame read; the new input (and a dash) starts at the step of this moment.
+		// So the same input at the same moment gives the same game at any frame rate.
+		int n = 0;
+		while (state == "play" && sim0 + (simN + 1) * STEP <= target + 1e-9)
+		{
+			simN++; n++; bool now = sim0 + (simN + 1) * STEP > target + 1e-9;
+			playStep(sim0 + simN * STEP, STEP, now ? inp.x : inX, now ? inp.y : inY, now);
+		}
+		if (n > 0) { inX = inp.x; inY = inp.y; }
+		if (n > 0 && player != null) { var p = player; p.trail.Add(new TrailPt { x = p.x, y = p.y, d = p.dash > 0 }); if (p.trail.Count > 10) p.trail.RemoveAt(0); }
+	}
+
+	static void playStep(double t, double dt, double mx, double my, bool now)
+	{
+		songT = t;
 		fireEvents(t);
-		var p = player;
-		double mx = inp.x, my = inp.y; double m = hypot(mx, my); if (m > 1) { mx /= m; my /= m; }
+		var p = player; double m = hypot(mx, my); if (m > 1) { mx /= m; my /= m; }
 		if (m > 0.2) { p.fx = mx / m; p.fy = my / m; }
-		if (inp.dash && p.cd <= 0)
+		bool dq = now && dashQ; if (now) dashQ = false;
+		if (dq && p.cd <= 0)
 		{
 			p.dash = 0.18; p.cd = 0.32; p.inv = Math.Max(p.inv, 0.28);
 			p.ddx = m > 0.2 ? p.fx : p.fx; p.ddy = m > 0.2 ? p.fy : p.fy;
@@ -209,7 +235,7 @@ public static partial class G
 			double sk = p.sk ?? 0; p.sk = sk + (tg - sk) * Math.Min(1, dt * (tg > sk ? 30 : 12));
 		}
 		p.dash -= dt; p.cd -= dt; p.inv -= dt; p.hurt -= dt;
-		p.trail.Add(new TrailPt { x = p.x, y = p.y, d = p.dash > 0 }); if (p.trail.Count > 10) p.trail.RemoveAt(0); skinTrailAdd(p);
+		skinTrailAdd(p);
 
 		stepHazards(t, dt);
 		if (p.inv <= 0) { foreach (var h in hazards) { if (!h.dead && h.hit(p, t)) { damage(); break; } } }

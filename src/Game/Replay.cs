@@ -19,7 +19,7 @@ public class RpState
 public static partial class G
 {
 	public const int RP_MAX_SEGS = 100, RP_MAX_BYTES = 900000;
-	public const int RP_V = 3;
+	public const int RP_V = 4;   // 4 = recorded with fixed steps (v41); 1-3 play back the old way
 	public static readonly RpState rp = new();
 	public static readonly double[] RP_RATES = { 0.25, 0.5, 0.75, 1, 1.5, 2 };
 	public const double RP_JUMP = 5, RP_SMALL = 1, RP_FINE = 0.1, RP_ST = 1.0 / 120;
@@ -31,6 +31,7 @@ public static partial class G
 		return a;
 	}
 
+	public static bool rpFixed() => !rp.bot && rp.doc.v >= 4;
 	public static double rpFrom(RpSeg s) => s.cp == 0 ? 0 : B(s.cp - 2);
 	public static double rpLen(RpSeg s) => Math.Max(0, s.t0 - rpFrom(s)) + (s.n - 1) / (double)rp.doc.hz;
 	public static void rpTimeline() { double o = 0; rp.off = rp.doc.segs.Select(s => { double a = o; o += rpLen(s); return a; }).ToArray(); rp.tot = o; }
@@ -41,8 +42,14 @@ public static partial class G
 		rp.seg = i; var s = rp.doc.segs[i]; double T0 = rpFrom(s); checkpoint = s.cp; stopMusic();
 		afkV = rp.bot ? 3 : Math.Min(3, rp.doc.v != 0 ? rp.doc.v : 1); afkOff = afkV != 2; beginRun(s.cp, s.seed); afkV = 3; afkOff = true; rpKill(); state = "replay"; player.inv = 1e9;
 		double t1 = T == null ? T0 : Math.Max(T0, T.Value);
-		if (t1 > T0) { dry = true; for (double t = T0; t < t1 - 1e-9;) { double d = Math.Min(RP_ST, t1 - t); t += d; rpApply(t, d, false); } dry = false; particles = new List<Particle>(); shake = flash = 0; cpMsg = 0; }
-		playMusic(t1); if (src != null) src.playbackRate.value = rp.rate; rp.aT = t1; rp.aCT = songStart + t1; songT = t1;
+		if (rpFixed())
+		{
+			// the same steps the player had, from the run's start, so the attacks are exactly what they saw
+			dry = true; while (sim0 + (simN + 1) * STEP <= t1 + 1e-9) { simN++; rpApply(sim0 + simN * STEP, STEP, false); } dry = false;
+			particles = new List<Particle>(); shake = flash = 0; cpMsg = 0; player.trail.Clear();
+		}
+		else if (t1 > T0) { dry = true; for (double t = T0; t < t1 - 1e-9;) { double d = Math.Min(RP_ST, t1 - t); t += d; rpApply(t, d, false); } dry = false; particles = new List<Particle>(); shake = flash = 0; cpMsg = 0; }
+		playMusic(t1); if (src != null) src.playbackRate.value = rp.rate; rp.aT = t1; rp.aCT = songStart + t1; if (!rpFixed()) songT = t1;
 	}
 	public static void rpSeg(int i) => rpGo(i);
 	public static void rpStart() { rp.saveEasy = easy; easy = rp.m == "e"; cur = rp.L; levelTiming(rp.L); hitsTotal = 0; deaths = 0; rp.paused = false; rp.rate = 1; rp.barT = 4; rpTimeline(); rpSeg(0); }
@@ -77,7 +84,7 @@ public static partial class G
 		if (k) rp.barT = 3;
 	}
 	// one replay step at second t: the square on the recorded path, the attacks run (fx=false while seeking: no effects)
-	public static void rpApply(double t, double dt, bool fx)
+	public static void rpApply(double t, double dt, bool fx, bool trail = true)
 	{
 		songT = t; var s = rp.doc.segs[rp.seg]; int hz = rp.doc.hz; var p = player; var b = s.b;
 		double fi = clamp((t - s.t0) * hz, 0, Math.Max(0, s.n - 1.0001)); int i = (int)Math.Floor(fi); double k = fi - i; int o = i * 3, o2 = Math.Min(i + 1, s.n - 1) * 3, fl = b[o + 2];
@@ -92,7 +99,7 @@ public static partial class G
 		p.x = nx; p.y = ny;
 		int hp = (fl >> 1) & 7; double prevHp = p.hp;
 		if (hp < p.hp && fx) { hitsTotal++; p.hurt = 2.0; shake = 16; flash = 0.3; burst(p.x, p.y, CYAN, 22, 380); sfx(tt => { sTone(tt, 110, 0.3, "square", 0.18); sNoise(tt, 0.25, "lowpass", 900, 0.3); }); }
-		p.hp = hp; p.hurt -= dt; p.trail.Add(new TrailPt { x = p.x, y = p.y, d = p.dash > 0 }); if (p.trail.Count > 10) p.trail.RemoveAt(0); skinTrailAdd(p);
+		p.hp = hp; p.hurt -= dt; if (trail) { p.trail.Add(new TrailPt { x = p.x, y = p.y, d = p.dash > 0 }); if (p.trail.Count > 10) p.trail.RemoveAt(0); } skinTrailAdd(p);
 		fireEvents(t); stepHazards(t, dt);
 		if (hp < prevHp) { foreach (var h in hazards) { if (!h.dead && h.hit(p, t)) break; } }
 		hazards = hazards.Where(h => !h.dead).ToList();
@@ -107,6 +114,12 @@ public static partial class G
 			int lf = b[(s.n - 1) * 3 + 2];
 			if (rp.seg < rp.doc.segs.Count - 1) { rp.gapDead = ((lf >> 1) & 7) == 0; if (rp.gapDead) { burst(p.x, p.y, CYAN, 50, 520); deaths++; } stopMusic(); state = "rpGap"; rp.gapAt = performance.now(); }
 			else { stopMusic(); state = "rpEnd"; rp.endAt = performance.now(); }
+			return;
+		}
+		if (rpFixed())
+		{
+			int n = 0; while (sim0 + (simN + 1) * STEP <= t + 1e-9 && n < 240) { simN++; n++; rpApply(sim0 + simN * STEP, STEP, true, false); }
+			if (n > 0) { p.trail.Add(new TrailPt { x = p.x, y = p.y, d = p.dash > 0 }); if (p.trail.Count > 10) p.trail.RemoveAt(0); }
 			return;
 		}
 		rpApply(t, dt * rp.rate, true);
