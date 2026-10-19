@@ -19,6 +19,9 @@ public class NetTest
 
 	public static NetTest FromArgs(string[] a, int k) => new NetTest { role = a[k], outDir = a[k + 1], route = a[k + 2] };
 	static readonly System.Net.Http.HttpClient http = new();
+#pragma warning disable SIPSORCERY001
+	SIPSorcery.Net.TurnServer turn;
+#pragma warning restore SIPSORCERY001
 	public void Start(Main h)
 	{
 		host = h; Directory.CreateDirectory(outDir);
@@ -27,6 +30,14 @@ public class NetTest
 		G.applyTheme(false); G.applyMenu(); G.LoadBests(); G.LoadXp(); G.LoadSongs(); actx.resume();
 		if (System.Environment.GetEnvironmentVariable("SKIN") is { } sk) G.skin = sk;
 		Peer.GatherMs = 1500; Peer.Relay = false;   // no STUN answer or relay in the container
+		// RELAYTEST=1: only through a TURN relay (SIPSorcery's own small one, started by the host on 127.0.0.1:3478)
+		if (System.Environment.GetEnvironmentVariable("RELAYTEST") == "1")
+		{
+			Peer.ICE = new() { new SIPSorcery.Net.RTCIceServer { urls = "turn:127.0.0.1:3478", username = "mg", credential = "mgpass", credentialType = SIPSorcery.Net.RTCIceCredentialType.password } }; Peer.RelayOnly = true;
+#pragma warning disable SIPSORCERY001
+			if (role == "host") { turn = new SIPSorcery.Net.TurnServer(new SIPSorcery.Net.TurnServerConfig { ListenAddress = System.Net.IPAddress.Loopback, Port = 3478, EnableUdp = true, EnableTcp = true, RelayAddress = System.Net.IPAddress.Loopback, Username = "mg", Password = "mgpass", Realm = "mg" }); turn.Start(); }
+#pragma warning restore SIPSORCERY001
+		}
 		G.netSend = r =>
 		{
 			string u = r.RequestUri.OriginalString.Replace("https://firestore.googleapis.com/", "http://127.0.0.1:8085/")

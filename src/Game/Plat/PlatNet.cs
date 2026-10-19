@@ -85,7 +85,7 @@ public static partial class G
 		var n = net; if (n == null) return; net = null;
 		if (tell) n.peer?.Send("{\"k\":\"bye\"}");
 		var p = n.peer; _ = Task.Run(async () => { await Task.Delay(300); p?.Close(); });
-		if (n.host && n.code != "" && n.phase is "make" or "wait" or "conn") _ = roomDel(n.code);
+		if (n.host && n.code != "" && n.phase is "make" or "wait") _ = roomDel(n.code);   // a failed connection keeps its room (both sides' addresses, to see why; the code is free again after 10 minutes)
 		if (why != null) netNote(why);
 		if (why == null || !why.StartsWith("ما قدرنا")) netDiag = null;
 		if (state.StartsWith("plt") && state != "pltList") { plStopMusic(); player = null; particles = new List<Particle>(); actx.resume(); state = "pltList"; }

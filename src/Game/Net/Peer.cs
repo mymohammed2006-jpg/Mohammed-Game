@@ -21,6 +21,7 @@ public class Peer
 		new RTCIceServer { urls = "stun:stun1.l.google.com:19302" },
 	};
 	public static bool Relay = true;      // tests: false (no internet relay here)
+	public static bool RelayOnly;          // tests: only the relay (to check the relay path)
 	public static string METERED_URL = "";   // "https://<app>.metered.live/api/v1/turn/credentials?apiKey=<key>" (free plan, 20 GB a month)
 	public static int GatherMs = 5000;   // the longest wait for the PC's addresses (and the relay's) before the offer is sent
 	static readonly System.Net.Http.HttpClient http = new() { Timeout = TimeSpan.FromSeconds(4) };
@@ -31,9 +32,25 @@ public class Peer
 		using var h = new System.Security.Cryptography.HMACSHA1(Encoding.UTF8.GetBytes("openrelayprojectsecret"));
 		return new RTCIceServer { urls = url, username = user, credential = Convert.ToBase64String(h.ComputeHash(Encoding.UTF8.GetBytes(user))), credentialType = RTCIceCredentialType.password };
 	}
+	// "stun:host:port" -> "stun:1.2.3.4:port" (our own lookup, the library's can fail on some PCs)
+	static async Task<string> byIp(string url)
+	{
+		try
+		{
+			int c = url.IndexOf(':'), q = url.IndexOf('?'); string rest = q < 0 ? url[(c + 1)..] : url[(c + 1)..q], tail = q < 0 ? "" : url[q..];
+			int pc = rest.LastIndexOf(':'); string host = pc < 0 ? rest : rest[..pc], port = pc < 0 ? "" : rest[pc..];
+			if (System.Net.IPAddress.TryParse(host, out _)) return url;
+			var ips = await System.Net.Dns.GetHostAddressesAsync(host);
+			var ip = Array.Find(ips, a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) ?? (ips.Length > 0 ? ips[0] : null);
+			return ip == null ? url : url[..(c + 1)] + ip + port + tail;
+		}
+		catch (Exception) { return url; }
+	}
 	static async Task<List<RTCIceServer>> servers()
 	{
-		var l = new List<RTCIceServer>(ICE); if (!Relay) return l;
+		var l = new List<RTCIceServer>();
+		foreach (var s in ICE) l.Add(new RTCIceServer { urls = await byIp(s.urls), username = s.username, credential = s.credential, credentialType = s.credentialType });
+		if (!Relay) return l;
 		if (METERED_URL != "")
 			try
 			{
@@ -41,8 +58,8 @@ public class Peer
 				foreach (var s in a ?? new()) { string u = (string)s["urls"]; if (u != null && u.StartsWith("turn")) l.Add(new RTCIceServer { urls = u, username = (string)s["username"], credential = (string)s["credential"], credentialType = RTCIceCredentialType.password }); }
 			}
 			catch (Exception) { }
-		l.Add(openRelay("turn:staticauth.openrelay.metered.ca:80"));
-		l.Add(openRelay("turn:staticauth.openrelay.metered.ca:443?transport=tcp"));
+		l.Add(openRelay(await byIp("turn:staticauth.openrelay.metered.ca:80")));
+		l.Add(openRelay(await byIp("turn:staticauth.openrelay.metered.ca:443?transport=tcp")));
 		return l;
 	}
 
@@ -51,9 +68,15 @@ public class Peer
 	public volatile bool closed;
 	public bool open => !closed && u?.readyState == RTCDataChannelState.open && r?.readyState == RTCDataChannelState.open;
 
+	// the library starts looking for addresses as soon as the connection is made; an offer or answer only carries
+	// the addresses found by then, so it is written after the search ends (or after GatherMs)
+	TaskCompletionSource found;
 	async Task<RTCPeerConnection> make()
 	{
-		var p = new RTCPeerConnection(new RTCConfiguration { iceServers = await servers() });
+		var p = new RTCPeerConnection(new RTCConfiguration { iceServers = await servers(), iceTransportPolicy = RelayOnly ? RTCIceTransportPolicy.relay : RTCIceTransportPolicy.all });
+		var f = found = new TaskCompletionSource();
+		p.onicegatheringstatechange += s => { if (s == RTCIceGatheringState.complete) f.TrySetResult(); };
+		if (p.iceGatheringState == RTCIceGatheringState.complete) f.TrySetResult();
 		p.onconnectionstatechange += s => { if (s is RTCPeerConnectionState.failed or RTCPeerConnectionState.closed) closed = true; };
 		return p;
 	}
@@ -64,12 +87,10 @@ public class Peer
 		ch.onclose += () => closed = true;
 	}
 	// the SDP once every address is known (or after GatherMs), so one write to Firebase carries all of them
-	async Task<string> gathered(RTCSessionDescriptionInit d)
+	async Task<string> gathered(Func<RTCSessionDescriptionInit> d)
 	{
-		var done = new TaskCompletionSource();
-		pc.onicegatheringstatechange += s => { if (s == RTCIceGatheringState.complete) done.TrySetResult(); };
-		await pc.setLocalDescription(d);
-		await Task.WhenAny(done.Task, Task.Delay(GatherMs));
+		await Task.WhenAny(found.Task, Task.Delay(GatherMs));
+		await pc.setLocalDescription(d());
 		return mine = pc.localDescription.sdp.ToString();
 	}
 	// what each side found (for the "can't connect" line): direct addresses, internet address, relay
@@ -83,7 +104,7 @@ public class Peer
 		pc = await make();
 		u = await pc.createDataChannel("u", new RTCDataChannelInit { ordered = false, maxRetransmits = 0 }); hook(u);
 		r = await pc.createDataChannel("r"); hook(r);
-		return await gathered(pc.createOffer());
+		return await gathered(() => pc.createOffer());
 	}
 	public bool Answer(string sdp) => (theirs = sdp) != null && pc.setRemoteDescription(new RTCSessionDescriptionInit { type = RTCSdpType.answer, sdp = sdp }) == SetDescriptionResultEnum.OK;
 
@@ -93,8 +114,9 @@ public class Peer
 		pc = await make();
 		pc.ondatachannel += ch => { if (ch.label == "u") u = ch; else r = ch; hook(ch); };
 		theirs = offer;
+		await Task.WhenAny(found.Task, Task.Delay(GatherMs));
 		if (pc.setRemoteDescription(new RTCSessionDescriptionInit { type = RTCSdpType.offer, sdp = offer }) != SetDescriptionResultEnum.OK) return null;
-		return await gathered(pc.createAnswer());
+		return await gathered(() => pc.createAnswer());
 	}
 
 	public void Send(bool rel, byte[] d) { try { if (open) (rel ? r : u).send(d); } catch (Exception) { } }

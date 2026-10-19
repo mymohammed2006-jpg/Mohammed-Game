@@ -39,7 +39,7 @@ public class PlatLevel
 
 public static partial class G
 {
-	public static readonly string[] PLAT_IDS = { "P1" };   // C0 = the co-op test map (test builds only)
+	public static readonly string[] PLAT_IDS = { "P1", "C0" };   // C0 = the co-op test map (test builds only)
 	static List<PlatLevel> _plats;
 	public static List<Level> PLAT_LV => PLATS.Where(p => !p.test).Select(p => p.lv).ToList();
 	public static List<PlatLevel> PLATS
