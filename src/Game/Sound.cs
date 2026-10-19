@@ -79,6 +79,16 @@ public static partial class G
 	}
 
 	// a platformer level: all its parts together, the whole loop
+	// a platformer level not finished yet (its song shows ؟؟؟): radio static instead of its song, on and on (his sound, his words 23:14 10-19).
+	// The file holds the loop three times over, so the middle one loops clean of the mp3's edges.
+	public static AudioStream staticBuf; static bool staticTried; const double STATIC_LOOP = 4.599977;
+	public static void pvStartStatic()
+	{
+		if (!staticTried) { staticTried = true; staticBuf = LoadSong("SFX_STATIC"); } if (staticBuf == null) return;
+		var v = new Voice { song = staticBuf, loop = true, loopStart = STATIC_LOOP, loopEnd = 2 * STATIC_LOOP };
+		v.gain.setValueAtTime(0.0001, actx.currentTime); v.gain.exponentialRampToValueAtTime(0.85, actx.currentTime + 0.3);
+		v.start(actx.currentTime + 0.05, STATIC_LOOP); pv.src = AudioCtx.Add(v);
+	}
 	public static void pvStartPlat(PlatLevel L)
 	{
 		for (int i = 0; i < L.bufs.Length; i++)

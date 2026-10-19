@@ -45,7 +45,7 @@ public class PlatTest
 			return;
 		}
 		lines = script == "-" ? new (double, string)[0] : File.ReadAllLines(script).Where(l => l.Trim().Length > 0 && !l.StartsWith("#")).Select(l => { var f = l.Trim().Split(' ', 2); return (double.Parse(f[0]), f.Length > 1 ? f[1].Trim() : ""); }).ToArray();
-		if (id == "flow") { G.state = "pltList"; G.plSel = 0; var _ = G.PLATS; }   // from the level list, as a player goes in
+		if (id == "flow") { G.state = "pltList"; G.plSel = 0; var _ = G.PLATS; G.ensureAudio(); }   // from the level list, as a player goes in
 		else	G.plStart(G.PLATS.First(x => x.id == id), System.Environment.GetEnvironmentVariable("INTRO") == "1");
 		T = lines.Length > 0 ? lines[^1].t : 10;
 	}

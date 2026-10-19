@@ -21,6 +21,7 @@ public static partial class G
 			var P = plSel < PLATS.Count ? PLATS[plSel] : null; string pk = "plt" + str(plSel);
 			if (pk != pv.sel) { pv.sel = pk; pv.at = now; pvStop(); }
 			if (pv.src == null && P != null && P.best != null && P.bufs != null && P.bufs.All(b => b != null) && now - pv.at > 350 && actx.state == "running") { pvStartPlat(P); pv.had = true; }
+			else if (pv.src == null && P != null && P.best == null && now - pv.at > 350 && actx.state == "running") { pvStartStatic(); pv.had = true; }   // ؟؟؟: static
 			return;
 		}
 		if (state != "levels" && state != "friends") { pvStop(); pv.sel = ""; pv.had = false; return; }
