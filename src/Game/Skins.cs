@@ -5,7 +5,7 @@ using static MG.JS;
 namespace MG;
 
 // The square's looks (outputs/big-update/skins-src/skins-final.html, approved 10-18): drawn at the square's own size (18 px),
-// so the hitbox and everything else stays the same. The trail shows only while dashing.
+// so the hitbox and everything else stays the same. Each look has a walking trail and a dash trail.
 public static partial class G
 {
 	public static string skin = "";   // "" = the original square
@@ -90,6 +90,65 @@ public static partial class G
 		if (l.Count > 0 && t < l[^1].t) l.Clear();
 		while (l.Count > 0 && l[0].t < t - SKT_KEEP) l.RemoveAt(0);
 		if (p.dash > 0 && (l.Count == 0 || t - l[^1].t >= SKT_DT - 1e-6)) l.Add(new TrailPt { x = p.x, y = p.y, t = t, d = true });
+		var w = p.wkTrail;
+		if (w.Count > 0 && t < w[^1].t) w.Clear();
+		while (w.Count > 0 && w[0].t < t - WK_KEEP) w.RemoveAt(0);
+		if (w.Count == 0 || t - w[^1].t >= WK_DT - 1e-6) w.Add(new TrailPt { x = p.x, y = p.y, t = t, d = p.dash > 0 });
+	}
+
+	// the walking trail (v41): what the original square's trail looked like at 30 FPS (10 points 1/30 s apart), now by time so it looks
+	// the same at any frame rate, and for every look. Each point fades with its age.
+	const double WK_DT = 1.0 / 30, WK_KEEP = 1.0 / 3;
+	public static void walkTrail(string s, Player p)
+	{
+		var w = p.wkTrail; int n = w.Count; if (n == 0) return; double t = songT;
+		double age(int i) => clamp(1 - (t - w[i].t) / WK_KEEP, 0, 1);   // 1 = new, 0 = gone
+		g.save();
+		switch (s)
+		{
+			case "":
+				for (int i = 0; i < n; i++) { g.globalAlpha = age(i) * (w[i].d ? 0.5 : 0.15); g.fillStyle = CYAN; g.fillRect(w[i].x - 7, w[i].y - 7, 14, 14); }
+				break;
+			case "crystal":
+				// small crystal pieces, turned a little each
+				for (int i = 0; i < n; i++)
+				{
+					double a = age(i), sz = 2 + 3 * a; g.globalAlpha = a * 0.35; g.fillStyle = "rgba(143,246,255,0.5)"; g.strokeStyle = "#bffcff"; g.lineWidth = 0.8;
+					g.save(); g.translate(w[i].x, w[i].y); g.rotate(Math.PI / 4 + i * 0.5); g.fillRect(-sz, -sz, 2 * sz, 2 * sz); g.strokeRect(-sz, -sz, 2 * sz, 2 * sz); g.restore();
+				}
+				break;
+			case "circuit":
+				// a thin circuit line (right angles) with points of light
+				for (int i = 1; i < n; i++)
+				{
+					var a = w[i - 1]; var b = w[i]; g.globalAlpha = age(i - 1) * 0.4; g.strokeStyle = CYAN; g.lineWidth = 1;
+					g.beginPath(); g.moveTo(a.x, a.y); if (i % 2 == 1) g.lineTo(b.x, a.y); else g.lineTo(a.x, b.y); g.lineTo(b.x, b.y); g.stroke();
+					if (i % 3 == 0) { g.globalAlpha = age(i) * 0.7; g.fillStyle = "#bffcff"; g.beginPath(); g.arc(b.x, b.y, 1.3, 0, TAU); g.fill(); }
+				}
+				break;
+			case "eq":
+				// small sound bars standing across the path, smaller as they fade
+				for (int i = 0; i < n; i++)
+				{
+					double a = age(i), h = (3 + 5 * a) * (0.6 + 0.4 * Math.Abs(JS.sin(i * 1.9 + 0.7)));
+					double dx = 1, dy = 0; if (i + 1 < n) { dx = w[i + 1].x - w[i].x; dy = w[i + 1].y - w[i].y; } else if (i > 0) { dx = w[i].x - w[i - 1].x; dy = w[i].y - w[i - 1].y; }
+					double l = Math.Sqrt(dx * dx + dy * dy); if (l < 0.5) continue;
+					g.globalAlpha = a * 0.4; g.fillStyle = "#8ff6ff"; g.save(); g.translate(w[i].x, w[i].y); g.rotate(JS.atan2(dy, dx)); g.fillRect(-1, -h / 2, 2, h); g.restore();
+				}
+				break;
+			case "bolt":
+				// a thin, faint zigzag
+				g.strokeStyle = "#bffcff"; g.lineWidth = 1; g.shadowColor = CYAN; g.shadowBlur = 4;
+				for (int i = 1; i < n; i++)
+				{
+					var a = w[i - 1]; var b = w[i]; double dx = b.x - a.x, dy = b.y - a.y, l = Math.Sqrt(dx * dx + dy * dy); if (l < 0.5) continue;
+					double nx = -dy / l, ny = dx / l, o = (i % 2 == 0 ? 1 : -1) * 3;
+					g.globalAlpha = age(i - 1) * 0.45; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo((a.x + b.x) / 2 + nx * o, (a.y + b.y) / 2 + ny * o); g.lineTo(b.x, b.y); g.stroke();
+				}
+				g.shadowBlur = 0;
+				break;
+		}
+		g.restore();
 	}
 	// pts from oldest to newest, in level coordinates
 	public static void skinTrail(string s, Player p)

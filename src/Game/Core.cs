@@ -37,6 +37,7 @@ public class Player
 	public double? dt0, sa, sk;
 	public List<TrailPt> trail = new();
 	public List<TrailPt> skTrail = new();   // the new looks' dash trail (Skins.cs)
+	public List<TrailPt> wkTrail = new();   // the walking trail, by time (Skins.cs)
 }
 
 public class Particle { public double x, y, vx, vy, life, max, s; public string col; }
