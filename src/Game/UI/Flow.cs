@@ -137,20 +137,20 @@ public static partial class G
 			else if (inp.back || inp.pz) state = "main";
 			if (!board.busy && performance.now() - board.at > 60000) _ = loadBoard(false);
 		}
-		else if (state is "settings" or "pauseSet")
+		else if (state is "settings" or "pauseSet" or "pltSet")
 		{
 			var rows = setRows(); if (setSel >= rows.Length) setSel = 0; string r = rows[setSel]; int d = inp.right ? 1 : inp.left ? -1 : 0;
 			if (!freeRow(r)) holdD = 0;
 			if (numRow != null) { if (inp.padAny) numRow = null; }
 			else if (inp.up) setSel = (setSel + rows.Length - 1) % rows.Length; else if (inp.down) setSel = (setSel + 1) % rows.Length;
-			else if (freeRow(r)) { if (!freeStep(inp, fdt, r) && (inp.back || inp.pz || inp.confirm)) state = state == "pauseSet" ? "paused" : "main"; }
+			else if (freeRow(r)) { if (!freeStep(inp, fdt, r) && (inp.back || inp.pz || inp.confirm)) state = setBack(); }
 			else if (d != 0 && r == "vol") setVol(vol + 0.1 * d);
 			else if ((d != 0 || inp.confirm) && r == "screen") { int i = Array.IndexOf(SCREEN_MODES, screenMode), sn = SCREEN_MODES.Length; setScreen(SCREEN_MODES[((i < 0 ? 0 : i) + (d != 0 ? d : 1) + sn) % sn]); }
 			else if ((d != 0 || inp.confirm) && r == "vsync") setVsync(!vsyncOn);
 			else if ((d != 0 || inp.confirm) && r == "counter") setFpsShow(!fpsShow);
 			else if (d != 0 && r == "fps") { int i = Array.IndexOf(FPS_LIST, fpsCap); if (i < 0) i = 4; setFps(FPS_LIST[(int)clamp(i + d, 0, FPS_LIST.Length - 1)]); }
 			else if (d != 0 && r == "res") { var L = resList(); int i = Array.IndexOf(L, resSet); if (i < 0) i = 0; setRes(L[(i + L.Length + d) % L.Length]); }
-			else if (inp.back || inp.pz || inp.confirm) state = state == "pauseSet" ? "paused" : "main";
+			else if (inp.back || inp.pz || inp.confirm) state = setBack();
 		}
 		else if (state == "profile")
 		{
@@ -176,6 +176,8 @@ public static partial class G
 	static readonly Dictionary<string, int> PR_LETLV = new() { [""] = 0, ["S"] = 1, ["A"] = 5, ["B"] = 10, ["C"] = 0 };
 	const int PR_LVMAX = 10;
 	static readonly double[] PR_SPD = { 1, 0.75, 0.5 };
+	// where the settings go back to: the main menu, the pause menu, or the platformer's pause menu
+	static string setBack() => state == "pauseSet" ? "paused" : state == "pltSet" ? "pltPause" : "main";
 	static void openPractice(Level L, string from) { if (pr.lastL != L) { pr.t = 0; pr.lastL = L; } pr.L = L; pr.from = from; pr.doc = botDoc(L, easy ? "e" : "n"); pr.sel = 0; cur = L; fromList = from; levelTiming(L); state = "practice"; }
 	static string[] prRows() => pr.doc != null ? new[] { "t", "spd", "let", "inf", "ghost", "go" } : new[] { "t", "spd", "let", "inf", "go" };
 	static double prMaxT() => Math.Max(0, Math.Floor((B(pr.L.end) - 4) / 5) * 5);

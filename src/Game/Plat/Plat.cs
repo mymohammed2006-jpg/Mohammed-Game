@@ -28,7 +28,7 @@ public static partial class G
 		public string msg; public double msgT;
 		public double winAt, deadAt;
 		public long beatN = -1;                    // the last beat the tick played on
-		public int passK = -1; public double passAt; // the piece passing behind the map
+		public List<(int k, double at)> taken = new();   // the pieces taken, in order (they pass behind the map)
 	}
 	public static PlatRun pl;
 
@@ -143,6 +143,7 @@ public static partial class G
 	{
 		bool plt = state.StartsWith("plt"); if (!plt && state != "modes") return;
 		bool e = easy && !plt; if (RED != THEMES[e ? "easy" : "normal"].c) applyTheme(e);
+		if (menuNormal != (easy && plt)) { menuNormal = easy && plt; applyMenu(); }
 	}
 	static bool plOpen() => pl.got.Count >= plPieces();
 	static void plTake(string k, char c, int tx, int ty)
@@ -152,7 +153,7 @@ public static partial class G
 		sfx(tt => { sTone(tt, 784, 0.12, "triangle", 0.12); sTone(tt + 0.07, 1047, 0.12, "triangle", 0.12); sTone(tt + 0.14, 1568, 0.25, "triangle", 0.1); });
 		if (pl.L.pieces != null && pl.L.pieces.TryGetValue(c.ToString(), out int s) && s < pl.stemOn.Length && !pl.stemOn[s])
 		{
-			pl.stemOn[s] = true; pl.voices?[s]?.gain.setTargetAtTime(1, actx.currentTime, 0.25); pl.passK = s; pl.passAt = pl.t;
+			pl.stemOn[s] = true; pl.voices?[s]?.gain.setTargetAtTime(1, actx.currentTime, 0.25); pl.taken.Add((s, pl.t));
 			pl.msg = (pl.L.stemNames != null && s < pl.L.stemNames.Length ? pl.L.stemNames[s] : "قطعة") + " انضاف للأغنية"; pl.msgT = 2.2;
 		}
 		if (plOpen()) { pl.msg = "الأغنية كملت! روح للبوابة"; pl.msgT = 2.6; }
@@ -234,6 +235,7 @@ public static partial class G
 		{
 			int pn = PL_PAUSE.Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
 			if (inp.pz || inp.back || (inp.confirm && pauseSel == 0)) { state = "pltPlay"; actx.resume(); }
+			else if (inp.confirm && pauseSel == 3) { state = "pltSet"; setSel = 0; }
 			else if (inp.confirm)
 			{
 				actx.resume();
@@ -254,5 +256,5 @@ public static partial class G
 		else return false;
 		return true;
 	}
-	static readonly string[] PL_PAUSE = { "أكمل اللعب", "إعادة من آخر حفظ", "إعادة من البداية", "الخروج من المرحلة" };
+	static readonly string[] PL_PAUSE = { "أكمل اللعب", "إعادة من آخر حفظ", "إعادة من البداية", "الإعدادات", "الخروج من المرحلة" };
 }

@@ -16,7 +16,7 @@ public static partial class G
 	{
 		if (state == "modes") drawModes(now);
 		else if (state == "pltList") drawPltList(now);
-		else if (state is "pltPlay" or "pltPause" or "pltDead" or "pltWin") drawPlat(now);
+		else if (state is "pltPlay" or "pltPause" or "pltSet" or "pltDead" or "pltWin") drawPlat(now);
 		else return false;
 		return true;
 	}
@@ -181,6 +181,7 @@ public static partial class G
 				txt(PL_PAUSE[i], W / 2, y, sel ? 38 : 32, sel ? "#fff" : "rgba(255,255,255,0.5)", 800);
 			}
 		}
+		if (state == "pltSet") { overlay(0.95); drawSettings(); }
 		if (state == "pltDead")
 		{
 			overlay(); double e = clamp((now - pl.deadAt) / 220, 0, 1), sc = 1 + 0.6 * JS.pow(1 - e, 3);
@@ -210,12 +211,19 @@ public static partial class G
 		}
 	}
 
-	// the piece just taken passes big and faint behind the map, left to right
+	// the pieces taken pass small and faint behind the map, right to left, again every while:
+	// the first along the bottom floor, the second the middle, the third the top (his words 14:59 10-19)
+	static readonly double[] PASS_Y = { 520, 280, 100 };
+	const double PASS_T = 7, PASS_EVERY = 13;
 	static void plPass()
 	{
-		if (pl.passK < 0) return; double f = (pl.t - pl.passAt) / 3.2; if (f < 0 || f >= 1) return;
-		double e = f < 0.5 ? 2 * f * f : 1 - JS.pow(-2 * f + 2, 2) / 2, x = -220 + (W + 440) * e, a = 0.16 * JS.sin(Math.PI * f);
-		g.save(); g.globalAlpha = a; plPieceIcon(x, H / 2 + 30 * JS.sin(f * Math.PI * 2), 9, pl.passK, 1); g.restore();
+		for (int i = 0; i < pl.taken.Count && i < PASS_Y.Length; i++)
+		{
+			double a0 = pl.t - pl.taken[i].at; if (a0 < 0) continue;
+			double f = (a0 % PASS_EVERY) / PASS_T; if (f >= 1) continue;
+			double x = W + 60 - (W + 120) * f, a = 0.28 * Math.Min(1, Math.Min(f, 1 - f) * 8);
+			g.save(); g.globalAlpha = a; plPieceIcon(x, PASS_Y[i] + 8 * JS.sin(f * Math.PI * 4), 2.2, pl.taken[i].k, 1, false);   // no frame: it must not look like a piece to take g.restore();
+		}
 	}
 	// each level's own touch behind the map (same colours): disco = I Will Survive
 	static void plTheme(double now, double b)
@@ -248,11 +256,11 @@ public static partial class G
 	}
 
 	// a piece of the song: 0 drums, 1 voice, 2 music (gold)
-	static void plPieceIcon(double x, double y, double s, int kind_, double a)
+	static void plPieceIcon(double x, double y, double s, int kind_, double a, bool frame = true)
 	{
 		g.save(); g.translate(x, y); g.scale(s, s); g.globalAlpha *= a;
 		g.shadowColor = GOLD; g.shadowBlur = 14; g.strokeStyle = GOLD; g.fillStyle = GOLD; g.lineWidth = 2.5;
-		g.save(); g.rotate(Math.PI / 4); g.strokeRect(-14, -14, 28, 28); g.restore(); g.shadowBlur = 0;
+		if (frame) { g.save(); g.rotate(Math.PI / 4); g.strokeRect(-14, -14, 28, 28); g.restore(); } g.shadowBlur = 0;
 		if (kind_ == 0) { g.beginPath(); g.ellipse(0, -4, 8, 3.5, 0, 0, TAU); g.stroke(); g.beginPath(); g.moveTo(-8, -4); g.lineTo(-8, 4); g.moveTo(8, -4); g.lineTo(8, 4); g.stroke(); g.beginPath(); g.ellipse(0, 4, 8, 3.5, 0, 0, Math.PI); g.stroke(); }
 		else if (kind_ == 1) { rr(-4, -10, 8, 13, 4); g.fill(); g.beginPath(); g.arc(0, 1, 7, 0, Math.PI); g.stroke(); g.fillRect(-1, 8, 2, 4); }
 		else { g.beginPath(); g.ellipse(-3, 6, 4.5, 3.5, -0.4, 0, TAU); g.fill(); g.fillRect(0.5, -10, 2, 16); g.beginPath(); g.moveTo(2.5, -10); g.quadraticCurveTo(10, -6, 7, 1); g.lineTo(6, 0); g.quadraticCurveTo(7, -5, 2.5, -6); g.closePath(); g.fill(); }

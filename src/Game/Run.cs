@@ -32,9 +32,10 @@ public static partial class G
 		["easy"] = new MenuSong { bpm = 120.19, off = 0.105, drop = 12, loop = 204 },
 	};
 	public static double MENU_SPB, MENU_OFF, MENU_DROP, MENU_LOOP;
+	public static bool menuNormal;   // the platformer list plays the normal menu song even with Easy Mode on
 	public static void applyMenu()
 	{
-		string k = easy && MENUS["easy"].buf != null ? "easy" : "normal"; var M = MENUS[k];
+		string k = easy && !menuNormal && MENUS["easy"].buf != null ? "easy" : "normal"; var M = MENUS[k];
 		if (k == menuKey && menuBuf == M.buf) return;
 		if (menuSrc != null) stopMenu(); menuKey = k; menuBuf = M.buf;
 		MENU_SPB = 60 / M.bpm; MENU_OFF = M.off; MENU_DROP = M.off + M.drop * MENU_SPB; MENU_LOOP = M.off + M.loop * MENU_SPB;
@@ -43,7 +44,7 @@ public static partial class G
 
 	public static void ensureAudio()
 	{
-		if (actx.state == "suspended" && state != "paused" && state != "pauseSet" && !(rp.paused && (state is "replay" or "rpGap" or "rpEnd"))) actx.resume();
+		if (actx.state == "suspended" && state != "paused" && state != "pauseSet" && state != "pltPause" && state != "pltSet" && !(rp.paused && (state is "replay" or "rpGap" or "rpEnd"))) actx.resume();
 	}
 
 	public static int menuSel = 0, pauseSel = 0;

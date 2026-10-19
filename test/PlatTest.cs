@@ -7,7 +7,7 @@ using MG;
 using static MG.JS;
 
 // The platformer without a person: -- --plat-run <levelId> <script.txt|-> <outDir> [fps=60] [every=1]
-// The script: one line per moment, "<seconds> <keys>" with keys from L R U D (held), J (jump held), X (dash press); later lines replace earlier ones.
+// The script: one line per moment, "<seconds> <keys>" with keys from L R U D (held), J (jump held), X (dash press), P (Esc held), E (Enter held); later lines replace earlier ones.
 // Writes state.log (frame time x y state pieces hits deaths) and a PNG every `every` frames.
 // With <levelId> = menu: draws the main menu, the mode screen and the platformer list (menu-*.png).
 public class PlatTest
@@ -55,7 +55,7 @@ public class PlatTest
 			string k = ""; foreach (var l in lines) if (l.t <= t + 1e-9) k = l.k;
 			bool dashNow = k.Contains('X') && !lastK.Contains('X'); lastK = k;
 			G.keys["ArrowLeft"] = k.Contains('L'); G.keys["ArrowRight"] = k.Contains('R'); G.keys["ArrowUp"] = k.Contains('U'); G.keys["ArrowDown"] = k.Contains('D');
-			G.keys["Space"] = k.Contains('J'); G.keys["ShiftLeft"] = dashNow;
+			G.keys["Space"] = k.Contains('J'); G.keys["ShiftLeft"] = dashNow; G.keys["Escape"] = k.Contains('P'); G.keys["Enter"] = k.Contains('E');
 			AudioCtx.manualTime += 1.0 / fps; performance.manual += 1000.0 / fps;
 			G.gfx.BeginFrame(); G.step(performance.manual.Value);
 			var p = G.player ?? new Player();

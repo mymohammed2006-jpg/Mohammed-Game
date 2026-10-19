@@ -24,7 +24,7 @@ public static partial class G
 
 	static readonly string[] IN_GAME = { "play", "paused", "pauseSet", "dead", "win", "starting", "replay", "rpGap", "rpEnd", "prEnd" };
 	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "pltList", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins" };
-	static readonly string[] FS_HINT = { "main", "levels", "modes", "pltList", "pltPause", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "chal", "skins" };
+	static readonly string[] FS_HINT = { "main", "levels", "modes", "pltList", "pltPause", "pltSet", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "chal", "skins" };
 
 	public static void draw(double now)
 	{
