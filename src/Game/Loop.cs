@@ -29,6 +29,7 @@ public static partial class G
 	public static void draw(double now)
 	{
 		trCheck(now);
+		plThemeSync();
 		g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#000"; g.fillRect(0, 0, g.width, g.height);
 		double sx = (random() * 2 - 1) * shake, sy = (random() * 2 - 1) * shake;
 		g.setTransform(scale, 0, 0, scale, offX + sx * scale, offY + sy * scale);

@@ -71,7 +71,7 @@ public static partial class G
 			g.strokeStyle = sel ? RED : "rgba(255,255,255,0.12)"; g.lineWidth = sel ? 3 : 1.5; g.stroke();
 			txt(ar(i + 1), x, cy - 90 + lf, 90, sel ? RED : "#fff", 800);
 			txt(L.name, x, cy + 5 + lf, 28, "#fff", 800);
-			g.font = $"20px {TFONT}"; g.fillStyle = RED3; g.textAlign = "center"; g.direction = "ltr"; g.textBaseline = "middle"; g.fillText(L.song, x, cy + 52 + lf); g.direction = "rtl";
+			g.font = $"20px {TFONT}"; g.fillStyle = RED3; g.textAlign = "center"; g.direction = "ltr"; g.textBaseline = "middle"; g.fillText(L.best != null ? L.song : "؟؟؟", x, cy + 52 + lf);   // the song stays hidden until the level is finished g.direction = "rtl";
 			if (L.best != null) { g.font = $"46px {TFONT}"; g.textAlign = "center"; g.direction = "ltr"; g.fillStyle = "#ff2436"; g.fillText(L.best, x, cy + 115 + lf); g.direction = "rtl"; }
 		}
 		row(new[] { (BTN[kind].confirm, "العب"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
@@ -81,6 +81,8 @@ public static partial class G
 	static void drawPlat(double now)
 	{
 		double b = plBeat(), bp = ((b % 1) + 1) % 1; pulse = JS.exp(-bp * 5) * 0.8; energy = 0.6;
+		plTheme(now, b);
+		plPass();
 		// background grid like the arena
 		g.strokeStyle = $"rgba(140,100,230,{str(0.04 + 0.07 * pulse)})"; g.lineWidth = 1; g.beginPath();
 		for (double x = 0; x <= W; x += 80) { g.moveTo(x, 0); g.lineTo(x, H); }
@@ -157,7 +159,7 @@ public static partial class G
 		g.globalAlpha = 1;
 		if (state != "pltDead") drawPlayer();
 		// HUD: lives, the pieces, messages
-		for (int i = 0; i < 5; i++)
+		for (int i = 0; i < P_HP; i++)
 		{
 			double x = 34 + i * 28, y0 = 26;
 			if (player != null && i < player.hp) { g.fillStyle = CYAN; g.fillRect(x - 9, y0 - 9, 18, 18); }
@@ -206,6 +208,43 @@ public static partial class G
 			txt((hitsTotal == 0 ? "بدون ولا ضربة" : $"انضربت {ar(hitsTotal)} مرة") + "    " + (deaths == 0 ? "بدون خسارة" : $"خسرت {ar(deaths)} مرة"), W / 2, H / 2 + 70, 28, "#e9e6f5", 500);
 			if (ts > 800) { row(new[] { (BTN[kind].confirm, "العب مرة ثانية") }, W / 2, H / 2 + 135); row(new[] { (BTN[kind].back, "المراحل") }, W / 2, H / 2 + 190); }
 		}
+	}
+
+	// the piece just taken passes big and faint behind the map, left to right
+	static void plPass()
+	{
+		if (pl.passK < 0) return; double f = (pl.t - pl.passAt) / 3.2; if (f < 0 || f >= 1) return;
+		double e = f < 0.5 ? 2 * f * f : 1 - JS.pow(-2 * f + 2, 2) / 2, x = -220 + (W + 440) * e, a = 0.16 * JS.sin(Math.PI * f);
+		g.save(); g.globalAlpha = a; plPieceIcon(x, H / 2 + 30 * JS.sin(f * Math.PI * 2), 9, pl.passK, 1); g.restore();
+	}
+	// each level's own touch behind the map (same colours): disco = I Will Survive
+	static void plTheme(double now, double b)
+	{
+		if (pl.L.theme != "disco") return;
+		double t = now / 1000, bx = 1120, by = 262, R = 28;   // hangs in the empty right side of the middle floor
+		// light spots from the ball drifting over the background
+		string[] cols = { "255,42,109", "170,130,255", "45,226,230", "255,200,80" };
+		for (int i = 0; i < 9; i++)
+		{
+			double a = t * 0.18 + i * 0.7, d = 260 + 140 * ((i * 37) % 5), x = bx + JS.cos(a + i) * d * 1.3, y = by + 80 + JS.sin(a * 1.3 + i * 2) * d * 0.55;
+			string c = cols[i % 4];
+			for (int k = 0; k < 3; k++) { g.fillStyle = $"rgba({c},{str(0.018 + 0.012 * pulse)})"; g.beginPath(); g.arc(x, y, 34 - k * 10, 0, TAU); g.fill(); }
+		}
+		// the ball on its string, turning slowly, flashing a little on the beat
+		g.save(); g.globalAlpha = 0.4;
+		g.strokeStyle = "rgba(255,255,255,0.35)"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(bx, 200); g.lineTo(bx, by - R); g.stroke();
+		g.fillStyle = "#1a1330"; g.beginPath(); g.arc(bx, by, R, 0, TAU); g.fill();
+		g.save(); g.beginPath(); g.arc(bx, by, R, 0, TAU); g.clip();
+		double sp = 9, rot = (t * 14) % sp;
+		for (double yy = -R; yy < R; yy += sp) for (double xx = -R - sp + rot; xx < R; xx += sp)
+		{
+			double k = 0.5 + 0.5 * JS.sin(xx * 0.4 + yy * 0.7 + t * 3 + b * 2);
+			g.fillStyle = $"rgba(220,210,255,{str(0.15 + 0.55 * k * k + 0.25 * pulse)})"; g.fillRect(bx + xx + 1, by + yy + 1, sp - 2, sp - 2);
+		}
+		g.restore();
+		g.strokeStyle = "rgba(170,130,255,0.7)"; g.lineWidth = 1.5; g.beginPath(); g.arc(bx, by, R, 0, TAU); g.stroke();
+		{ double gs = 5 + 7 * pulse; g.strokeStyle = "rgba(255,255,255,0.9)"; g.lineWidth = 2; g.beginPath(); g.moveTo(bx - 12 - gs, by - 12); g.lineTo(bx - 12 + gs, by - 12); g.moveTo(bx - 12, by - 12 - gs); g.lineTo(bx - 12, by - 12 + gs); g.stroke(); }   // a glint on the beat
+		g.restore();
 	}
 
 	// a piece of the song: 0 drums, 1 voice, 2 music (gold)

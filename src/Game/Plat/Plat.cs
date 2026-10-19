@@ -12,6 +12,7 @@ public static partial class G
 {
 	public const double PT = 40;                                   // tile size
 	const double P_SPEED = 370, P_ACC = 5200, P_AIR = 3600, P_GRAV = 2600, P_JUMP = 880, P_CUT = 0.45, P_FALL = 1100;
+	public const int P_HP = 3;   // lives (his words 14:27 10-19)
 	const double P_COYOTE = 0.08, P_BUFFER = 0.1, P_DASH = 950, P_DASH_T = 0.18, P_HALF = 9;
 	public static int modeSel = 0, plSel = 0;
 
@@ -26,6 +27,8 @@ public static partial class G
 		public double inX; public bool dashQ, jumpQ;
 		public string msg; public double msgT;
 		public double winAt, deadAt;
+		public long beatN = -1;                    // the last beat the tick played on
+		public int passK = -1; public double passAt; // the piece passing behind the map
 	}
 	public static PlatRun pl;
 
@@ -39,7 +42,7 @@ public static partial class G
 		pl.stemOn = (bool[])L.on.Clone();
 		hitsTotal = 0; deaths = 0;
 		for (int y = 0; y < pl.h; y++) for (int x = 0; x < pl.w; x++) if (pl.m[y][x] == 'S') { pl.cx = x * PT + PT / 2; pl.cy = (y + 1) * PT - P_HALF; }
-		player = new Player { x = pl.cx, y = pl.cy, r = 5, hp = 5, inv = 1.0, fx = 1, fy = 0, ddx = 1, ddy = 0, ang = 0 };
+		player = new Player { x = pl.cx, y = pl.cy, r = 5, hp = P_HP, inv = 1.0, fx = 1, fy = 0, ddx = 1, ddy = 0, ang = 0 };
 		particles = new List<Particle>(); hazards = new List<Hz>();
 		stopMenu(); ensureAudio();
 		double when = actx.currentTime + 0.12; pl.startWhen = when; pl.voices = new Voice[L.stems.Length];
@@ -56,7 +59,7 @@ public static partial class G
 	static void plExit() { plStopMusic(); player = null; particles = new List<Particle>(); state = "pltList"; actx.resume(); }
 	static void plRespawn()
 	{
-		player = new Player { x = pl.cx, y = pl.cy, r = 5, hp = 5, inv = 1.5, fx = 1, fy = 0, ddx = 1, ddy = 0, ang = 0 };
+		player = new Player { x = pl.cx, y = pl.cy, r = 5, hp = P_HP, inv = 1.5, fx = 1, fy = 0, ddx = 1, ddy = 0, ang = 0 };
 		pl.vx = pl.vy = 0; pl.canDash = true; pl.dashQ = pl.jumpQ = false; state = "pltPlay";
 	}
 
@@ -64,6 +67,8 @@ public static partial class G
 	static void plStep(double dt, double mx, double my, bool now)
 	{
 		var p = player; pl.t += dt; songT = pl.t;
+		// a soft tick on the beat until the first piece of the song is taken
+		{ long bi = (long)Math.Floor(plBeat()); if (bi != pl.beatN) { pl.beatN = bi; if (bi >= 0 && !pl.stemOn.Any(o => o)) { bool down = bi % 4 == 0; sfx(tt => sTone(tt, down ? 1500 : 1100, 0.035, "sine", down ? 0.07 : 0.045)); } } }
 		if (Math.Abs(mx) < 0.25) mx = 0;
 		bool dq = now && pl.dashQ, jq = now && pl.jumpQ; if (now) { pl.dashQ = false; pl.jumpQ = false; }
 		if (jq) pl.jbuf = P_BUFFER;
@@ -133,6 +138,12 @@ public static partial class G
 		}
 	}
 	static int plPieces() { int n = 0; foreach (var r in pl.m) foreach (var c in r) if (c >= '1' && c <= '9') n++; return n; }
+	// no Easy in the platformer: its level list and levels use the normal colours, the Easy colours come back on the mode screen
+	public static void plThemeSync()
+	{
+		bool plt = state.StartsWith("plt"); if (!plt && state != "modes") return;
+		bool e = easy && !plt; if (RED != THEMES[e ? "easy" : "normal"].c) applyTheme(e);
+	}
 	static bool plOpen() => pl.got.Count >= plPieces();
 	static void plTake(string k, char c, int tx, int ty)
 	{
@@ -141,7 +152,7 @@ public static partial class G
 		sfx(tt => { sTone(tt, 784, 0.12, "triangle", 0.12); sTone(tt + 0.07, 1047, 0.12, "triangle", 0.12); sTone(tt + 0.14, 1568, 0.25, "triangle", 0.1); });
 		if (pl.L.pieces != null && pl.L.pieces.TryGetValue(c.ToString(), out int s) && s < pl.stemOn.Length && !pl.stemOn[s])
 		{
-			pl.stemOn[s] = true; pl.voices?[s]?.gain.setTargetAtTime(1, actx.currentTime, 0.25);
+			pl.stemOn[s] = true; pl.voices?[s]?.gain.setTargetAtTime(1, actx.currentTime, 0.25); pl.passK = s; pl.passAt = pl.t;
 			pl.msg = (pl.L.stemNames != null && s < pl.L.stemNames.Length ? pl.L.stemNames[s] : "قطعة") + " انضاف للأغنية"; pl.msgT = 2.2;
 		}
 		if (plOpen()) { pl.msg = "الأغنية كملت! روح للبوابة"; pl.msgT = 2.6; }
@@ -180,7 +191,8 @@ public static partial class G
 	}
 	static void plWin()
 	{
-		lastRank = (hitsTotal == 0 && deaths == 0) ? "S" : deaths == 0 ? "A" : deaths == 1 ? "B" : "C"; lastEz = false;
+		// S no hit, A one hit, B one death (or two hits), C two deaths or more (his words 14:27 10-19)
+		lastRank = deaths >= 2 ? "C" : deaths == 1 || hitsTotal >= 2 ? "B" : hitsTotal == 1 ? "A" : "S"; lastEz = false;
 		int rb = pl.L.best != null ? Array.IndexOf(RANKS, pl.L.best) : 99;
 		if (Array.IndexOf(RANKS, lastRank) < rb) { pl.L.best = lastRank; localStorage.setItem("mg_plbest_" + pl.L.id, lastRank); }
 		state = "pltWin"; pl.winAt = performance.now(); winSlam = pl.winAt + 300; winHit = false; lastGain = 0;

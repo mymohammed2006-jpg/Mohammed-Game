@@ -13,7 +13,7 @@ namespace MG;
 //   S  start   G  goal (opens when every piece is taken)   C  checkpoint   1-9  a piece of the song
 // saws: pink saws going back and forth between two tiles, there and back in `beats` beats
 // stems: the song's parts (songs/<name>.mp3, played together and looped); on = which ones play from the start;
-// pieces: map digit -> the stem it adds. loop: the looped part of the files (seconds), a whole number of bars; spb: seconds per beat
+// theme: the level's own touch behind the map ("disco"). pieces: map digit -> the stem it adds. loop: the looped part of the files (seconds), a whole number of bars; spb: seconds per beat
 public class PlatSaw { public double x0 { get; set; } public double y0 { get; set; } public double x1 { get; set; } public double y1 { get; set; } public double beats { get; set; } = 4; public double r { get; set; } = 16; public double ph { get; set; } }
 public class PlatLevel
 {
@@ -28,6 +28,7 @@ public class PlatLevel
 	public double[] loop { get; set; }
 	public double spb { get; set; }
 	public string[] map { get; set; }
+	public string theme { get; set; }   // the level's own touch behind the map ("disco")
 	public List<PlatSaw> saws { get; set; } = new();
 	[System.Text.Json.Serialization.JsonIgnore] public AudioStream[] bufs;
 	[System.Text.Json.Serialization.JsonIgnore] public string best;

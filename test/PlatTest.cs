@@ -28,7 +28,7 @@ public class PlatTest
 		localStorage.Memory = true; G.padsDisabled = true; G.classicUi = false;
 		performance.manual = 100000; AudioCtx.manualTime = 0; JS.SeedRandom(7);
 		G.InitSound(); G.gfx.Resize(1280, 720); G.scale = 1; G.offX = 0; G.offY = 0; G.gatePassed = true;
-		var sk = System.Environment.GetEnvironmentVariable("SKIN"); if (sk != null) G.skin = sk;
+		var sk = System.Environment.GetEnvironmentVariable("SKIN"); if (sk != null) G.skin = sk; if (System.Environment.GetEnvironmentVariable("EASY") == "1") G.setEasy(true);
 		if (id == "menu") return;
 		lines = script == "-" ? new (double, string)[0] : File.ReadAllLines(script).Where(l => l.Trim().Length > 0 && !l.StartsWith("#")).Select(l => { var f = l.Trim().Split(' ', 2); return (double.Parse(f[0]), f.Length > 1 ? f[1].Trim() : ""); }).ToArray();
 		G.plStart(G.PLATS.First(x => x.id == id));
