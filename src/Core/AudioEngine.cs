@@ -279,6 +279,16 @@ public static class AudioCtx
 
 	public static Voice Add(Voice v) { lock (L) voices.Add(v); return v; }
 
+	// tests: mix every voice for [t0, t0 + n/SR) into l/r (for videos with the game's own sound)
+	public static void RenderAt(float[] l, float[] r, int n, double t0)
+	{
+		lock (L)
+		{
+			foreach (var v in voices) v.Render(l, r, n, t0, SR);
+			for (int i = 0; i < n; i++) { double m = master.At(t0 + (double)i / SR); l[i] = (float)(l[i] * m); r[i] = (float)(r[i] * m); }
+		}
+	}
+
 	// called once per game frame: moves the smooth clock toward the mixer clock
 	public static void Tick()
 	{

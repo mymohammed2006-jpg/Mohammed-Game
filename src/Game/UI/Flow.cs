@@ -15,6 +15,14 @@ public static partial class G
 	// ---------- level-list song preview ----------
 	public static void pvUpdate(double now)
 	{
+		if (state == "pltList")
+		{
+			// a platformer level plays its song once it is finished (its name shows on the card)
+			var P = plSel < PLATS.Count ? PLATS[plSel] : null; string pk = "plt" + str(plSel);
+			if (pk != pv.sel) { pv.sel = pk; pv.at = now; pvStop(); }
+			if (pv.src == null && P != null && P.best != null && P.bufs != null && P.bufs.All(b => b != null) && now - pv.at > 350 && actx.state == "running") { pvStartPlat(P); pv.had = true; }
+			return;
+		}
 		if (state != "levels" && state != "friends") { pvStop(); pv.sel = ""; pv.had = false; return; }
 		var L = state == "levels" ? (lvlSel < LEVELS.Count ? LEVELS[lvlSel] : null) : (friSel < FRIENDS.Count ? FRIENDS[friSel] : null); string k = state + str(lvlSel) + ":" + str(friSel);
 		if (k != pv.sel) { pv.sel = k; pv.at = now; pvStop(); }

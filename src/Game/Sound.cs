@@ -58,13 +58,13 @@ public static partial class G
 	}
 
 	// level preview in the level list
-	public class PvState { public Voice src; public string sel = ""; public double at; public bool had; }
+	public class PvState { public Voice src; public System.Collections.Generic.List<Voice> more = new(); public string sel = ""; public double at; public bool had; }
 	public static PvState pv = new();
 	public static void pvStop()
 	{
-		if (pv.src == null) return; var s = pv.src;
-		s.gain.setTargetAtTime(0, actx.currentTime, 0.12); s.stop(actx.currentTime + 0.8);
-		pv.src = null;
+		if (pv.src == null) return;
+		foreach (var s in System.Linq.Enumerable.Prepend(pv.more, pv.src)) { s.gain.setTargetAtTime(0, actx.currentTime, 0.12); s.stop(actx.currentTime + 0.8); }
+		pv.src = null; pv.more.Clear();
 	}
 	public static void pvStart(Level L)
 	{
@@ -76,6 +76,18 @@ public static partial class G
 		v.gain.setValueAtTime(0.0001, actx.currentTime); v.gain.exponentialRampToValueAtTime(0.85, actx.currentTime + 0.6);
 		v.start(actx.currentTime + 0.05, st);
 		pv.src = AudioCtx.Add(v);
+	}
+
+	// a platformer level: all its parts together, the whole loop
+	public static void pvStartPlat(PlatLevel L)
+	{
+		for (int i = 0; i < L.bufs.Length; i++)
+		{
+			var v = new Voice { song = L.bufs[i], loop = true, loopStart = L.loop[0], loopEnd = L.loop[1] };
+			v.gain.setValueAtTime(0.0001, actx.currentTime); v.gain.exponentialRampToValueAtTime(0.85, actx.currentTime + 0.6);
+			v.start(actx.currentTime + 0.05, L.loop[0]);
+			if (i == 0) pv.src = AudioCtx.Add(v); else pv.more.Add(AudioCtx.Add(v));
+		}
 	}
 
 	public static void playMusic(double fromT)

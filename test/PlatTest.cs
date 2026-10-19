@@ -7,13 +7,15 @@ using MG;
 using static MG.JS;
 
 // The platformer without a person: -- --plat-run <levelId> <script.txt|-> <outDir> [fps=60] [every=1]
-// The script: one line per moment, "<seconds> <keys>" with keys from L R U D (held), J (jump held), X (dash press), P (Esc held), E (Enter held); later lines replace earlier ones.
+// The script: one line per moment, "<seconds> <keys>" with keys from L R U D (held), J (jump held), X (dash press), P (Esc held), E (Enter held), B (Backspace held); later lines replace earlier ones.
+// env WAV=<file>: also writes the game's sound (44100 Hz stereo) for the run.
 // Writes state.log (frame time x y state pieces hits deaths) and a PNG every `every` frames.
 // With <levelId> = flow: starts on the platformer list (press E to go in).
 // With <levelId> = menu: draws the main menu, the mode screen and the platformer list (menu-*.png).
 public class PlatTest
 {
 	string id, script, outDir; int fps = 60, every = 1, i; double T; bool done, shot;
+	BinaryWriter wav = System.Environment.GetEnvironmentVariable("WAV") != null ? new BinaryWriter(new MemoryStream()) : null;
 	(double t, string k)[] lines; StringBuilder log = new(); Main host; string lastK = ""; int menuStep;
 
 	public static PlatTest FromArgs(string[] a, int k)
@@ -49,7 +51,17 @@ public class PlatTest
 	public void Process()
 	{
 		if (shot) { G.gfx.game.GetTexture().GetImage().SavePng(Path.Combine(outDir, id is "menu" or "board" ? $"{id}-{i}.png" : $"f{i:D6}.png")); shot = false; }
-		if (done) { File.WriteAllText(Path.Combine(outDir, "state.log"), log.ToString()); host.GetTree().Quit(); return; }
+		if (done)
+		{
+			File.WriteAllText(Path.Combine(outDir, "state.log"), log.ToString());
+			if (wav != null)
+			{
+				var pcm = ((MemoryStream)wav.BaseStream).ToArray(); using var f = new BinaryWriter(File.Create(System.Environment.GetEnvironmentVariable("WAV")));
+				f.Write(Encoding.ASCII.GetBytes("RIFF")); f.Write(36 + pcm.Length); f.Write(Encoding.ASCII.GetBytes("WAVEfmt ")); f.Write(16); f.Write((short)1); f.Write((short)2);
+				f.Write(AudioCtx.SR); f.Write(AudioCtx.SR * 4); f.Write((short)4); f.Write((short)16); f.Write(Encoding.ASCII.GetBytes("data")); f.Write(pcm.Length); f.Write(pcm);
+			}
+			host.GetTree().Quit(); return;
+		}
 		if (id == "board")
 		{
 			if (menuStep >= 3) { done = true; return; }
@@ -77,9 +89,10 @@ public class PlatTest
 			string k = ""; foreach (var l in lines) if (l.t <= t + 1e-9) k = l.k;
 			bool dashNow = k.Contains('X') && !lastK.Contains('X'); lastK = k;
 			G.keys["ArrowLeft"] = k.Contains('L'); G.keys["ArrowRight"] = k.Contains('R'); G.keys["ArrowUp"] = k.Contains('U'); G.keys["ArrowDown"] = k.Contains('D');
-			G.keys["Space"] = k.Contains('J'); G.keys["ShiftLeft"] = dashNow; G.keys["Escape"] = k.Contains('P'); G.keys["Enter"] = k.Contains('E');
+			G.keys["Space"] = k.Contains('J'); G.keys["ShiftLeft"] = dashNow; G.keys["Escape"] = k.Contains('P'); G.keys["Enter"] = k.Contains('E'); G.keys["Backspace"] = k.Contains('B');
 			AudioCtx.manualTime += 1.0 / fps; performance.manual += 1000.0 / fps;
 			G.gfx.BeginFrame(); G.step(performance.manual.Value);
+			if (wav != null) { int n = AudioCtx.SR / fps; var l = new float[n]; var r = new float[n]; AudioCtx.RenderAt(l, r, n, AudioCtx.manualTime.Value); for (int j = 0; j < n; j++) { wav.Write((short)(Math.Clamp(l[j], -1, 1) * 32767)); wav.Write((short)(Math.Clamp(r[j], -1, 1) * 32767)); } }
 			var p = G.player ?? new Player();
 			log.Append(i).Append(' ').Append(str(t)).Append(' ').Append(str(Math.Round(p.x, 1))).Append(' ').Append(str(Math.Round(p.y, 1))).Append(' ').Append(G.state)
 				.Append(' ').Append(G.pl?.got.Count ?? 0).Append(' ').Append(G.hitsTotal).Append(' ').Append(G.deaths).Append('\n');
