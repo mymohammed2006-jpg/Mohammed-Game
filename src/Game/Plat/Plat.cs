@@ -29,6 +29,7 @@ public static partial class G
 		public double winAt, deadAt, introAt; public int introSfx;
 		public long beatN = -1;                    // the last beat the tick played on
 		public List<(int k, double at)> taken = new();   // the pieces taken, in order (they pass behind the map)
+		public bool down, atGate, gateBlock;        // co-op online: out of lives (waiting for the other one), in the gate, just came out of it
 	}
 	public static PlatRun pl;
 
@@ -67,6 +68,7 @@ public static partial class G
 	static void plExit() { plStopMusic(); player = null; particles = new List<Particle>(); state = "pltList"; actx.resume(); }
 	static void plRespawn()
 	{
+		pl.down = pl.atGate = false;
 		player = new Player { x = pl.cx, y = pl.cy, r = 5, hp = P_HP, inv = 1.5, fx = 1, fy = 0, ddx = 1, ddy = 0, ang = 0 };
 		pl.vx = pl.vy = 0; pl.canDash = true; pl.dashQ = pl.jumpQ = false; state = "pltPlay";
 	}
@@ -75,6 +77,7 @@ public static partial class G
 	static void plStep(double dt, double mx, double my, bool now)
 	{
 		var p = player; pl.t += dt; songT = pl.t;
+		if (pl.down || pl.atGate) { p.inv -= dt; p.hurt -= dt; return; }   // co-op: waiting for the other one (to bring it back / in the gate)
 		// a soft tick on the beat until the first piece of the song is taken
 		{ long bi = (long)Math.Floor(plBeat()); if (bi != pl.beatN) { pl.beatN = bi; if (bi >= 0 && !pl.stemOn.Any(o => o)) { bool down = bi % 4 == 0; sfx(tt => sTone(tt, down ? 1500 : 1100, 0.035, "sine", down ? 0.07 : 0.045)); } } }
 		if (Math.Abs(mx) < 0.25) mx = 0;
@@ -133,6 +136,7 @@ public static partial class G
 	static void plTiles(Player p)
 	{
 		int tx0 = (int)Math.Floor((p.x - P_HALF) / PT), tx1 = (int)Math.Floor((p.x + P_HALF) / PT), ty0 = (int)Math.Floor((p.y - P_HALF) / PT), ty1 = (int)Math.Floor((p.y + P_HALF) / PT);
+		bool inGate = false;
 		for (int ty = ty0; ty <= ty1; ty++) for (int tx = tx0; tx <= tx1; tx++)
 		{
 			if (tx < 0 || ty < 0 || tx >= pl.w || ty >= pl.h) continue; char c = pl.m[ty][tx]; string k = tx + "," + ty;
@@ -140,10 +144,12 @@ public static partial class G
 			else if (c == 'C' && (pl.cx != tx * PT + PT / 2 || pl.cy != (ty + 1) * PT - P_HALF))
 			{
 				pl.cx = tx * PT + PT / 2; pl.cy = (ty + 1) * PT - P_HALF; cpMsg = 1.8;
+				if (online && net.coop) netTell(new System.Text.Json.Nodes.JsonObject { ["k"] = "cp", ["x"] = tx, ["y"] = ty });
 				sfx(tt => { sTone(tt, 659, 0.25, "square", 0.06); sTone(tt + 0.08, 880, 0.3, "square", 0.06); });
 			}
-			else if (c == 'G' && plOpen() && state == "pltPlay") { if (online) netWin(); else plWin(); }
+			else if (c == 'G' && plOpen() && state == "pltPlay") { if (online && net.coop) inGate = true; else if (online) netWin(); else plWin(); }
 		}
+		if (online && net.coop && state == "pltPlay") { if (inGate && !pl.atGate && !pl.gateBlock) coopGate(true); if (!inGate) pl.gateBlock = false; }
 	}
 	static int plPieces() { int n = 0; foreach (var r in pl.m) foreach (var c in r) if (c >= '1' && c <= '9') n++; return n; }
 	// no Easy in the platformer: its level list and levels use the normal colours, the Easy colours come back on the mode screen
@@ -154,9 +160,10 @@ public static partial class G
 		if (menuNormal != (easy && plt)) { menuNormal = easy && plt; applyMenu(); }
 	}
 	static bool plOpen() => pl.got.Count >= plPieces();
-	static void plTake(string k, char c, int tx, int ty)
+	static void plTake(string k, char c, int tx, int ty, bool fromOther = false)
 	{
-		pl.got.Add(k); double x = tx * PT + PT / 2, y = ty * PT + PT / 2;
+		pl.got.Add(k);
+		if (!fromOther && online && net.coop) netTell(new System.Text.Json.Nodes.JsonObject { ["k"] = "pc", ["x"] = tx, ["y"] = ty }); double x = tx * PT + PT / 2, y = ty * PT + PT / 2;
 		burst(x, y, GOLD, 30, 380); flash = 0.15; shake = 6; rumble(120, 0.4, 0.5);
 		sfx(tt => { sTone(tt, 784, 0.12, "triangle", 0.12); sTone(tt + 0.07, 1047, 0.12, "triangle", 0.12); sTone(tt + 0.14, 1568, 0.25, "triangle", 0.1); });
 		if (pl.L.pieces != null && pl.L.pieces.TryGetValue(c.ToString(), out int s) && s < pl.stemOn.Length && !pl.stemOn[s])
@@ -196,6 +203,7 @@ public static partial class G
 		p.hp--; hitsTotal++; p.inv = 2.0; p.hurt = 2.0; shake = 16; flash = 0.3; pl.vy = Math.Min(pl.vy, -520);
 		burst(p.x, p.y, CYAN, 22, 380); rumble(220, 0.8, 0.6);
 		sfx(t => { sTone(t, 110, 0.3, "square", 0.18); sNoise(t, 0.25, "lowpass", 900, 0.3); });
+		if (p.hp <= 0 && online && net.coop) { deaths++; burst(p.x, p.y, CYAN, 50, 520); rumble(500, 1, 1); coopDown(); return; }
 		if (p.hp <= 0) { state = "pltDead"; deaths++; pl.deadAt = performance.now(); burst(p.x, p.y, CYAN, 50, 520); rumble(500, 1, 1); }
 	}
 	static void plWin()
@@ -226,7 +234,8 @@ public static partial class G
 		{
 			int n = PLATS.Count;
 			if (inp.left && plSel < n - 1) plSel++; if (inp.right && plSel > 0) plSel--;
-			if (inp.confirm && n > 0) plStart(PLATS[plSel], true);
+			if (inp.confirm && n > 0 && PLATS[plSel].coop) { if (acc == null) netNote("سجّل دخول من الحساب بالقائمة عشان تلعب أونلاين"); else { state = "pltOn"; onSel = 0; } }   // co-op: two players only
+			else if (inp.confirm && n > 0) plStart(PLATS[plSel], true);
 			else if (inp.restart && n > 0) { if (acc == null) netNote("سجّل دخول من الحساب بالقائمة عشان تلعب أونلاين"); else { state = "pltOn"; onSel = 0; } }
 			else if (inp.back || inp.pz) state = "modes";
 		}

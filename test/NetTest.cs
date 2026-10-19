@@ -26,7 +26,7 @@ public class NetTest
 		AudioCtx.manualTime = 0; G.InitSound(); G.gfx.Resize(1280, 720); G.scale = 1; G.offX = 0; G.offY = 0;   // the music clock follows the wall clock (no sound card here)
 		G.applyTheme(false); G.applyMenu(); G.LoadBests(); G.LoadXp(); G.LoadSongs(); actx.resume();
 		if (System.Environment.GetEnvironmentVariable("SKIN") is { } sk) G.skin = sk;
-		Peer.GatherMs = 1500;   // no STUN answer in the container
+		Peer.GatherMs = 1500; Peer.Relay = false;   // no STUN answer or relay in the container
 		G.netSend = r =>
 		{
 			string u = r.RequestUri.OriginalString.Replace("https://firestore.googleapis.com/", "http://127.0.0.1:8085/")
@@ -38,7 +38,7 @@ public class NetTest
 		var j = JsonNode.Parse(res.Content.ReadAsStringAsync().Result);
 		G.acc = new G.Acc { uid = (string)j["localId"], name = name, it = (string)j["idToken"], rt = (string)j["refreshToken"], exp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + 3600000 };
 		lines = File.ReadAllLines(route).Where(l => l.Trim().Length > 0 && !l.StartsWith("#")).Select(l => { var f = l.Trim().Split(' ', 2); return (double.Parse(f[0]), f.Length > 1 ? f[1].Trim() : ""); }).ToArray();
-		G.state = "pltList"; G.plSel = 0; performance.manual = 100000; t0 = 100000; G.last = t0; wall.Start();
+		G.state = "pltList"; G.plSel = int.TryParse(System.Environment.GetEnvironmentVariable("LV"), out var lvi) ? lvi : 0; performance.manual = 100000; t0 = 100000; G.last = t0; wall.Start();
 	}
 	void Press(string k) { press = k; pressN = 3; G.OnKeyDown(k, false); }
 	readonly System.Diagnostics.Stopwatch wall = new(); static readonly double SCALE = double.TryParse(System.Environment.GetEnvironmentVariable("SCALE"), out var sc) ? sc : 0.1;
@@ -81,7 +81,7 @@ public class NetTest
 		AudioCtx.manualTime = (now - t0) / 1000; G.gfx.BeginFrame(); G.step(now);
 		var p = G.player;
 		log.Append(i).Append(' ').Append(str(Math.Round(t, 3))).Append(' ').Append(G.state).Append(' ').Append(G.net?.phase ?? "-").Append(' ')
-			.Append(p != null ? str(Math.Round(p.x)) + "," + str(Math.Round(p.y)) : "-").Append(' ').Append(G.net != null ? str(Math.Round(G.net.rtt)) : "-").Append(' ').Append(G.net?.snaps.Count ?? 0).Append('\n');
+			.Append(p != null ? str(Math.Round(p.x)) + "," + str(Math.Round(p.y)) : "-").Append(' ').Append(G.net != null ? str(Math.Round(G.net.rtt)) : "-").Append(' ').Append(G.net?.snaps.Count ?? 0).Append(' ').Append(p?.hp ?? -1).Append(G.pl?.down == true ? " down" : "").Append(G.pl?.atGate == true ? " gate" : "").Append('\n');
 		if (i % 10 == 0) shot = true;
 		G.gfx.EndFrame();
 		if (done) { File.WriteAllText(Path.Combine(outDir, "state.log"), log.ToString()); host.GetTree().Quit(); }

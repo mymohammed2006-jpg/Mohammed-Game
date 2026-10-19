@@ -74,6 +74,7 @@ public static partial class G
 			g.strokeStyle = sel ? RED : "rgba(255,255,255,0.12)"; g.lineWidth = sel ? 3 : 1.5; g.stroke();
 			txt(ar(i + 1), x, cy - 90 + lf, 90, sel ? RED : "#fff", 800);
 			txt(L.name, x, cy + 5 + lf, 28, "#fff", 800);
+			if (L.coop) txt("تعاوني: لاعبين أونلاين", x, cy + 140 + lf, 18, CYAN, 700);
 			g.font = $"20px {TFONT}"; g.fillStyle = RED3; g.textAlign = "center"; g.direction = "ltr"; g.textBaseline = "middle"; g.fillText(L.best != null ? L.song : "؟؟؟", x, cy + 52 + lf);   // the song stays hidden until the level is finished g.direction = "rtl";
 			if (L.best != null) { g.font = $"46px {TFONT}"; g.textAlign = "center"; g.direction = "ltr"; if (L.best == "S") sShine("S", x, cy + 115 + lf, 37, now, 12); else { g.fillStyle = "#ff2436"; g.fillText(L.best, x, cy + 115 + lf); } g.direction = "rtl"; }   // S shines like the main list
 		}
@@ -163,6 +164,8 @@ public static partial class G
 		g.globalAlpha = 1;
 		double ia = 1;   // the intro: the square drops in, then the HUD shows
 		if (state == "pltIntro") { double s = (now - pl.introAt) / 1000; ia = clamp((s - 2.85) / 0.15, 0, 1); if (s >= 2.4) { double f = clamp((s - 2.4) / 0.45, 0, 1), dy = -260 * (1 - f * f); player.y += dy; drawPlayer(); player.y -= dy; } }
+		else if (state != "pltDead" && pl.down) drawDown(player.x, player.y, now, false);
+		else if (pl.atGate) { }   // inside the gate
 		else if (state != "pltDead") drawPlayer();
 		if (online && state != "pltIntro") drawNetGhost(now);
 		g.save(); g.globalAlpha = ia;
@@ -247,7 +250,7 @@ public static partial class G
 		txt(pl.L.name, W / 2, H / 2 - 30 + 30 * sl * sl - up, 72, "#fff", 800);
 		string song = pl.L.best != null ? pl.L.song : "؟؟؟";
 		g.font = $"36px {TFONT}"; g.fillStyle = PINK; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText(song, W / 2, H / 2 + 40 + 30 * sl * sl - up); g.direction = "rtl";
-		if (online) txt("ضد " + net.other, W / 2, H / 2 + 110 + 30 * sl * sl - up, 30, CYAN, 800);
+		if (online) txt((net.coop ? "مع " : "ضد ") + net.other, W / 2, H / 2 + 110 + 30 * sl * sl - up, 30, CYAN, 800);
 		g.restore();
 	}
 

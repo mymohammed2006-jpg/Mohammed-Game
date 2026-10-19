@@ -29,6 +29,8 @@ public class PlatLevel
 	public double spb { get; set; }
 	public string[] map { get; set; }
 	public string theme { get; set; }   // the level's own touch behind the map ("disco")
+	public bool coop { get; set; }      // two players online only
+	public bool test { get; set; }      // a test map: no letter, not on the boards (remove before going public)
 	public List<PlatSaw> saws { get; set; } = new();
 	[System.Text.Json.Serialization.JsonIgnore] public AudioStream[] bufs;
 	[System.Text.Json.Serialization.JsonIgnore] public Level lv;   // its row with the other levels (the best letter, Normal only)
@@ -37,9 +39,9 @@ public class PlatLevel
 
 public static partial class G
 {
-	public static readonly string[] PLAT_IDS = { "P1" };
+	public static readonly string[] PLAT_IDS = { "P1" };   // C0 = the co-op test map (test builds only)
 	static List<PlatLevel> _plats;
-	public static List<Level> PLAT_LV => PLATS.Select(p => p.lv).ToList();
+	public static List<Level> PLAT_LV => PLATS.Where(p => !p.test).Select(p => p.lv).ToList();
 	public static List<PlatLevel> PLATS
 	{
 		get

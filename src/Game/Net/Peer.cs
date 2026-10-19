@@ -9,6 +9,8 @@ namespace MG;
 
 // One connection to the other player, straight between the two PCs (WebRTC data channels, SIPSorcery: free, no server of ours).
 // Google's free STUN servers tell each PC its address on the internet; the two offers go through Firebase (rooms/{code}).
+// When a network blocks the direct way, the packets go through a free relay (TURN): Open Relay (metered.ca) with its public
+// shared secret, and the project's own free metered.ca key when METERED_URL is set.
 // Channel "u": fast, may drop (where the square is); channel "r": every message arrives, in order (events).
 // SIPSorcery calls back on its own threads: messages wait in `inbox` until the game reads them on its frame.
 public class Peer
@@ -18,16 +20,40 @@ public class Peer
 		new RTCIceServer { urls = "stun:stun.l.google.com:19302" },
 		new RTCIceServer { urls = "stun:stun1.l.google.com:19302" },
 	};
-	public static int GatherMs = 3000;   // the longest wait for the PC's addresses before the offer is sent
+	public static bool Relay = true;      // tests: false (no internet relay here)
+	public static string METERED_URL = "";   // "https://<app>.metered.live/api/v1/turn/credentials?apiKey=<key>" (free plan, 20 GB a month)
+	public static int GatherMs = 5000;   // the longest wait for the PC's addresses (and the relay's) before the offer is sent
+	static readonly System.Net.Http.HttpClient http = new() { Timeout = TimeSpan.FromSeconds(4) };
+	// TURN REST credentials: user = expiry time, password = base64(HMAC-SHA1(secret, user))
+	static RTCIceServer openRelay(string url)
+	{
+		string user = (DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 6 * 3600) + ":mg";
+		using var h = new System.Security.Cryptography.HMACSHA1(Encoding.UTF8.GetBytes("openrelayprojectsecret"));
+		return new RTCIceServer { urls = url, username = user, credential = Convert.ToBase64String(h.ComputeHash(Encoding.UTF8.GetBytes(user))), credentialType = RTCIceCredentialType.password };
+	}
+	static async Task<List<RTCIceServer>> servers()
+	{
+		var l = new List<RTCIceServer>(ICE); if (!Relay) return l;
+		if (METERED_URL != "")
+			try
+			{
+				var a = System.Text.Json.Nodes.JsonNode.Parse(await http.GetStringAsync(METERED_URL)) as System.Text.Json.Nodes.JsonArray;
+				foreach (var s in a ?? new()) { string u = (string)s["urls"]; if (u != null && u.StartsWith("turn")) l.Add(new RTCIceServer { urls = u, username = (string)s["username"], credential = (string)s["credential"], credentialType = RTCIceCredentialType.password }); }
+			}
+			catch (Exception) { }
+		l.Add(openRelay("turn:staticauth.openrelay.metered.ca:80"));
+		l.Add(openRelay("turn:staticauth.openrelay.metered.ca:443?transport=tcp"));
+		return l;
+	}
 
 	RTCPeerConnection pc; RTCDataChannel u, r;
 	public readonly ConcurrentQueue<(bool rel, byte[] d)> inbox = new();
 	public volatile bool closed;
 	public bool open => !closed && u?.readyState == RTCDataChannelState.open && r?.readyState == RTCDataChannelState.open;
 
-	RTCPeerConnection make()
+	async Task<RTCPeerConnection> make()
 	{
-		var p = new RTCPeerConnection(new RTCConfiguration { iceServers = ICE });
+		var p = new RTCPeerConnection(new RTCConfiguration { iceServers = await servers() });
 		p.onconnectionstatechange += s => { if (s is RTCPeerConnectionState.failed or RTCPeerConnectionState.closed) closed = true; };
 		return p;
 	}
@@ -44,24 +70,29 @@ public class Peer
 		pc.onicegatheringstatechange += s => { if (s == RTCIceGatheringState.complete) done.TrySetResult(); };
 		await pc.setLocalDescription(d);
 		await Task.WhenAny(done.Task, Task.Delay(GatherMs));
-		return pc.localDescription.sdp.ToString();
+		return mine = pc.localDescription.sdp.ToString();
 	}
+	// what each side found (for the "can't connect" line): direct addresses, internet address, relay
+	string mine = "", theirs = "";
+	static string kinds(string sdp) { int c(string t) => sdp.Split("typ " + t).Length - 1; return $"{c("host")}/{c("srflx")}/{c("relay")}"; }
+	public string Diag() => $"أنت {kinds(mine)} · صاحبك {kinds(theirs)}";
 
 	// the room's maker: the offer to put in the room
 	public async Task<string> Offer()
 	{
-		pc = make();
+		pc = await make();
 		u = await pc.createDataChannel("u", new RTCDataChannelInit { ordered = false, maxRetransmits = 0 }); hook(u);
 		r = await pc.createDataChannel("r"); hook(r);
 		return await gathered(pc.createOffer());
 	}
-	public bool Answer(string sdp) => pc.setRemoteDescription(new RTCSessionDescriptionInit { type = RTCSdpType.answer, sdp = sdp }) == SetDescriptionResultEnum.OK;
+	public bool Answer(string sdp) => (theirs = sdp) != null && pc.setRemoteDescription(new RTCSessionDescriptionInit { type = RTCSdpType.answer, sdp = sdp }) == SetDescriptionResultEnum.OK;
 
 	// the one who joins: the answer to the room's offer (null = a bad offer)
 	public async Task<string> Join(string offer)
 	{
-		pc = make();
+		pc = await make();
 		pc.ondatachannel += ch => { if (ch.label == "u") u = ch; else r = ch; hook(ch); };
+		theirs = offer;
 		if (pc.setRemoteDescription(new RTCSessionDescriptionInit { type = RTCSdpType.offer, sdp = offer }) != SetDescriptionResultEnum.OK) return null;
 		return await gathered(pc.createAnswer());
 	}

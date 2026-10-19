@@ -11,6 +11,9 @@ namespace MG;
 // Online for the platformer (part 2 step 3). Two players, each at home: one makes a room (5-digit code), the other types the code.
 // Versus (a solo level): both play the same level at the same moment, each sees the other as a see-through square,
 // the first one through the gate wins. Each PC runs its own level and music; only where the square is goes across.
+// Co-op (a level with "coop": true, exactly two players): the song pieces and the checkpoint count for both; a square that loses its
+// lives falls down where it is until the other one touches it (back with full lives); both down = both back at the checkpoint;
+// the level ends when both are in the open gate.
 // An online match gives no letter, points or XP.
 // States: pltOn (make a room / type a code), pltJoin (the code), pltRoom (waiting / connecting / together), pltVsEnd (who won).
 public static partial class G
@@ -22,6 +25,7 @@ public static partial class G
 		public PlatLevel L; public string other = "", otherSk = ""; public bool hello;
 		public double phaseAt, pingAt, rtt = -1, sendAt, endAt;
 		public double myFin = -1, otherFin = -1; public bool iWon, otherLeft;
+		public bool coop => L?.coop == true; public bool otherGate, coopDone; public double revAt;
 		public List<Snap> snaps = new();
 		public Player ghost;
 	}
@@ -32,6 +36,7 @@ public static partial class G
 
 	static bool online => net != null && net.phase is "play" or "end";
 	static void netNote(string m) { netMsg = m; netMsgAt = performance.now(); }
+	static string netDiag;   // a small line under a failed connection (what each side found), to tell us why
 	static void netSetPhase(string p) { if (net != null) { net.phase = p; net.phaseAt = performance.now(); } }
 
 	// ---------- making / joining ----------
@@ -82,6 +87,7 @@ public static partial class G
 		var p = n.peer; _ = Task.Run(async () => { await Task.Delay(300); p?.Close(); });
 		if (n.host && n.code != "" && n.phase is "make" or "wait" or "conn") _ = roomDel(n.code);
 		if (why != null) netNote(why);
+		if (why == null || !why.StartsWith("ما قدرنا")) netDiag = null;
 		if (state.StartsWith("plt") && state != "pltList") { plStopMusic(); player = null; particles = new List<Particle>(); actx.resume(); state = "pltList"; }
 	}
 
@@ -89,11 +95,11 @@ public static partial class G
 	public static void netTick(double now)
 	{
 		var n = net; if (n == null) return;
-		if (n.peer.closed && n.phase != "make" && n.phase != "wait" && n.phase != "join") { netEnd(n.hello ? n.other + " طلع من الغرفة" : "ما قدرنا نتصل، جرب مرة ثانية"); return; }
+		if (n.peer.closed && n.phase != "make" && n.phase != "wait" && n.phase != "join") { if (!n.hello) netDiag = n.peer.Diag(); netEnd(n.hello ? n.other + " طلع من الغرفة" : "ما قدرنا نتصل، جرب مرة ثانية"); return; }
 		if (n.phase == "conn")
 		{
 			if (n.peer.open) { n.peer.Send(new JsonObject { ["k"] = "hi", ["n"] = acc?.name ?? "", ["s"] = skin, ["v"] = 1 }.ToJsonString()); netSetPhase("lobby"); if (n.host) _ = roomDel(n.code); }
-			else if (now - n.phaseAt > 20000) { netEnd("ما قدرنا نتصل، يمكن الشبكة تمنع الاتصال المباشر"); return; }
+			else if (now - n.phaseAt > 25000) { netDiag = n.peer.Diag(); netEnd("ما قدرنا نتصل، يمكن الشبكة تمنع الاتصال"); return; }
 		}
 		while (n.peer.inbox.TryDequeue(out var m))
 		{
@@ -106,6 +112,7 @@ public static partial class G
 			else if (k == "go" && !n.host) netStart(now + (j["d"]?.GetValue<double>() ?? NET_GO));
 			else if (k == "win") netOtherWon(j["t"]?.GetValue<double>() ?? 0);
 			else if (k == "bye") { netEnd(n.other + " طلع من الغرفة"); return; }
+			else if (n.phase == "play" && pl != null) netCoopMsg(k, j);
 		}
 		if (n.phase is "lobby" or "end" && n.peer.open && now - n.pingAt > 1000) { n.pingAt = now; n.peer.Send(new JsonObject { ["k"] = "ping", ["t"] = now }.ToJsonString()); }
 		// where my square is, 30 times a second
@@ -114,8 +121,16 @@ public static partial class G
 			n.sendAt = now; var p = player; var b = new byte[46]; int o = 0;
 			void F(double v) { BitConverter.TryWriteBytes(b.AsSpan(o), (float)v); o += 4; }
 			b[o++] = 1; F(pl.t); F(p.x); F(p.y); F(p.sa ?? 0); F(p.sk ?? 0); F(p.ddx); F(p.ddy); F(p.dash); F(p.fx); b[o++] = (byte)Math.Max(0, p.hp);
-			b[o++] = (byte)((state == "pltDead" ? 1 : 0) | (state == "pltPause" || state == "pltSet" ? 2 : 0) | (p.hurt > 0 && Math.Floor(p.hurt * 18) % 2 != 0 ? 4 : 0));
+			b[o++] = (byte)((state == "pltDead" ? 1 : 0) | (state == "pltPause" || state == "pltSet" ? 2 : 0) | (p.hurt > 0 && Math.Floor(p.hurt * 18) % 2 != 0 ? 4 : 0) | (pl.down ? 8 : 0) | (pl.atGate ? 16 : 0));
 			n.peer.Send(false, b.AsSpan(0, o).ToArray());
+		}
+		// co-op: out of the gate when the other one is down (nobody else can bring it back)
+		if (n.phase == "play" && n.coop && pl != null && pl.atGate && n.snaps.LastOrDefault() is { } ds && (ds.fl & 8) != 0) coopGate(false);
+		// co-op: touching the other square while it is down brings it back
+		if (n.phase == "play" && n.coop && state == "pltPlay" && pl != null && !pl.down && player != null && now - n.revAt > 500)
+		{
+			var s = n.snaps.LastOrDefault();
+			if (s != null && (s.fl & 8) != 0 && hypot(player.x - s.x, player.y - s.y) < 30) { n.revAt = now; n.peer.Send("{\"k\":\"rev\"}"); burst(s.x, s.y, CYAN, 24, 300); }
 		}
 	}
 	static void netSnap(byte[] d, double now)
@@ -124,6 +139,51 @@ public static partial class G
 		double F() { double v = BitConverter.ToSingle(d, o); o += 4; return v; }
 		var s = new Snap { at = now }; F(); s.x = F(); s.y = F(); s.sa = F(); s.sk = F(); s.ddx = F(); s.ddy = F(); s.dash = F(); s.fx = F(); s.hp = d[o++]; s.fl = d[o++];
 		net.snaps.Add(s); if (net.snaps.Count > 40) net.snaps.RemoveAt(0);
+	}
+
+	// ---------- co-op ----------
+	static void netTell(JsonObject o) => net?.peer.Send(o.ToJsonString());
+	static void netCoopMsg(string k, JsonNode j)
+	{
+		var n = net; int I(string f) => j[f]?.GetValue<int>() ?? -1;
+		if (k == "pc")
+		{
+			// the other one took a piece: it counts here too
+			int tx = I("x"), ty = I("y"); string key = tx + "," + ty;
+			if (ty >= 0 && ty < pl.h && tx >= 0 && tx < pl.w && !pl.got.Contains(key)) { char c = pl.m[ty][tx]; plTake(key, c, tx, ty, true); if (!plOpen()) pl.msg = n.other + " جاب " + pl.msg; }
+		}
+		else if (k == "cp") { pl.cx = I("x") * PT + PT / 2; pl.cy = (I("y") + 1) * PT - P_HALF; cpMsg = 1.8; }
+		else if (k == "rev" && pl.down)
+		{
+			pl.down = false; player.hp = P_HP; player.inv = 1.5; player.hurt = 0; pl.vx = pl.vy = 0;
+			burst(player.x, player.y, CYAN, 30, 380); pl.msg = n.other + " رجّعك!"; pl.msgT = 2;
+			sfx(tt => { sTone(tt, 523, 0.12, "triangle", 0.1); sTone(tt + 0.08, 784, 0.2, "triangle", 0.1); });
+		}
+		else if (k == "wipe") coopWipe();
+		else if (k == "gate") { n.otherGate = true; if (pl.atGate) coopWin(); }
+		else if (k == "ungate") n.otherGate = false;
+	}
+	// my lives ran out in co-op: down where I am (both down = both back at the checkpoint)
+	static void coopDown()
+	{
+		pl.down = true; pl.vx = pl.vy = 0; player.dash = 0;
+		var s = net.snaps.LastOrDefault();
+		if (s != null && (s.fl & 8) != 0) { netTell(new JsonObject { ["k"] = "wipe" }); coopWipe(); }
+		else { pl.msg = $"طحت! {net.other} يقدر يرجّعك إذا لمسك"; pl.msgT = 3; }
+	}
+	static void coopWipe() { pl.down = false; pl.atGate = false; net.otherGate = false; plRespawn(); pl.msg = "طحتوا الاثنين! رجعتوا لآخر حفظ"; pl.msgT = 2.4; }
+	// into the open gate (the square waits inside); out again by itself when the other one falls down, to go and bring it back
+	static void coopGate(bool inside)
+	{
+		if (inside == pl.atGate) return; pl.atGate = inside;
+		netTell(new JsonObject { ["k"] = inside ? "gate" : "ungate" });
+		if (!inside) { pl.gateBlock = true; pl.msg = $"{net.other} طاح! روح المسه عشان يرجع"; pl.msgT = 3; return; }
+		burst(player.x, player.y, CYAN, 24, 260); sfx(tt => sTone(tt, 988, 0.2, "triangle", 0.08));
+		if (net.otherGate) coopWin(); else { pl.msg = $"أستنى {net.other} يوصل البوابة"; pl.msgT = 1e9; }
+	}
+	static void coopWin()
+	{
+		var n = net; n.coopDone = true; n.myFin = pl.t; n.iWon = true; pl.msgT = 0; netFinish();
 	}
 
 	// ---------- the match ----------
@@ -136,7 +196,7 @@ public static partial class G
 	}
 	static void netStart(double goAt)
 	{
-		var n = net; n.myFin = n.otherFin = -1; n.iWon = false; n.snaps.Clear(); n.ghost = null;
+		var n = net; n.myFin = n.otherFin = -1; n.iWon = false; n.snaps.Clear(); n.ghost = null; n.otherGate = false; n.coopDone = false;
 		plStart(n.L, true); pl.introAt = goAt - PL_INTRO; netSetPhase("play");
 	}
 	static void netWin()
@@ -169,7 +229,8 @@ public static partial class G
 		var gp = n.ghost ??= new Player { r = 5 };
 		gp.x = a.x + (b.x - a.x) * f; gp.y = a.y + (b.y - a.y) * f; gp.sa = b.sa; gp.sk = b.sk; gp.ddx = b.ddx; gp.ddy = b.ddy; gp.dash = b.dash; gp.fx = b.fx; gp.hp = b.hp;
 		gp.hurt = (b.fl & 4) != 0 ? 0.03 : 0;
-		return (b.fl & 1) != 0 ? null : gp;
+		gp.dash = (b.fl & 8) != 0 ? -1 : gp.dash;   // -1 = down (drawn as such)
+		return (b.fl & 1) != 0 || (b.fl & 16) != 0 ? null : gp;   // dead, or waiting inside the gate
 	}
 
 	// ---------- menus ----------

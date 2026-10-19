@@ -17,8 +17,10 @@ public static partial class G
 	// a line on the level list: why the room ended, or why online is closed
 	static void drawNetNote(double now)
 	{
-		double a = 1 - clamp((now - netMsgAt - 3500) / 500, 0, 1); if (netMsg == null || a <= 0) return;
-		g.globalAlpha = a; txt(netMsg, W / 2, H - 80, 26, NGOLD, 700); g.globalAlpha = 1;
+		double a = 1 - clamp((now - netMsgAt - (netDiag != null ? 15000 : 3500)) / 500, 0, 1); if (netMsg == null || a <= 0) return;
+		g.globalAlpha = a; txt(netMsg, W / 2, H - 80, 26, NGOLD, 700);
+		if (netDiag != null) txt(netDiag, W / 2, H - 52, 16, "rgba(255,255,255,0.55)", 500);
+		g.globalAlpha = 1;
 	}
 
 	static void drawPltOn(double now)
@@ -31,7 +33,12 @@ public static partial class G
 			rr(W / 2 - 260, y - 38, 520, 76, 18); g.fillStyle = sel ? CARDS : CARD; g.fill(); g.strokeStyle = sel ? RED : "rgba(255,255,255,0.12)"; g.lineWidth = sel ? 3 : 1.5; g.stroke();
 			txt(ON_OPTS[i], W / 2, y, sel ? 36 : 32, sel ? "#fff" : "rgba(255,255,255,0.6)", 800);
 		}
-		txt("تلعب أنت وصاحبك نفس المرحلة بنفس الوقت، وأول واحد يوصل البوابة يفوز", W / 2, 530, 24, "rgba(255,255,255,0.65)", 500);
+		if (PLATS[plSel].coop)
+		{
+			txt("تلعبون مع بعض: أي قطعة يجيبها واحد تنحسب للاثنين، واللي يطيح يرجّعه صاحبه إذا لمسه", W / 2, 520, 23, "rgba(255,255,255,0.65)", 500);
+			txt("ولازم توصلون البوابة الاثنين عشان تخلصون المرحلة", W / 2, 556, 23, "rgba(255,255,255,0.65)", 500);
+		}
+		else txt("تلعب أنت وصاحبك نفس المرحلة بنفس الوقت، وأول واحد يوصل البوابة يفوز", W / 2, 530, 24, "rgba(255,255,255,0.65)", 500);
 		row(new[] { (BTN[kind].confirm, "اختيار"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
 	}
 
@@ -74,7 +81,7 @@ public static partial class G
 			string me = acc?.name ?? "", ot = n.hello ? n.other : n.other + dots;
 			string left = n.host ? ot : me, right = n.host ? me : ot, lsk = n.host ? n.otherSk : skin, rsk = n.host ? skin : n.otherSk;
 			lobbySq(W / 2 + 200, 330, right, rsk, now); lobbySq(W / 2 - 200, 330, left, lsk, now);
-			txt("ضد", W / 2, 330, 40, "rgba(255,255,255,0.5)", 800);
+			txt(n.coop ? "مع" : "ضد", W / 2, 330, 40, "rgba(255,255,255,0.5)", 800);
 			if (n.rtt >= 0) { g.font = $"18px {TFONT}"; g.fillStyle = "rgba(255,255,255,0.4)"; g.textAlign = "center"; g.direction = "ltr"; g.fillText($"{Math.Round(n.rtt)} ms", W / 2, 520); g.direction = "rtl"; }
 			if (n.host && n.hello) row(new[] { (BTN[kind].confirm, "ابدأ") }, W / 2, 590, 38, "#fff", 30);
 			else if (!n.host) txt($"أستنى {n.other} يبدأ" + dots, W / 2, 590, 28, "rgba(255,255,255,0.75)", 700);
@@ -94,8 +101,18 @@ public static partial class G
 	static void drawNetGhost(double now)
 	{
 		var gp = netGhost(now); if (gp == null) return;
+		if (gp.dash == -1) { drawDown(gp.x, gp.y, now, true); return; }
 		drawPlayer(gp, net.otherSk ?? "", 0.55);
 		g.globalAlpha = 0.7; txt(net.other, gp.x, gp.y - 30, 18, "#fff", 700); g.globalAlpha = 1;
+	}
+
+	// a square out of lives in co-op: an empty frame that beats, until the other one touches it
+	static void drawDown(double x, double y, double now, bool other)
+	{
+		double k = 0.5 + 0.5 * Math.Sin(now / 180);
+		g.save(); g.translate(x, y); g.globalAlpha = other ? 0.75 : 0.6; g.strokeStyle = CYAN; g.lineWidth = 2; g.shadowColor = CYAN; g.shadowBlur = 8 + 8 * k;
+		g.strokeRect(-9, -9, 18, 18); g.beginPath(); g.arc(0, 0, 18 + 6 * k, 0, TAU); g.stroke(); g.shadowBlur = 0; g.restore(); g.globalAlpha = 1;
+		if (other) { g.globalAlpha = 0.85; txt("المسه عشان يرجع", x, y - 34, 18, CYAN, 700); g.globalAlpha = 1; }
 	}
 
 	static void drawVsEnd(double now)
@@ -103,10 +120,11 @@ public static partial class G
 		var n = net; if (n == null) return;
 		overlay(0.72); double ts = now - n.endAt, e = clamp(ts / 220, 0, 1), sc = 1 + 0.6 * JS.pow(1 - e, 3);
 		g.save(); g.translate(W / 2, H / 2 - 120); g.scale(sc, sc); g.globalAlpha = e;
-		if (n.iWon) txt("فزت!", 0, 0, 100, NGOLD); else txt($"{n.other} فاز", 0, 0, 80, PINK);
+		if (n.coopDone) txt("خلّصتوا المرحلة!", 0, 0, 80, NGOLD); else if (n.iWon) txt("فزت!", 0, 0, 100, NGOLD); else txt($"{n.other} فاز", 0, 0, 80, PINK);
 		g.restore(); g.globalAlpha = 1;
-		if (n.myFin >= 0) txt("وقتك: " + secs(n.myFin), W / 2, H / 2 + 10, 30, "#e9e6f5", 600);
-		if (n.otherFin >= 0) txt($"وقت {n.other}: " + secs(n.otherFin), W / 2, H / 2 + (n.myFin >= 0 ? 55 : 10), 30, "#e9e6f5", 600);
+		if (n.coopDone) txt("وقتكم: " + secs(n.myFin), W / 2, H / 2 + 10, 30, "#e9e6f5", 600);
+		else if (n.myFin >= 0) txt("وقتك: " + secs(n.myFin), W / 2, H / 2 + 10, 30, "#e9e6f5", 600);
+		if (n.otherFin >= 0 && !n.coopDone) txt($"وقت {n.other}: " + secs(n.otherFin), W / 2, H / 2 + (n.myFin >= 0 ? 55 : 10), 30, "#e9e6f5", 600);
 		if (ts > 800)
 		{
 			if (n.host) row(new[] { (BTN[kind].confirm, "العب مرة ثانية") }, W / 2, H / 2 + 135);
