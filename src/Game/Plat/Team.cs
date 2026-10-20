@@ -177,6 +177,7 @@ public static partial class G
 		var P = tm.P; tm.m = P.map.Select(r => r.ToCharArray()).ToArray(); tm.h = tm.m.Length; tm.w = tm.m[0].Length; tm.gen++;
 		tm.th.Clear(); tm.hail.Clear(); tm.got.Clear(); tm.taken.Clear(); tm.steps.Clear();
 		tm.flips = new int[TM_N]; tm.chaseX = -999; tm.beat0 = tm.L != null && tm.P.beats != null ? tmBeat() : 0; tm.swapA = tm.swapB = -1; tm.snapAt = -1; tm.pageAt = 0;
+		tmSeen = null;
 		if (tmMe >= 0 && net != null) net.hist.Clear();   // where mine was on the page before: the chain must not measure from there (it broke right at the start)
 		var byId = new Dictionary<string, TS>();
 		foreach (var d in P.things)
@@ -239,7 +240,11 @@ public static partial class G
 	static bool tmNeed(TThing d) => tmAll(d.need) || tmAll(d.alt);
 	public static double tmRx(double x) => 2 * tm.P.mirror - x;   // where a reflection is
 	static bool tmStands(TBody b, double x, TS s) => !b.down && !b.gate && b.ground && Math.Abs(b.y + P_HALF - s.Y) < 3 && x > s.X - 4 && x < s.X + s.W + 4;
-	static int tmOnIt(TS s) { int n = 0; foreach (var b in tm.b) if (!b.down && !b.gate && b.onT == s) n++; return n; }
+	// who stands where, for what the three drive by standing (the maker online: the others as their newest message says, not the
+	// picture drawn 100 ms back, or their presses counted late on every PC and gold met the saw)
+	static TBody[] tmSeen;
+	static TBody[] tmDec => tmSeen ?? tm.b;
+	static int tmOnIt(TS s) { int n = 0; foreach (var b in tmDec) if (!b.down && !b.gate && b.onT == s) n++; return n; }
 	static double tmSawPos(PlatSaw s, out double y)
 	{
 		double b = tmBeat() / s.beats + s.ph, f = b - Math.Floor(b), k = f < 0.5 ? f * 2 : 2 - f * 2; k = k * k * (3 - 2 * k);
@@ -269,14 +274,15 @@ public static partial class G
 		if (tm.restartAt >= 0) { if (tm.t >= tm.restartAt) tmRestart(); return; }
 		if (tm.doneAt >= 0) { if (tm.t - tm.doneAt >= TM_SWAP && tm.page + 1 < tm.L.pages.Count) tmStart(tm.L, tm.page + 1, true); return; }
 		// buttons and stones first (from where everyone stood last step)
+		tmSeen = tmMe == 0 ? tnSeenAll() : null;
 		foreach (var s in tm.th)
 		{
 			if (s.k is "stone" or "btn" or "cbtn" && tnWorld(s, out int wf, out _, out _)) { s.on = (wf & 1) != 0; continue; }   // online: as the maker sees it
-			if (s.k == "stone") { double sx0 = s.d.x * PT; s.on = s.of != null && !s.of.melt && tm.b.Any(b => !b.down && b.onT == s.of && Math.Abs(b.x - sx0) < 26); }
-			else if (s.k == "btn" && s.d.a == 1) s.on = tm.b.Any(b => tmStands(b, tmRx(b.x), s));
-			else if (s.k == "btn") s.on = tm.b.Any(b => !b.down && b.ground && Math.Abs(b.y + P_HALF - s.Y) < 3 && b.x > s.X - 4 && b.x < s.X + s.W + 4);
+			if (s.k == "stone") { double sx0 = s.d.x * PT; s.on = s.of != null && !s.of.melt && tmDec.Any(b => !b.down && b.onT == s.of && Math.Abs(b.x - sx0) < 26); }
+			else if (s.k == "btn" && s.d.a == 1) s.on = tmDec.Any(b => tmStands(b, tmRx(b.x), s));
+			else if (s.k == "btn") s.on = tmDec.Any(b => !b.down && b.ground && Math.Abs(b.y + P_HALF - s.Y) < 3 && b.x > s.X - 4 && b.x < s.X + s.W + 4);
 			else if (s.k == "cam") { var who = tm.b[(int)s.d.a]; s.on = tmStands(who, who.x, s); if (!s.on) s.n = 1; }
-			else if (s.k == "cbtn") { var who = tm.b[(int)s.d.a]; s.on = !who.down && !who.gate && who.ground && Math.Abs(who.y + P_HALF - s.Y) < 3 && who.x > s.X - 4 && who.x < s.X + s.W + 4; }
+			else if (s.k == "cbtn") { var who = tmDec[(int)s.d.a]; s.on = !who.down && !who.gate && who.ground && Math.Abs(who.y + P_HALF - s.Y) < 3 && who.x > s.X - 4 && who.x < s.X + s.W + 4; }
 		}
 		// then the things move
 		foreach (var s in tm.th)

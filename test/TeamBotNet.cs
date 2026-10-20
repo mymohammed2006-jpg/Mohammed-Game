@@ -79,8 +79,8 @@ public class TeamBotNet
 			else if (step == 12) { Press("Enter"); step = 13; stepAt = now; }
 			else if (step == 3 && ph == "lobby" && G.net.hi.All(x => x) && now - G.net.phaseAt > 1500) { Press("Enter"); step = 4; stepAt = now; }
 			// leaving from the pause menu: Escape, down twice, Enter (اطلع من الغرفة)
-			else if (LEAVE > 0 && leftAt < 0 && G.tm != null && G.state == "tmPlay" && SongClock() >= LEAVE) { leftAt = now; pauseQ = new() { "Escape", "ArrowDown", "ArrowDown", "Enter" }; Note($"LEAVE from the pause menu"); }
-			else if (pauseQ.Count > 0) { Press(pauseQ[0]); pauseQ.RemoveAt(0); stepAt = now; }
+			else if (LEAVE > 0 && leftAt < 0 && G.tm != null && G.state == "tmPlay" && SongClock() >= LEAVE) { leftAt = now; Press("Escape"); stepAt = now; Note($"LEAVE from the pause menu"); }
+			else if (leftAt > 0 && G.state == "tmPause") { Press(PauseSel() == 2 ? "Enter" : "ArrowDown"); stepAt = now; }
 		}
 		if (KILL > 0 && G.tm != null && SongClock() >= KILL) { Note("KILL: this game closes without a word"); Save(); System.Environment.Exit(0); }
 		if (G.tm?.won == true && endAt < 0) endAt = now;
@@ -103,6 +103,7 @@ public class TeamBotNet
 		if (draw) { G.gfx.EndFrame(); shot = true; }
 		if (done) { Note($"end: state={G.state} msg={endMsg}"); Save(); host.GetTree().Quit(); }
 	}
+	static int PauseSel() => (int)(typeof(G).GetField("pauseSel", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)?.GetValue(null) ?? 0);
 	double SongClock() => G.tm?.t ?? 0;
 	readonly StringBuilder notes = new();
 	void Note(string s) => notes.Append($"[{str(Math.Round(SongClock(), 2))} p{G.tm?.page}] {s}\n");

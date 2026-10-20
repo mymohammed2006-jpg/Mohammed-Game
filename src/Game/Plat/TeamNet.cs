@@ -192,6 +192,19 @@ public static partial class G
 		if (car && b.carry == null) b.carry = tm.th.FirstOrDefault(q => q.k == "pic" && (int)q.d.a == b.i && !q.on);
 		else if (!car && b.carry != null) { if (!b.carry.on) { b.carry.X = b.carry.d.x * PT; b.carry.Y = b.carry.d.y * PT; } b.carry = null; }
 	}
+	// the maker: each one as their newest message has it (for who stands on what; mine as it is)
+	static TBody[] tnSeenAll()
+	{
+		var n = net; var r = new TBody[TM_N];
+		for (int i = 0; i < TM_N; i++)
+		{
+			var b = tm.b[i]; r[i] = b; if (n == null || i == tmMe) continue;
+			var c = n.ts[i].LastOrDefault(tnSameGen); if (c == null) continue;
+			var on = tnThing(c.on); bool dn = (c.fl & 1) != 0, gt = (c.fl & 2) != 0;
+			r[i] = new TBody { i = i, x = on != null ? on.X + c.rx : c.x, y = on != null ? on.Y + c.ry : c.y, ground = (c.fl & 4) != 0, down = dn, gate = gt, onT = on != null && on.solid ? on : null, hp = c.hp };
+		}
+		return r;
+	}
 	// where a square is for the chain check: mine as it was 100 ms ago, like the others are seen here
 	static (double, double) tnPos(TBody b)
 	{

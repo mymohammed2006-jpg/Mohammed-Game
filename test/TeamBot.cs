@@ -26,6 +26,9 @@ public class TeamBot
 	string id, outDir, cfg; Main host; int i, fps; double T; bool done, shot, nodraw = Env("NODRAW") == "1";
 	public Crew crew; StringBuilder log = new(); BinaryWriter wav = Env("WAV") != null ? new BinaryWriter(new MemoryStream()) : null;
 	double from = double.TryParse(Env("FROM"), out var fr) ? fr : 0; string view = Env("VIEW");
+	// env CLIPS="a-b,c-d": pictures only for those frames (for a short video of the best moments of a long run)
+	readonly (int a, int b)[] clips = Env("CLIPS")?.Split(',').Select(c => (int.Parse(c.Split('-')[0]), int.Parse(c.Split('-')[1]))).ToArray();
+	bool Pic(int f) => clips == null || clips.Any(c => f >= c.a && f <= c.b);
 	static string Env(string k) => System.Environment.GetEnvironmentVariable(k);
 
 	public void Start(Main h)
@@ -75,10 +78,11 @@ public class TeamBot
 		while (true)
 		{
 			i++; double t = (double)i / fps;
-			if (t > T || crew.over) { done = true; if (!nodraw) G.gfx.EndFrame(); return; }
+			if (t > T || crew.over) { done = true; return; }
 			var ins = crew.Step(1.0 / fps);
 			AudioCtx.manualTime += 1.0 / fps; performance.manual += 1000.0 / fps;
-			if (!nodraw) G.gfx.BeginFrame();
+			bool pic = !nodraw && Pic(i) && t >= from;
+			if (pic) G.gfx.BeginFrame();
 			G.tmStep(1.0 / fps, ins);
 			crew.After(1.0 / fps);
 			if (wav != null) { int n = AudioCtx.SR / fps; var l = new float[n]; var r = new float[n]; AudioCtx.RenderAt(l, r, n, AudioCtx.manualTime.Value); for (int j = 0; j < n; j++) { wav.Write((short)(Math.Clamp(l[j], -1, 1) * 32767)); wav.Write((short)(Math.Clamp(r[j], -1, 1) * 32767)); } }
@@ -86,7 +90,7 @@ public class TeamBot
 			log.Append(str(Math.Round(t, 3))).Append(" p").Append(G.tm.page).Append(" g").Append(G.tm.gen).Append(" mt=").Append(str(Math.Round(G.tm.t, 2))).Append(" bt=").Append(str(Math.Round(G.tmBeatPub(), 2)));
 			foreach (var b in G.tm.b) log.Append(" | ").Append(str(Math.Round(b.x))).Append(',').Append(str(Math.Round(b.y))).Append(b.down ? "d" : "").Append(b.gate ? "g" : "");
 			log.Append(" | ").Append(crew.Mode).Append(" ").Append(str(Math.Round(crew.Tau, 3))).Append('\n');
-			if (!nodraw && t >= from)
+			if (pic)
 			{
 				var g = G.g; g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#000"; g.fillRect(0, 0, 1280, 720);
 				double sx = (random() * 2 - 1) * G.shake, sy = (random() * 2 - 1) * G.shake; g.setTransform(1, 0, 0, 1, sx, sy);
@@ -100,8 +104,7 @@ public class TeamBot
 				}
 				G.gfx.EndFrame(); shot = true; return;
 			}
-			if (!nodraw) G.gfx.EndFrame();
-			if (nodraw && i % 600 == 0) return;
+			if (!pic && i % 600 == 0) return;
 		}
 	}
 	void Finish()
@@ -141,10 +144,47 @@ public class Crew
 	double tau, startBeat, dB; int frames;   // dB: this try's beats minus the clean run's (a whole number of the room's repeats)
 	double[][] jit = new double[3][]; string[] lastK = { "", "", "" };
 	Mistake mis; double pausedAt = -1, regroupTill = -1, resumeBeat = -1; int helper = -1, helpOf = -1; double helpFrom = -1, touch;
-	double spot, pausedRb; bool said;
+	double spot, pausedRb, awayTill = -1; readonly Dictionary<int, string> firstSnap = new();
+	static string Diff(string a, string b) { var x = a.Split(';'); var y = b.Split(';'); var o = new List<string>(); for (int i = 0; i < Math.Max(x.Length, y.Length); i++) { string p = i < x.Length ? x[i] : "-", q = i < y.Length ? y[i] : "-"; if (p != q) o.Add(p + " -> " + q); } return string.Join("  ", o.Take(4)); } bool said;
 	double[] downAt = { -1, -1, -1 }, touchT = new double[3]; string[] cause = new string[3];
 	double buildAt; bool[] moved = new bool[3]; double stuckT; int stuckRoom = -1; double lastProg;
 	int hits0;
+	bool CHAOS = Env("CHAOS") == "1"; readonly List<Mistake> chaos = new(); bool lateHelp, leaveTouch; readonly Random crng = new(5);
+	// one silly input for a while: spam jump or dash, run the wrong way, stand still, mash random buttons, jump on a teammate's
+	// head, dash into the wall
+	G.TIn Chaos(int k, Mistake c, double t)
+	{
+		var tm = G.tm; var b = tm.b[k]; var inp = new G.TIn(); moved[k] = true; bool tick = (int)(t * 12) % 2 == 0;
+		if (c.kind == "gatedie" && !tm.b.Any(q => q.gate)) return Plain(k, t);   // waits for someone in the gate
+		if (c.kind == "carrydie" && b.carry == null) return Plain(k, t);           // waits until it carries its photo piece
+		if (!c.hit) { c.hit = true; Ev($"CHAOS {c.kind} by p{(c.kind == "pile" ? "all" : k.ToString())}"); Say(c.kind == "pile" ? "تجربة غبية: الثلاثة يتكدسون بمكان واحد" : $"تجربة غبية: {NM[k]} " + c.kind switch { "spamJ" => "ينط بدون توقف", "spamX" => "يندفع بدون توقف", "back" => "يمشي بالعكس", "still" => "يوقف مكانه", "mash" => "يضغط أي شي", "head" => "ينط على راس صاحبه", "downdash" => "يندفع لتحت وبالزوايا", "hug" => "يلصق في الجدار وينط", "headsit" => "يقعد على راس صاحبه", "idle" => "يوقف ١٠ ثواني", "gatedie" => "يموت وصاحبه في البوابة", "carrydie" => "يموت وهو شايل القطعة", _ => "يندفع في الجدار" }); }
+		switch (c.kind)
+		{
+			case "spamJ": inp.jump = tick; inp.jumpHeld = tick; break;
+			case "spamX": inp.dash = tick; inp.x = b.fx; break;
+			case "back": inp.x = -b.fx; inp.jump = b.ground && Math.Abs(b.vx) < 20 && tick; inp.jumpHeld = !b.ground; break;
+			case "still": break;
+			case "mash": inp.x = crng.Next(3) - 1; inp.y = crng.Next(3) - 1; inp.jump = crng.Next(4) == 0; inp.jumpHeld = crng.Next(2) == 0; inp.dash = crng.Next(6) == 0; break;
+			case "head":
+				{
+					var o = tm.b.Where(q => q != b && !q.down && !q.gate).OrderBy(q => hypot(q.x - b.x, q.y - b.y)).FirstOrDefault(); if (o == null) break;
+					double dx = o.x - b.x; inp.x = Math.Abs(dx) < 3 ? 0 : Math.Clamp(dx / 25, -1, 1); inp.jump = b.ground && Math.Abs(dx) < 50 && tick; inp.jumpHeld = !b.ground; break;
+				}
+			case "downdash": inp.x = crng.Next(3) - 1; inp.y = 1; inp.dash = tick; inp.jump = b.ground && crng.Next(3) == 0; inp.jumpHeld = true; break;
+			case "hug": { int tx = (int)Math.Floor(b.x / G.PT), ty = (int)Math.Floor(b.y / G.PT), dl = 0, dr = 0; while (tx - dl > 0 && tm.m[ty][tx - dl] != '#') dl++; while (tx + dr < tm.w - 1 && tm.m[ty][tx + dr] != '#') dr++; inp.x = dl < dr ? -1 : 1; inp.y = -1; inp.jump = b.ground && tick; inp.jumpHeld = true; break; }
+			case "headsit":
+				{
+					var o = tm.b.Where(q => q != b && !q.down && !q.gate).OrderBy(q => hypot(q.x - b.x, q.y - b.y)).FirstOrDefault(); if (o == null || b.onB != null) break;
+					double dx = o.x - b.x; inp.x = Math.Abs(dx) < 3 ? 0 : Math.Clamp(dx / 25, -1, 1); inp.jump = b.ground && Math.Abs(dx) < 40 && tick; inp.jumpHeld = !b.ground; break;
+				}
+			case "idle": break;
+			case "pile": { var a = tm.b[c.who]; double dx = a.x - b.x; inp.x = k == c.who || Math.Abs(dx) < 3 ? 0 : Math.Clamp(dx / 25, -1, 1); inp.jump = b.ground && Math.Abs(dx) < 30 && Math.Abs(a.y - b.y) > 20 && tick; inp.jumpHeld = !b.ground; break; }
+			case "gatedie": case "carrydie": { var r = Danger(k, t); if (b.down) c.done = true; return r; }
+			default: inp.x = c.at % 2 < 1 ? 1 : -1; inp.dash = tick; inp.y = c.at % 1 < 0.5 ? -1 : 0; break;
+		}
+		lastK[k] = "?";
+		return inp;
+	}
 	class Mistake { public int who; public double at, len; public string kind; public bool done, hit; public double shift; }
 
 	public Crew(TeamLevel L, string cfg, string outDir, int me)
@@ -163,7 +203,7 @@ public class Crew
 			else if (f[0] == "start") page0 = int.Parse(f[1]);
 			else if (f[0] == "ref" && refOut == null && File.Exists(Path.Combine(dir, f[1]))) LoadRef(Path.Combine(dir, f[1]));
 		}
-		if (refOut != null) { JIT = 0; MIS = 0; ALL3 = 0; }
+		if (refOut != null) { JIT = 0; MIS = 0; ALL3 = 0; CHAOS = false; }
 	}
 	static string Env(string k) => System.Environment.GetEnvironmentVariable(k);
 	static double D(string k, double d) => double.TryParse(Env(k), out var v) ? v : d;
@@ -199,7 +239,8 @@ public class Crew
 		File.WriteAllText(Path.Combine(outDir, "bugs.log"), bugs.ToString());
 		File.WriteAllText(Path.Combine(outDir, "summary.txt"), $"won={won} deaths={nDeaths} revives={nRevives} restarts={nRestarts} mistakes={nMistakes} forced={nForced} bugs={nBugs} songT={str(Math.Round(tm.t, 1))}\n");
 	}
-	void Ev(string s) => ev.Append('[').Append(str(Math.Round(G.tm?.t ?? 0, 2))).Append(" p").Append(G.tm?.page).Append("] ").Append(s).Append('\n');
+	public int frame;   // steps since the run began (the video's frame)
+	void Ev(string s) => ev.Append('@').Append(frame).Append(' ').Append('[').Append(str(Math.Round(G.tm?.t ?? 0, 2))).Append(" p").Append(G.tm?.page).Append("] ").Append(s).Append('\n');
 	void Bug(string key, string s)
 	{
 		if (evSeen.Add(key + "@" + gen)) Ev("BUG " + s); if (!bugSeen.Add(key)) return; nBugs++;
@@ -210,7 +251,7 @@ public class Crew
 	// ---------- before each step: everyone's buttons ----------
 	public G.TIn[] Step(double dt)
 	{
-		var tm = G.tm; var ins = new G.TIn[3];
+		var tm = G.tm; var ins = new G.TIn[3]; frame++;
 		if (tm.gen != gen) NewTry();
 		double bt = G.tmBeatPub();
 		if (tm.won || tm.doneAt >= 0 || tm.restartAt >= 0) { Mode = tm.won ? "won" : tm.doneAt >= 0 ? "next" : "restart"; return ins; }
@@ -229,13 +270,19 @@ public class Crew
 		var tm = G.tm; bool restart = tm.restarts != lastRestarts && gen >= 0; lastRestarts = tm.restarts;
 		gen = tm.gen; room = tm.page; tries[room] = tries.GetValueOrDefault(room) + 1; nRooms++;
 		helper = helpOf = -1; pausedAt = regroupTill = resumeBeat = -1; touch = 0; for (int k = 0; k < 3; k++) { downAt[k] = -1; lastK[k] = ""; moved[k] = false; }
-		buildAt = tm.t; stuckT = 0; lastProg = tm.t;
+		buildAt = tm.t; stuckT = 0; lastProg = tm.t; for (int k = 0; k < 3; k++) dangerFrom[k] = -1;
+		{
+			var snap = string.Join(";", tm.th.Select(q => $"{q.k}:{Math.Round(q.X)},{Math.Round(q.Y)},{q.solid},{q.on},{q.melt},{q.gone},{Math.Round(q.s, 2)}")) + $"|got={tm.got.Count}|st={string.Join("", tm.stemOn.Select(x => x ? 1 : 0))}|fl={string.Join(",", tm.flips)}";
+			if (!firstSnap.TryGetValue(room, out var f0)) firstSnap[room] = snap;
+			else if (f0 != snap && !tm.th.Any(q => q.k == "mover")) Bug("reset-" + room, $"room {room} after a restart is not as it was the first time: {Diff(f0, snap)}");
+		}
 		double bt = G.tmBeatPub();
 		if (refOut != null) { if (!refBeat.ContainsKey(room)) { refBeat[room] = bt; refPos[room] = new(); refB[room] = new(); } }
 		// the beat to start on: the clean run's place in the room's beats (P beats), now or soon (a little late is fine)
 		int P = per.GetValueOrDefault(room, 1); tau = 0;
 		// still failing after the clean tries: wait for the very same place in the song as the clean run (a whole loop)
-		if (tries[room] > MISN + 3 && !tm.P.cont && tm.P.beats != null) P = tm.P.beats.Length - 1; frames = 0; dB = 0; startBeat = bt; Mode = "";
+		if (tries[room] > MISN + 3 && tries[room] % 2 == 0 && !tm.P.cont && tm.P.beats != null) P = tm.P.beats.Length - 1;   // (every other try: the same beat to the frame can still fail the same way)
+		frames = 0; dB = 0; startBeat = bt; Mode = "";
 		if (refBeat.TryGetValue(room, out var rb) && refOut == null)
 		{
 			double k = Math.Floor((bt - rb) / P), s0 = rb + k * P;
@@ -248,7 +295,16 @@ public class Crew
 		int tr = tries[room]; double js = tr <= MISN + 1 ? 1 : tr <= MISN + 3 ? 0.4 : 0;
 		for (int k = 0; k < 3; k++) { int n = rr?[k]?.Length ?? 0; jit[k] = new double[n]; for (int j = 0; j < n; j++) jit[k][j] = Math.Clamp(Gauss(rng) * JIT * js, -2.5 * JIT, 2.5 * JIT); }
 		// a mistake on purpose (the first tries of each room), sometimes all three
-		mis = null;
+		mis = null; chaos.Clear(); lateHelp = rng.NextDouble() < 0.5; leaveTouch = rng.NextDouble() < 0.5;
+		// chaos (env CHAOS=1): silly things a person might do, several times a try, on the tries with mistakes
+		if (CHAOS && tries[room] <= MISN + 1 && rr != null)
+		{
+			string[] ck = { "spamJ", "spamX", "back", "still", "mash", "head", "wall", "downdash", "hug", "headsit", "idle", "pile", "gatedie", "carrydie" };
+			int n = 2 + rng.Next(4);
+			for (int c = 0; c < n; c++) chaos.Add(new Mistake { who = rng.Next(3), at = rng.NextDouble() * Math.Max(1, refPos.TryGetValue(room, out var rpc) ? rpc.Count / 60.0 : 10), len = 0.4 + rng.NextDouble() * 2, kind = ck[rng.Next(ck.Length)] });
+			foreach (var c in chaos) { if (c.kind == "idle") c.len = 10 + rng.NextDouble() * 2; if (c.kind == "pile") c.len = 2.5; if (c.kind is "gatedie" or "carrydie") c.len = 6; }
+			Ev("chaos: " + string.Join(", ", chaos.Select(c => $"{c.kind} p{c.who} at {str(Math.Round(c.at, 1))}s")));
+		}
 		double dur = refPos.TryGetValue(room, out var rp) && rp.Count > 0 ? rp.Count / 60.0 : rr?.Max(x => x?.Length > 0 ? x[^1].t : 0) ?? 10;
 		if (tries[room] <= MISN && rng.NextDouble() < MIS && rr != null)
 		{
@@ -282,6 +338,7 @@ public class Crew
 			if (mis != null && mis.who == k && mis.kind is "late" or "early" && t >= mis.at) sh = mis.kind == "late" ? mis.shift : -mis.shift;
 			for (int j = 0; j < rr.Length; j++) { double at = rr[j].t + jit[k][j] + (rr[j].t >= (mis?.at ?? 1e9) ? sh : 0); if (at <= t + 1e-9) kk = rr[j].k; else if (rr[j].t > t + 1) break; }
 		}
+		foreach (var c in chaos) if ((c.who == k || c.kind == "pile") && t >= c.at && t < c.at + c.len && !c.done) return Chaos(k, c, t);
 		if (mis != null && (mis.who == k || mis.kind == "all3") && t >= mis.at && !mis.done)
 		{
 			if (!mis.hit) { mis.hit = true; nMistakes++; Say(mis.kind switch { "all3" => "غلطة متعمدة: الثلاثة يرمون نفسهم", "freeze" => $"غلطة متعمدة: {NM[mis.who]} يوقف فجأة", "late" => $"غلطة متعمدة: {NM[mis.who]} يتأخر", "early" => $"غلطة متعمدة: {NM[mis.who]} يستعجل", _ => $"غلطة متعمدة: {NM[mis.who]} يمشي للخطر" }); Ev($"MISTAKE {mis.kind} by p{(mis.kind == "all3" ? "all" : mis.who.ToString())}"); }
@@ -289,6 +346,12 @@ public class Crew
 			if (mis.kind is "danger" or "all3") return Danger(k, t);
 		}
 		return Keys(k, kk, b);
+	}
+	G.TIn Plain(int k, double t)
+	{
+		var rr = routes.GetValueOrDefault(room)?[k]; string kk = "";
+		if (rr != null) for (int j = 0; j < rr.Length; j++) { if (rr[j].t + jit[k][j] <= t + 1e-9) kk = rr[j].k; else if (rr[j].t > t + 1) break; }
+		return Keys(k, kk, G.tm.b[k]);
 	}
 	G.TIn Keys(int k, string kk, G.TBody b)
 	{
@@ -319,7 +382,7 @@ public class Crew
 		double xa = Math.Min(sw.x0, sw.x1) * G.PT + G.PT / 2, xb = Math.Max(sw.x0, sw.x1) * G.PT + G.PT / 2, ya = Math.Min(sw.y0, sw.y1) * G.PT + G.PT / 2, yb = Math.Max(sw.y0, sw.y1) * G.PT + G.PT / 2;
 		return x > xa - sw.r - m && x < xb + sw.r + m && y > ya - sw.r - HALF - 4 && y < yb + sw.r + HALF + 4;
 	}
-	double?[] tgt = new double?[3]; int[] tgtFor = { -1, -1, -1 };
+	double[] dangerFrom = { -1, -1, -1 }; double?[] tgt = new double?[3]; int[] tgtFor = { -1, -1, -1 };
 	G.TIn Danger(int k, double t)
 	{
 		var tm = G.tm; var b = tm.b[k]; double feet = b.y + HALF;
@@ -339,7 +402,8 @@ public class Crew
 			Ev(target == null ? $"p{k}: no danger it can walk to, it freezes instead" : $"p{k} walks into danger at x={str(Math.Round(target.Value))}");
 		}
 		var inp = new G.TIn(); moved[k] = true; var tg = tgt[k];
-		if (tg == null || t > mis.at + 4) { if (t > mis.at + 1.5) mis.done = true; return inp; }
+		double since = mis != null && !mis.done ? mis.at : t - 1; if (dangerFrom[k] < 0 || tgtFor[k] != gen) dangerFrom[k] = t;
+		if (tg == null || t > dangerFrom[k] + 4) { if (mis != null && t > mis.at + 1.5) mis.done = true; return inp; }
 		double dx = tg.Value - b.x; inp.x = Math.Abs(dx) < 3 ? 0 : Math.Clamp(dx / 25, -1, 1);
 		return inp;
 	}
@@ -369,7 +433,14 @@ public class Crew
 				if (helper >= 0) Ev($"p{helper} goes to bring p{d} back ({str(Math.Round(bd))} px)");
 				else if (!said) { said = true; Say($"ما فيه طريق آمن لـ{NM[d]}: ينتظرون ٦ ثواني"); Ev($"no safe way to p{d}: the others wait"); }
 			}
-			if (helper >= 0 && tm.t >= helpFrom && !tm.b[helper].down) ins[helper] = Walk(helper, spot, tm.b[helper].y, true);
+			if (CHAOS && lateHelp && helper >= 0 && helpFrom < db.downAt + 3.6) { helpFrom = db.downAt + 3.6; Ev($"chaos: p{helper} waits to bring p{d} back near the end of the 6 s"); }
+			if (helper >= 0 && tm.t >= helpFrom && !tm.b[helper].down)
+			{
+				ins[helper] = Walk(helper, spot, tm.b[helper].y, true);
+				// chaos: let go after 0.9 s of touching (not enough), step away, then come back
+				if (CHAOS && leaveTouch && touchT[d] > 0.9) { leaveTouch = false; awayTill = tm.t + 0.5; Ev($"chaos: p{helper} lets go of p{d} after 0.9 s"); }
+				if (tm.t < awayTill) ins[helper] = new G.TIn { x = tm.b[helper].x < db.x ? -1 : 1 };
+			}
 			return ins;
 		}
 		// everyone is up again
