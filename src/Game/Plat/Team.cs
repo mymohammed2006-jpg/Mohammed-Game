@@ -162,7 +162,7 @@ public static partial class G
 	{
 		var old = tm; var P = L.pages[page];
 		tm = new TeamRun { L = L, page = page, P = P, fromClouds = fromClouds, coverTheme = old?.P.theme ?? 0 };
-		if (old != null && old.L == L) { tm.falls = old.falls; tm.playT = old.playT; tm.names = old.names; tm.gen = old.gen; tm.tp = old.tp; }
+		if (old != null && old.L == L) { tm.falls = old.falls; tm.playT = old.playT; tm.names = old.names; tm.gen = old.gen; tm.tp = old.tp; tm.restarts = old.restarts; tm.hits = old.hits; }   // the whole level's, for the win screen
 		if (P.cont && old != null && old.L == L)
 		{
 			tm.stemOn = old.stemOn; tm.voices = old.voices; tm.t = old.t; tm.beatN = old.beatN; tm.restarts = old.restarts; tm.hits = old.hits; tm.startWhen = old.startWhen; tm.n = old.n;
@@ -354,7 +354,7 @@ public static partial class G
 		if (tm.P.tether > 0 && tm.snapAt < 0 && tmBoss)
 			for (int i = 0; i < TM_N; i++) for (int j = i + 1; j < TM_N; j++)
 			{
-				var p = tm.b[i]; var q = tm.b[j]; if (p.gate || q.gate || (p.down && q.down)) continue;
+				var p = tm.b[i]; var q = tm.b[j]; if (p.gate || q.gate || p.down || q.down) continue;   // the chain holds only the living (one lying behind broke it on the others)
 				var (px, py) = tnPos(p); var (qx, qy) = tnPos(q);
 				if (hypot(px - qx, py - qy) > tm.P.tether && tm.snapAt < 0) { tmTether(i * 3 + j); tnTell("tb", new() { ["p"] = i * 3 + j }); }
 			}
@@ -388,7 +388,7 @@ public static partial class G
 			var who = tm.b[(int)s.d.a]; if (who.carry == null || who.down || !tmMine(who)) continue;
 			if (who.x + P_HALF > s.X && who.x - P_HALF < s.X + s.W && who.y + P_HALF > s.Y && who.y - P_HALF < s.Y + s.H) { tmPlace(s); tnTell("sl", new() { ["i"] = who.i }); }
 		}
-		if (tm.th.Any(s => s.k == "slot") && tm.th.Where(s => s.k == "slot").All(s => s.on))
+		if (tm.th.Any(s => s.k == "slot") && tm.th.Where(s => s.k == "slot").All(s => s.on) && tm.b.All(b => !b.down))   // all three alive to win
 		{
 			tm.doneAt = tm.t; tm.won = true; tm.wonAt = tm.t; flash = 0.9; shake = 10; burst(W / 2, H / 2, GOLD, 90, 640);
 			sfx(tt => { sNoise(tt, 0.3, "highpass", 3000, 0.2); sTone(tt + 0.05, 523, 0.3, "triangle", 0.12); sTone(tt + 0.17, 659, 0.3, "triangle", 0.12); sTone(tt + 0.29, 784, 0.6, "triangle", 0.12); });
