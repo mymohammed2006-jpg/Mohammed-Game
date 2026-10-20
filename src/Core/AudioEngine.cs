@@ -278,6 +278,8 @@ public static class AudioCtx
 	public static void suspend() { running = false; }
 
 	public static Voice Add(Voice v) { lock (L) voices.Add(v); return v; }
+	// tests: how many songs (not effects) are playing at time t (the checks for a song left playing under another)
+	public static int SongsAt(double t) { lock (L) { int n = 0; foreach (var v in voices) if (v.song != null && v.startAt <= t && v.stopAt > t) n++; return n; } }
 
 	// tests: mix every voice for [t0, t0 + n/SR) into l/r (for videos with the game's own sound)
 	public static void RenderAt(float[] l, float[] r, int n, double t0)

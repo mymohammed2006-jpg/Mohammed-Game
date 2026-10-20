@@ -27,6 +27,7 @@ public static partial class G
 		public string[] nm = new string[TM_N]; public bool[] hi = new bool[TM_N], said = new bool[TM_N];
 		public double[] rt = { -1, -1, -1 }, connAt = new double[TM_N], pingT = new double[TM_N];
 		public List<TSnap>[] ts = { new(), new(), new() }; public List<(double at, double x, double y)> hist = new();
+		public List<(string k, JsonNode j)> later = new();   // events from a page build this PC hasn't reached yet (it is a little behind)
 		public double goAt;
 		public List<Peer> all() => team ? tp.Where(p => p != null).ToList() : peer != null ? new List<Peer> { peer } : new List<Peer>();
 	}
@@ -184,7 +185,9 @@ public static partial class G
 		int I(string f) => j[f]?.GetValue<int>() ?? -1; double D(string f) => j[f]?.GetValue<double>() ?? 0;
 		int w = I("w"); if (w < 0 || w >= TM_N) return;
 		if (k == "xp") { tm.xpGot[w] = I("x"); return; }
-		if (I("g") != tm.gen) return;   // from before a restart or a page change
+		int g = I("g");
+		if (g > tm.gen) { if (net != null && net.later.Count < 64) net.later.Add((k, j)); return; }   // from the next build: kept until this PC gets there
+		if (g != tm.gen) return;   // from before a restart or a page change
 		switch (k)
 		{
 			case "pc": tmTake(I("x"), I("y")); break;
@@ -250,6 +253,7 @@ public static partial class G
 			}
 		}
 		if (net != n) return;
+		if (tm != null && n.later.Count > 0) { var l = n.later.ToList(); n.later.Clear(); foreach (var (k, j) in l) tnEvent(k, j); }
 		// the host measures each line (for the start's timing)
 		if (n.host && n.phase is "wait" or "lobby")
 			for (int s = 1; s < TM_N; s++) if (n.said[s] && now - n.pingT[s] > 1000) { n.pingT[s] = now; n.tp[s].Send(new JsonObject { ["k"] = "ping", ["t"] = now }.ToJsonString()); }
@@ -266,7 +270,7 @@ public static partial class G
 	}
 	static void tnStart(double goAt)
 	{
-		var n = net; n.goAt = goAt; foreach (var l in n.ts) l.Clear(); n.hist.Clear();
+		var n = net; n.goAt = goAt; foreach (var l in n.ts) l.Clear(); n.hist.Clear(); n.later.Clear();
 		netSetPhase("play"); state = "tmIntro"; stopMenu(); ensureAudio(); particles = new List<Particle>(); tm = null;
 	}
 	static void tnBegin()
@@ -281,7 +285,7 @@ public static partial class G
 	static readonly string[] TM_PAUSE = { "أكمل اللعب", "الإعدادات", "اطلع من الغرفة" };
 	static bool tnStep(Inp inp, double now)
 	{
-		var n = net; if (n == null || !n.team) { state = "pltList"; return true; }
+		var n = net; if (n == null || !n.team) { tmStopMusic(); tm = null; tmMe = tmView = -1; state = "pltList"; return true; }
 		if (state == "tmIntro") { if (now >= n.goAt) tnBegin(); return true; }
 		if (tm == null) return true;
 		bool play = state == "tmPlay";

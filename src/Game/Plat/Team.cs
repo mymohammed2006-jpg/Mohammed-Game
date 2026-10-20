@@ -168,6 +168,7 @@ public static partial class G
 			tm.stemOn = old.stemOn; tm.voices = old.voices; tm.t = old.t; tm.beatN = old.beatN; tm.restarts = old.restarts; tm.hits = old.hits; tm.startWhen = old.startWhen; tm.n = old.n;
 			tmBuild(); return;
 		}
+		if (old != null) { tmStopVoices(old.voices); old.voices = null; }   // the page before's song stops (it kept looping under the new one)
 		tm.stemOn = (bool[])(P.on ?? L.on).Clone();
 		tmBuild(); tmMusic();
 	}
@@ -176,6 +177,7 @@ public static partial class G
 		var P = tm.P; tm.m = P.map.Select(r => r.ToCharArray()).ToArray(); tm.h = tm.m.Length; tm.w = tm.m[0].Length; tm.gen++;
 		tm.th.Clear(); tm.hail.Clear(); tm.got.Clear(); tm.taken.Clear(); tm.steps.Clear();
 		tm.flips = new int[TM_N]; tm.chaseX = -999; tm.beat0 = tm.L != null && tm.P.beats != null ? tmBeat() : 0; tm.swapA = tm.swapB = -1; tm.snapAt = -1; tm.pageAt = 0;
+		if (tmMe >= 0 && net != null) net.hist.Clear();   // where mine was on the page before: the chain must not measure from there (it broke right at the start)
 		var byId = new Dictionary<string, TS>();
 		foreach (var d in P.things)
 		{
@@ -216,7 +218,8 @@ public static partial class G
 		}
 		tm.t = -0.12;
 	}
-	public static void tmStopMusic() { if (tm?.voices == null) return; foreach (var v in tm.voices) if (v != null) { v.gain.setTargetAtTime(0, actx.currentTime, 0.06); v.stop(actx.currentTime + 0.5); } tm.voices = null; }
+	public static void tmStopMusic() { if (tm == null) return; tmStopVoices(tm.voices); tm.voices = null; }
+	static void tmStopVoices(Voice[] vs) { if (vs != null) foreach (var v in vs) if (v != null) { v.gain.setTargetAtTime(0, actx.currentTime, 0.06); v.stop(actx.currentTime + 0.5); } }
 	// back to the page's start, all three (the music keeps going; the page's pieces go back too)
 	static void tmRestart()
 	{

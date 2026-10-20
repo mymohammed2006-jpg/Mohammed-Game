@@ -280,11 +280,13 @@ public static partial class G
 		if (theme == 1) { gr.addColorStop(0, "#3a0c16"); gr.addColorStop(0.6, "#5e1222"); gr.addColorStop(1, "#7e1a2a"); }
 		else if (theme == 2) { gr.addColorStop(0, "#141238"); gr.addColorStop(0.6, "#2a1f5c"); gr.addColorStop(1, "#3d2a72"); }
 		else { gr.addColorStop(0, "#ffd9c7"); gr.addColorStop(0.6, "#ffb3b8"); gr.addColorStop(1, "#ff8f8f"); }
-		g.save(); g.fillStyle = gr; g.fillRect(0, Math.Max(0, y0), W, Math.Max(0, y1 - Math.Max(0, y0)));
+		double cy0 = Math.Max(0, y0), ch = Math.Min(H, y1) - cy0;
+		g.save(); g.fillStyle = gr; if (ch > 0) g.fillRect(0, cy0, W, ch);
 		// soft lighter puffs inside, drifting, so it reads as a thick cloud and not a flat wall
-		g.save(); g.beginPath(); g.rect(0, Math.Max(0, y0), W, Math.Max(0, y1 - Math.Max(0, y0))); g.clip(); g.fillStyle = theme == 1 ? "rgba(255,110,130,0.14)" : theme == 2 ? "rgba(200,190,255,0.16)" : "rgba(255,240,232,0.35)";
+		// (only while the cloud's body is on screen: an empty clip clips nothing, and the puffs flashed over the whole page)
+		if (ch > 1) { g.save(); g.beginPath(); g.rect(0, cy0, W, ch); g.clip(); g.fillStyle = theme == 1 ? "rgba(255,110,130,0.14)" : theme == 2 ? "rgba(200,190,255,0.16)" : "rgba(255,240,232,0.35)";
 		for (int i = 0; i < 14; i++) { double cx = ((i * 211 + now / 40 * (1 + i % 3)) % (W + 300)) - 150, cy = (i * 149) % H, r = 70 + (i * 29) % 60; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.arc(cx + r * 0.9, cy + 10, r * 0.75, 0, TAU); g.fill(); }
-		g.restore(); g.fillStyle = gr;
+		g.restore(); } g.fillStyle = gr;
 		// a row of big puffs along the moving edge, a second softer row behind it
 		for (int row = 1; row >= 0; row--)
 			for (int i = -1; i < 12; i++)

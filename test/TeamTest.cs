@@ -105,6 +105,7 @@ public class TeamTest
 			foreach (var b in G.tm.b) if (b.carry != null) log.Append(" carry").Append(b.i);
 			if (G.tm.th.Any(s => s.k == "slot")) log.Append(" placed=").Append(G.tm.th.Count(s => s.k == "slot" && s.on));
 			foreach (var s in G.tm.th) if (s.k == "mover") log.Append(s.d.need != null ? " lift=" : " mv=").Append(str(Math.Round(s.d.need != null ? s.Y : s.X)));
+			log.Append(" songs=").Append(AudioCtx.SongsAt(AudioCtx.manualTime.Value));
 			if (G.tm.won) log.Append(" WON");
 			if (G.tm.doneAt >= 0) log.Append(" DONE");
 			log.Append('\n');
