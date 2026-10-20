@@ -21,6 +21,7 @@ public static partial class G
 		else if (state == "pltOn") drawPltOn(now);
 		else if (state == "pltJoin") drawPltJoin(now);
 		else if (state == "pltRoom") drawPltRoom(now);
+		else if (state is "tmIntro" or "tmPlay" or "tmPause" or "tmSet") drawTeamNet(now);
 		else return false;
 		return true;
 	}

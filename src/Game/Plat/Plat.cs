@@ -223,7 +223,7 @@ public static partial class G
 	// ---------- step ----------
 	public static bool stepPlat(Inp inp, double now, double dt)
 	{
-		if (stepNet(inp, now)) return true;
+		if (stepNet(inp, now, dt)) return true;
 		if (state == "modes")
 		{
 			if (inp.left || inp.right) modeSel = 1 - modeSel;

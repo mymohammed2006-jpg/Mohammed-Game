@@ -32,6 +32,7 @@ public class PlatLevel
 	public bool coop { get; set; }      // played together online only (versus otherwise: alone, or against others online)
 	public int players { get; set; } = 2;   // co-op: how many players it needs
 	public bool test { get; set; }      // a test map: no letter, not on the boards (remove before going public)
+	[System.Text.Json.Serialization.JsonIgnore] public TeamLevel team;   // the co-op level for three (data/team_<id>.json, its own pages)
 	public List<PlatSaw> saws { get; set; } = new();
 	[System.Text.Json.Serialization.JsonIgnore] public AudioStream[] bufs;
 	[System.Text.Json.Serialization.JsonIgnore] public Level lv;   // its row with the other levels (the best letter, Normal only)
@@ -40,7 +41,7 @@ public class PlatLevel
 
 public static partial class G
 {
-	public static readonly string[] PLAT_IDS = { "P1" };
+	public static readonly string[] PLAT_IDS = { "P1", "P2" };
 	static List<PlatLevel> _plats;
 	public static List<Level> PLAT_LV => PLATS.Where(p => !p.test).Select(p => p.lv).ToList();
 	public static List<PlatLevel> PLATS
@@ -53,9 +54,20 @@ public static partial class G
 			{
 				try
 				{
-					using var f = FileAccess.Open($"res://data/plat_{id}.json", FileAccess.ModeFlags.Read);
-					var L = JsonSerializer.Deserialize<PlatLevel>(f.GetAsText());
-					L.bufs = L.stems.Select(s => LoadSong(s)).ToArray();
+					PlatLevel L;
+					if (FileAccess.FileExists($"res://data/team_{id}.json"))
+					{
+						// the co-op level for three: its card on the same list (online only); the finished card plays its storm part
+						var T = LoadTeam(id);
+						L = new PlatLevel { id = T.id, name = T.name, song = T.song, stems = T.stems, stemNames = T.stemNames, on = T.on, spb = T.spb, coop = true, players = TM_N, team = T, loop = T.pages[Math.Min(1, T.pages.Count - 1)].loop };
+						L.bufs = T.bufs;
+					}
+					else
+					{
+						using var f = FileAccess.Open($"res://data/plat_{id}.json", FileAccess.ModeFlags.Read);
+						L = JsonSerializer.Deserialize<PlatLevel>(f.GetAsText());
+						L.bufs = L.stems.Select(s => LoadSong(s)).ToArray();
+					}
 					L.lv = new Level { id = L.id, name = "البلاتفورم - " + L.name, song = L.song, plat = true };
 					var b = localStorage.getItem("mg_best_" + L.lv.name) ?? localStorage.getItem("mg_plbest_" + L.id);   // mg_plbest_ = the first test builds
 					if (RANKS.Contains(b)) { L.lv.best = b; localStorage.setItem("mg_best_" + L.lv.name, b); }

@@ -16,10 +16,11 @@ namespace MG;
 // the level ends when both are in the open gate.
 // An online match gives no letter, points or XP.
 // States: pltOn (make a room / type a code), pltJoin (the code), pltRoom (waiting / connecting / together), pltVsEnd (who won).
+// The co-op level for three has its own room and play (TeamNet.cs); the screens before it are the same.
 public static partial class G
 {
 	public class Snap { public double at, x, y, sa, sk, ddx, ddy, dash, fx; public int hp, fl; }
-	public class NetRun
+	public partial class NetRun
 	{
 		public Peer peer; public bool host; public string code = "", phase = "";   // phase: make, wait, join, conn, lobby, play, end
 		public PlatLevel L; public string other = "", otherSk = ""; public bool hello;
@@ -42,6 +43,7 @@ public static partial class G
 	// ---------- making / joining ----------
 	static async void netHost(PlatLevel L)
 	{
+		if (L.team != null) { tnHost(L); return; }
 		var n = net = new NetRun { host = true, L = L, peer = new Peer() }; netSetPhase("make"); state = "pltRoom";
 		try
 		{
@@ -68,6 +70,7 @@ public static partial class G
 		{
 			var d = await roomGet(code); if (net != n) return;
 			if (d == null || d.o == null) { netEnd("ما لقيت غرفة بهذا الكود"); return; }
+			if (d.o2 != null) { tnJoin(n, d); return; }   // a room for three
 			if (d.a != null) { netEnd("الغرفة فيها لاعبين"); return; }
 			if (d.h == acc.uid) { netEnd("هذي غرفتك أنت"); return; }
 			n.L = PLATS.FirstOrDefault(p => p.id == d.lv); n.other = d.hn ?? "";
@@ -80,21 +83,24 @@ public static partial class G
 		catch (Exception) { if (net == n) netEnd("ما فيه إنترنت؟ جرب مرة ثانية"); }
 	}
 	// leave (or the other left): back to the level list with a line saying why
-	static void netEnd(string why, bool tell = false)
+	static void netEnd(string why, bool tell = false, string byeName = null)
 	{
 		var n = net; if (n == null) return; net = null;
-		if (tell) n.peer?.Send("{\"k\":\"bye\"}");
-		var p = n.peer; _ = Task.Run(async () => { await Task.Delay(300); p?.Close(); });
+		var ps = n.all();
+		if (tell) foreach (var q in ps) q.Send(new JsonObject { ["k"] = "bye", ["n"] = byeName ?? acc?.name ?? "" }.ToJsonString());
+		_ = Task.Run(async () => { await Task.Delay(300); foreach (var q in ps) q.Close(); });
 		if (n.host && n.code != "" && n.phase is "make" or "wait") _ = roomDel(n.code);   // a failed connection keeps its room (both sides' addresses, to see why; the code is free again after 10 minutes)
 		if (why != null) netNote(why);
 		if (why == null || !why.StartsWith("ما قدرنا")) netDiag = null;
 		if (state.StartsWith("plt") && state != "pltList") { plStopMusic(); player = null; particles = new List<Particle>(); actx.resume(); state = "pltList"; }
+		if (state.StartsWith("tm")) { tmStopMusic(); tm = null; tmMe = tmView = -1; particles = new List<Particle>(); actx.resume(); state = "pltList"; }
 	}
 
 	// ---------- every frame ----------
 	public static void netTick(double now)
 	{
 		var n = net; if (n == null) return;
+		if (n.team) { tnTick(now); return; }
 		if (n.peer.closed && n.phase != "make" && n.phase != "wait" && n.phase != "join") { if (!n.hello) netDiag = n.peer.Diag(); netEnd(n.hello ? n.other + " طلع من الغرفة" : "ما قدرنا نتصل، جرب مرة ثانية"); return; }
 		if (n.phase == "conn")
 		{
@@ -245,8 +251,9 @@ public static partial class G
 		if (code == "Backspace" && joinCode.Length > 0) { joinCode = joinCode.Substring(0, joinCode.Length - 1); joinDig = Math.Min(4, joinCode.Length); return true; }
 		return false;
 	}
-	static bool stepNet(Inp inp, double now)
+	static bool stepNet(Inp inp, double now, double dt)
 	{
+		if (state is "tmIntro" or "tmPlay" or "tmPause" or "tmSet") return tnStep(inp, now);
 		if (state == "pltOn")
 		{
 			if (inp.up || inp.down) onSel = 1 - onSel;
@@ -268,7 +275,8 @@ public static partial class G
 		}
 		else if (state == "pltRoom")
 		{
-			if (inp.confirm && net?.phase == "lobby" && net.host && net.hello) netGo();
+			if (inp.confirm && net?.team == true) { if (net.host && net.phase == "lobby") tnGo(); }
+			else if (inp.confirm && net?.phase == "lobby" && net.host && net.hello) netGo();
 			else if (inp.back || inp.pz) netEnd(null, true);
 		}
 		else if (state == "pltVsEnd")

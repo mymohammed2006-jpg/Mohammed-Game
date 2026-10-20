@@ -146,7 +146,7 @@ public static partial class G
 			else if (inp.back || inp.pz) state = "main";
 			if (!board.busy && performance.now() - board.at > 60000) _ = loadBoard(false);
 		}
-		else if (state is "settings" or "pauseSet" or "pltSet")
+		else if (state is "settings" or "pauseSet" or "pltSet" or "tmSet")
 		{
 			var rows = setRows(); if (setSel >= rows.Length) setSel = 0; string r = rows[setSel]; int d = inp.right ? 1 : inp.left ? -1 : 0;
 			if (!freeRow(r)) holdD = 0;
@@ -187,7 +187,7 @@ public static partial class G
 	const int PR_LVMAX = 10;
 	static readonly double[] PR_SPD = { 1, 0.75, 0.5 };
 	// where the settings go back to: the main menu, the pause menu, or the platformer's pause menu
-	static string setBack() => state == "pauseSet" ? "paused" : state == "pltSet" ? "pltPause" : "main";
+	static string setBack() => state == "pauseSet" ? "paused" : state == "pltSet" ? "pltPause" : state == "tmSet" ? "tmPause" : "main";
 	static void openPractice(Level L, string from) { if (pr.lastL != L) { pr.t = 0; pr.lastL = L; } pr.L = L; pr.from = from; pr.doc = botDoc(L, easy ? "e" : "n"); pr.sel = 0; cur = L; fromList = from; levelTiming(L); state = "practice"; }
 	static string[] prRows() => pr.doc != null ? new[] { "t", "spd", "let", "inf", "ghost", "go" } : new[] { "t", "spd", "let", "inf", "go" };
 	static double prMaxT() => Math.Max(0, Math.Floor((B(pr.L.end) - 4) / 5) * 5);

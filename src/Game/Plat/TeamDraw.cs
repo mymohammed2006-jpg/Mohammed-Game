@@ -242,6 +242,8 @@ public static partial class G
 		if (tm.swapA >= 0) tmDrawSwapWarn(now, b);
 		// the three
 		foreach (var p in tm.b) tmDrawBody(p, now);
+		// online: the other two's names over them
+		if (tmMe >= 0) foreach (var p in tm.b) if (p.i != tmMe && !p.gate) { g.globalAlpha = 0.75; txt(tm.names[p.i], p.x, p.y - (p.carry != null && !p.down ? 62 : 30), 16, "#fff", 700); g.globalAlpha = 1; }
 		if (tm.P.mirror > 0) foreach (var p in tm.b) tmDrawReflection(p, now);
 		foreach (var p in tm.b) if (p.carry != null && !p.down) tmDrawPic(p.carry, now);
 		// HUD: each one's lives in its colour, the song's pieces, messages

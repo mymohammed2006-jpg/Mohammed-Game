@@ -33,7 +33,12 @@ public static partial class G
 			rr(W / 2 - 260, y - 38, 520, 76, 18); g.fillStyle = sel ? CARDS : CARD; g.fill(); g.strokeStyle = sel ? RED : "rgba(255,255,255,0.12)"; g.lineWidth = sel ? 3 : 1.5; g.stroke();
 			txt(ON_OPTS[i], W / 2, y, sel ? 36 : 32, sel ? "#fff" : "rgba(255,255,255,0.6)", 800);
 		}
-		if (PLATS[plSel].coop)
+		if (PLATS[plSel].team != null)
+		{
+			txt("تلعبون ٣ مع بعض: واحد يسوي الغرفة، والاثنين يدخلون بالكود", W / 2, 520, 23, "rgba(255,255,255,0.65)", 500);
+			txt("ما تعدّون أي صفحة إلا بالتعاون، والثلاثة لازم يوصلون", W / 2, 556, 23, "rgba(255,255,255,0.65)", 500);
+		}
+		else if (PLATS[plSel].coop)
 		{
 			txt("تلعبون مع بعض: أي قطعة يجيبها واحد تنحسب للاثنين، واللي يطيح يرجّعه صاحبه إذا لمسه", W / 2, 520, 23, "rgba(255,255,255,0.65)", 500);
 			txt("ولازم توصلون البوابة الاثنين عشان تخلصون المرحلة", W / 2, 556, 23, "rgba(255,255,255,0.65)", 500);
@@ -60,6 +65,7 @@ public static partial class G
 	static void drawPltRoom(double now)
 	{
 		bgShapes(now); var n = net; if (n == null) return;
+		if (n.team) { drawTeamRoom(now); return; }
 		string ph = n.phase; string dots = new string('.', 1 + (int)Math.Floor(now / 400) % 3);
 		if (ph is "make" or "wait")
 		{
@@ -131,5 +137,68 @@ public static partial class G
 			else txt($"أستنى {n.other} يبدأ مرة ثانية", W / 2, H / 2 + 135, 28, "rgba(255,255,255,0.75)", 700);
 			row(new[] { (BTN[kind].back, "اطلع من الغرفة") }, W / 2, H / 2 + 190);
 		}
+	}
+
+	// ---------- the co-op level for three ----------
+	// the room: the code, then each one's square in its colour with the name (dots while still coming)
+	static void drawTeamRoom(double now)
+	{
+		var n = net; string ph = n.phase, dots = new string('.', 1 + (int)Math.Floor(now / 400) % 3);
+		if (n.host && ph is "make" or "wait")
+		{
+			txt("غرفتك", W / 2, 95, 48, "#fff");
+			txt("عط صاحبينك هذا الكود يدخلونه من: البلاتفورم ← أونلاين ← ادخل بكود", W / 2, 155, 24, "rgba(255,255,255,0.7)", 500);
+			if (ph == "wait") codeTxt(n.code, W / 2, 255, 110, RED); else txt("أسوي الغرفة" + dots, W / 2, 255, 36, "rgba(255,255,255,0.7)", 700);
+		}
+		else if (!n.host && ph is "join" or "conn") { txt("أدخل الغرفة", W / 2, 105, 48, "#fff"); txt("جاري الاتصال" + dots, W / 2, 255, 36, "rgba(255,255,255,0.75)", 700); }
+		else { txt("جاهزين؟", W / 2, 95, 48, "#fff"); txt(n.L?.name ?? "", W / 2, 155, 28, RED3, 700); }
+		for (int i = 0; i < TM_N; i++)
+		{
+			double x = W / 2 + (1 - i) * 300, y = 430; bool in_ = n.hi[i] || (!n.host && i == n.seat && n.said[0]);
+			string name = n.nm[i] is { Length: > 0 } s ? s : "";
+			g.save(); g.translate(x, y - 30); g.scale(3, 3); g.rotate(Math.Sin(now / 600 + i) * 0.15); g.globalAlpha = in_ ? 1 : 0.25;
+			g.shadowColor = TM_COL[i]; g.shadowBlur = 14; g.fillStyle = TM_COL[i]; g.fillRect(-9, -9, 18, 18); g.shadowBlur = 0; g.fillStyle = ARENA; g.fillRect(-3, -3, 6, 6);
+			g.restore(); g.globalAlpha = 1;
+			txt(in_ ? name : (name != "" ? name + dots : "أستنى" + dots), x, y + 70, 30, in_ ? "#fff" : "rgba(255,255,255,0.5)", 800);
+			if (i == n.seat) txt("أنت", x, y + 108, 22, TM_COL[i], 700);
+		}
+		if (ph == "lobby" && n.host && tnReady) row(new[] { (BTN[kind].confirm, "ابدأ") }, W / 2, 620, 38, "#fff", 30);
+		else if (ph == "lobby" && !n.host) txt((tnReady ? $"أستنى {tnName(0)} يبدأ" : "أستنى الثالث يدخل") + dots, W / 2, 620, 28, "rgba(255,255,255,0.75)", 700);
+		else if (n.host && ph == "wait") txt((n.hi[1] || n.hi[2] ? "أستنى الثالث يدخل" : "أستنى الاثنين يدخلون") + dots, W / 2, 620, 28, "rgba(255,255,255,0.75)", 700);
+		row(new[] { (BTN[kind].back, "اطلع من الغرفة") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
+	}
+	// the level online: the start (the same moment for the three), the level from this one's own screen, the pause
+	static void drawTeamNet(double now)
+	{
+		var n = net;
+		if (state == "tmIntro" || tm == null)
+		{
+			var gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#1c1033"); gr.addColorStop(0.55, "#4a1f4f"); gr.addColorStop(1, "#ff9a5c"); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+			if (n == null) return;
+			txt(n.L?.name ?? "", W / 2, 150, 64, "#fff", 800);
+			g.font = $"26px {TFONT}"; g.fillStyle = "rgba(255,255,255,0.8)"; g.textAlign = "center"; g.direction = "ltr"; g.textBaseline = "middle"; g.fillText(n.L?.best != null ? n.L.song : "؟؟؟", W / 2, 215); g.direction = "rtl";
+			for (int i = 0; i < TM_N; i++)
+			{
+				double x = W / 2 + (1 - i) * 260, y = 380;
+				g.shadowColor = TM_COL[i]; g.shadowBlur = 20; g.fillStyle = TM_COL[i]; g.fillRect(x - 27, y - 27, 54, 54); g.shadowBlur = 0; g.fillStyle = "#1b0f26"; g.fillRect(x - 9, y - 9, 18, 18);
+				txt(tnName(i), x, y + 70, 30, "#fff", 800); if (i == n.seat) txt("أنت", x, y + 106, 22, TM_COL[i], 700);
+			}
+			double left = (n.goAt - now) / 1000; if (left > 0) txt(ar(Math.Ceiling(left)), W / 2, 600, 70, GOLD, 800);
+			return;
+		}
+		drawTeam(now);
+		if (state is "tmPause" or "tmSet") overlay(state == "tmSet" ? 0.95 : 0.75);
+		if (state == "tmPause")
+		{
+			txt("اللعبة متوقفة عندك", W / 2, 165, 56, "#fff");
+			txt("الباقين يكملون، ومربعك واقف مكانه", W / 2, 222, 22, "rgba(255,255,255,0.55)", 500);
+			for (int i = 0; i < TM_PAUSE.Length; i++)
+			{
+				double y = 310 + i * 80; bool sel = i == pauseSel; int ii = i; zone(W / 2 - 260, y - 34, 520, 68, () => pauseSel = ii);
+				if (sel) { rr(W / 2 - 260, y - 34, 520, 68, 16); g.fillStyle = $"rgba({RGB},0.12)"; g.fill(); g.strokeStyle = RED; g.lineWidth = 2; g.stroke(); }
+				txt(TM_PAUSE[i], W / 2, y, sel ? 38 : 32, sel ? "#fff" : "rgba(255,255,255,0.5)", 800);
+			}
+		}
+		if (state == "tmSet") drawSettings();
 	}
 }

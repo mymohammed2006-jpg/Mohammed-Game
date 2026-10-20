@@ -179,7 +179,7 @@ public static partial class G
 	}
 
 	// the win screen: a card for each one (name, their own letter, their falls, their XP), then the team's time
-	public static double TM_XP_MUL = 2;   // proposal: harder than the first platformer level (x1.5), easier than Link (x3.3)
+	// XP on each card: online, what each one really got (only a better letter adds, like every level); the tests: the letter's worth
 	static void tmDrawResults(double now, double f, double top)
 	{
 		if (f < -0.5) return;
@@ -207,8 +207,8 @@ public static partial class G
 			{
 				g.globalAlpha = clamp((fi - 0.3) / 0.3, 0, 1);
 				txt(d == 0 ? "بدون ولا طيحة" : d == 1 ? "طاح مرة" : $"طاح {ar(d)} مرات", cx, cy + 88, 24, "#e9e6f5", 500);
-				int xp = (int)Math.Round((rk == "S" ? 100 : rk == "A" ? 60 : rk == "B" ? 40 : 20) * TM_XP_MUL);
-				g.font = $"800 28px {FONT}"; g.fillStyle = GOLD; g.shadowColor = GOLD; g.shadowBlur = 10; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText($"+{ar(xp)} XP", cx, cy + 124); g.shadowBlur = 0; g.direction = "rtl";
+				int xp = tmMe < 0 ? (int)Math.Round((rk == "S" ? 100 : rk == "A" ? 60 : rk == "B" ? 40 : 20) * XP_MULT["P2"]) : tm.xpGot[i];
+				if (xp > 0) { g.font = $"800 28px {FONT}"; g.fillStyle = GOLD; g.shadowColor = GOLD; g.shadowBlur = 10; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText($"+{ar(xp)} XP", cx, cy + 124); g.shadowBlur = 0; g.direction = "rtl"; }
 				g.globalAlpha = 1;
 			}
 		}
