@@ -1,0 +1,47 @@
+--- a/src/Core/Main.cs
++++ b/src/Core/Main.cs
+@@ -16,6 +16,8 @@
+ 	UiRun uiRun;
+ 	NetTest netTest;          // --net-test: two copies of the game online on the Firebase emulator (test/NetTest.cs)
+ 	TeamNetTest teamNet;      // --team-net: three copies of the game on the co-op level (test/TeamNetTest.cs)
++	TeamBotNet teamBotNet;    // --team-bot-net: the same bots online, three copies of the game (test/TeamBotNet.cs, a test tool)
++	TeamBot teamBot;          // --team-bot: the human-like bots on the co-op level (test/TeamBot.cs, a test tool)
+ 	TeamTest teamTest;        // --team-run: the co-op level with three players and no people (test/TeamTest.cs)
+ 	PlatTest platTest;        // --plat-run: the platformer without a person (test/PlatTest.cs)              // --ui-run: the menus check (tools/compare/ui)
+ 	int frame;
+@@ -36,6 +38,8 @@
+ 			if (args[i] == "--bot-run") botRun = BotRun.FromArgs(args, i + 1);
+ 			if (args[i] == "--play-run") { botRun = BotRun.FromArgs(args, i + 1); botRun.play = true; }
+ 			if (args[i] == "--plat-run") platTest = PlatTest.FromArgs(args, i + 1);
++			if (args[i] == "--team-bot-net") teamBotNet = TeamBotNet.FromArgs(args, i + 1);
++			if (args[i] == "--team-bot") teamBot = TeamBot.FromArgs(args, i + 1);
+ 			if (args[i] == "--team-run") teamTest = TeamTest.FromArgs(args, i + 1);
+ 			if (args[i] == "--net-test") netTest = NetTest.FromArgs(args, i + 1);
+ 			if (args[i] == "--team-net") teamNet = TeamNetTest.FromArgs(args, i + 1);
+@@ -53,6 +57,8 @@
+ 		if (botRun != null) { botRun.Start(this); return; }
+ 		if (uiRun != null) { uiRun.Start(this); return; }
+ 		if (platTest != null) { platTest.Start(this); return; }
++		if (teamBot != null) { teamBot.Start(this); return; }
++		if (teamBotNet != null) { teamBotNet.Start(this); return; }
+ 		if (teamTest != null) { teamTest.Start(this); return; }
+ 		if (netTest != null) { netTest.Start(this); return; }
+ 		if (teamNet != null) { teamNet.Start(this); return; }
+@@ -103,7 +109,7 @@
+ 
+ 	public override void _Input(InputEvent e)
+ 	{
+-		if (botRun != null || uiRun != null || pvRun != null || platTest != null || teamTest != null || netTest != null || teamNet != null || canvasTestOut != null) return;
++		if (botRun != null || uiRun != null || pvRun != null || platTest != null || teamTest != null || teamBot != null || teamBotNet != null || netTest != null || teamNet != null || canvasTestOut != null) return;
+ 		if (upd != null && upd.state != "done") return;
+ 		if (e is InputEventKey k)
+ 		{
+@@ -148,6 +154,8 @@
+ 
+ 		if (uiRun != null) { uiRun.Process(); return; }
+ 		if (platTest != null) { platTest.Process(); return; }
++		if (teamBot != null) { teamBot.Process(); return; }
++		if (teamBotNet != null) { teamBotNet.Process(); return; }
+ 		if (teamTest != null) { teamTest.Process(); return; }
+ 		if (netTest != null) { netTest.Process(); return; }
+ 		if (teamNet != null) { teamNet.Process(); return; }

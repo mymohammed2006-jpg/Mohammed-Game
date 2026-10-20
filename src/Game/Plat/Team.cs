@@ -586,13 +586,16 @@ public static partial class G
 			double bt = tmBeat(), ev = s.d.b; long gk = (long)Math.Floor(bt / ev); if (bt - gk * ev < s.d.c) b.ex = (gk % 2 == 0 ? 1 : -1) * s.d.a;
 		}
 		// x, then y: tiles, then the solid things
-		double ox = b.x; b.x += (b.vx + b.ex) * dt; double mvx = b.x - ox;
+		double oy0 = b.y; double ox = b.x; b.x += (b.vx + b.ex) * dt; double mvx = b.x - ox;
 		{
 			int ty0 = (int)Math.Floor((b.y - P_HALF + 0.01) / PT), ty1 = (int)Math.Floor((b.y + P_HALF - 0.01) / PT);
 			if (mvx > 0) { int tx = (int)Math.Floor((b.x + P_HALF) / PT); for (int ty = ty0; ty <= ty1; ty++) if (tmTile(tx, ty)) { b.x = tx * PT - P_HALF; b.vx = Math.Min(0, b.vx); break; } }
 			else if (mvx < 0) { int tx = (int)Math.Floor((b.x - P_HALF) / PT); for (int ty = ty0; ty <= ty1; ty++) if (tmTile(tx, ty)) { b.x = (tx + 1) * PT + P_HALF; b.vx = Math.Max(0, b.vx); break; } }
 			foreach (var s in tm.th) if (s.solid && !s.one && !(s.k == "cwall" && (int)s.d.a == b.i) && b.y + P_HALF > s.Y + 0.5 && b.y - P_HALF < s.Y + s.H - 0.5 && b.x + P_HALF > s.X && b.x - P_HALF < s.X + s.W)
-			{ if (mvx >= 0 && ox + P_HALF <= s.X + 1) { b.x = s.X - P_HALF; b.vx = Math.Min(0, b.vx); } else if (mvx <= 0 && ox - P_HALF >= s.X + s.W - 1) { b.x = s.X + s.W + P_HALF; b.vx = Math.Max(0, b.vx); } }
+			{
+				if (mvx >= 0 && ox + P_HALF <= s.X + 1) { b.x = s.X - P_HALF; b.vx = Math.Min(0, b.vx); } else if (mvx <= 0 && ox - P_HALF >= s.X + s.W - 1) { b.x = s.X + s.W + P_HALF; b.vx = Math.Max(0, b.vx); }
+				else if (oy0 - P_HALF < s.Y + s.H - 2) { if (b.x - s.X < s.X + s.W - b.x) b.x = s.X - P_HALF; else b.x = s.X + s.W + P_HALF; b.vx = 0; }   // a door closed on it: out to the nearer side (it went up into the floor)
+			}
 		}
 		bool was = b.ground; b.ground = false; var oldOn = b.onT; b.onT = null; b.onB = null;
 		double oy = b.y, ob = b.y + P_HALF; b.y += b.vy * dt;
