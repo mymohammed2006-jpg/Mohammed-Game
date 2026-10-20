@@ -57,10 +57,10 @@ jobs:
         run: |
           V=$(sed -n 's/^config\/version="\(.*\)"/\1/p' project.godot)
           gh release create "v$V" --repo "$GITHUB_REPOSITORY" --draft --title "v$V" --target "$GITHUB_SHA" --notes "Mohammed Game $V" \
-            build/release/Mohammed-Game-Setup.exe build/release/latest.yml
+            build/release/Mohammed-Game-Setup.exe build/release/Mohammed-Game-Update.exe build/release/latest.yml
           FILES=$(gh release view "v$V" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')
           echo "$FILES"
-          for f in Mohammed-Game-Setup.exe latest.yml; do
+          for f in Mohammed-Game-Setup.exe Mohammed-Game-Update.exe latest.yml; do
             echo "$FILES" | grep -qx "$f" || { echo "::error::الملف $f ما انرفع، النسخة باقية مخفية."; exit 1; }
           done
           gh release edit "v$V" --repo "$GITHUB_REPOSITORY" --draft=false --latest

@@ -10,19 +10,24 @@ namespace MG;
 // Auto-update, like the old PC app (pc-app/main.js + updater.html): on start it looks for a newer release on GitHub
 // (latest.yml), downloads Mohammed-Game-Setup.exe with a progress bar, checks its sha512, and restarts into it.
 // No skip. If nothing answers within 7 s the game opens; an update found later installs when the game closes.
+// The download has no time limit (v40-v42 gave it 30 s in all, so a slow line always stopped part way, e.g. at 62%);
+// only a download that gets nothing for 20 s in a row gives up and opens the game.
+// latest.yml: fullPath/fullSha512 = the game's installer (read from v43 on); path/sha512 = the small bridge
+// (Mohammed-Game-Update.exe) for v40-v42, which still have the 30 s limit: it downloads the installer itself.
 public partial class Updater : Node
 {
 	// MG_UPDATE_TEST_URL: look for the update on a local server instead (tests), like the old app
 	static readonly string REPO = System.Environment.GetEnvironmentVariable("MG_UPDATE_TEST_URL") is string t && t != "" ? t.TrimEnd('/') + "/"
 		: "https://github.com/mymohammed2006-jpg/Mohammed-Game/releases/latest/download/";
 	public static bool Testing => System.Environment.GetEnvironmentVariable("MG_UPDATE_TEST_URL") is string t && t != "";
-	const double CHECK_WAIT_MS = 7000;
+	const double CHECK_WAIT_MS = 7000, STALL_MS = 20000;
 	public static string Version => (string)ProjectSettings.GetSetting("application/config/version", "0.0.0");
 
 	public string state = "check";   // check | download | restart | done (the game runs)
 	public double percent, shown;
-	double startAt;
-	bool found, installOnQuit, ready;
+	double startAt, lastByteAt;
+	long lastBytes = -1;
+	bool found, installOnQuit, ready, downloading;
 	string setupPath, sha512, newVersion;
 	HttpRequest req;
 	public Action onDone;            // opens the game
@@ -63,17 +68,20 @@ public partial class Updater : Node
 		if (result != (long)HttpRequest.Result.Success || code != 200) { Finish(); return; }
 		string yml = System.Text.Encoding.UTF8.GetString(body);
 		if (Testing) GD.PrintErr("MG_TEST yml ", code, " ", body.Length);
-		newVersion = Field(yml, "version"); string path = Field(yml, "path"); sha512 = Field(yml, "sha512");
+		newVersion = Field(yml, "version"); string path = Field(yml, "fullPath") ?? Field(yml, "path"); sha512 = Field(yml, "fullSha512") ?? Field(yml, "sha512");
 		if (newVersion == null || path == null || sha512 == null || !Newer(newVersion, Version) || !(OS.HasFeature("windows") || Testing)) { Finish(); return; }
 		found = true;
 		if (state == "check") state = "download"; else installOnQuit = true;   // found after the game opened: install on close
 		req.DownloadFile = setupPath;
+		req.Timeout = 0;   // no limit on the whole download, Tick watches for a stall instead
+		lastByteAt = performance.now(); downloading = true;
 		req.RequestCompleted += OnSetup;
 		if (req.Request(REPO + path) != Error.Ok) Finish();
 	}
 
 	void OnSetup(long result, long code, string[] headers, byte[] body)
 	{
+		req.RequestCompleted -= OnSetup; downloading = false;
 		if (Testing) GD.PrintErr("MG_TEST setup ", result, " ", code, " sha ", ShaOk(), " state ", state);
 		if (result != (long)HttpRequest.Result.Success || code != 200 || !ShaOk()) { Finish(); return; }
 		ready = true;
@@ -115,10 +123,17 @@ public partial class Updater : Node
 	public void Tick()
 	{
 		if (state == "check" && !found && performance.now() - startAt > CHECK_WAIT_MS) { installOnQuit = true; Finish(); }
-		if (state == "download" && req != null)
+		if (downloading)
 		{
 			long n = req.GetBodySize(), d = req.GetDownloadedBytes();
-			if (n > 0) percent = Math.Clamp(100.0 * d / n, 0, 100);
+			if (state == "download" && n > 0) percent = Math.Clamp(100.0 * d / n, 0, 100);
+			double now = performance.now();
+			if (d != lastBytes) { lastBytes = d; lastByteAt = now; }
+			else if (now - lastByteAt > STALL_MS)
+			{
+				if (Testing) GD.PrintErr("MG_TEST stall ", d, " of ", n);
+				req.CancelRequest(); downloading = false; installOnQuit = false; Finish();
+			}
 		}
 	}
 

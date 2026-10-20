@@ -1,7 +1,8 @@
 #!/bin/bash
-# Builds the Windows release: the game, its installer (Mohammed-Game-Setup.exe) and latest.yml, into build/release.
+# Builds the Windows release: the game, its installer (Mohammed-Game-Setup.exe), the update bridge (Mohammed-Game-Update.exe)
+# and latest.yml, into build/release.
 # Same file names as the old PC app, so its auto-update picks the new game up.
-# Needs: dotnet 8, Godot 4.4.1 .NET (+ export templates), node (npx), makensis.  Run: bash tools/release/build.sh
+# Needs: dotnet 8 (also builds the bridge), Godot 4.4.1 .NET (+ export templates), node (npx), makensis.  Run: bash tools/release/build.sh
 set -e
 MG=$(cd "$(dirname "$0")/../.." && pwd)
 GD=${GODOT:-$HOME/godot/Godot_v4.4.1-stable_mono_linux_x86_64/Godot_v4.4.1-stable_mono_linux.x86_64}
@@ -32,17 +33,26 @@ npx --yes resedit-cli@3.1.1 --in "build/win/Mohammed Game.exe" --out "build/win/
 
 cd installer
 makensis -V2 -DVERSION="$V" -DSRC="$MG/build/win" -DOUT="$MG/build/release/Mohammed-Game-Setup.exe" installer.nsi
+# the bridge for v40-v42: their updater stops any download after 30 s, so they get this small file, which downloads the installer
+cd "$MG/installer/bridge"
+dotnet build -c Release -v q -o "$MG/build/bridge" -p:Version="$V"
+cp "$MG/build/bridge/Mohammed-Game-Update.exe" "$MG/build/release/"
 cd "$MG/build/release"
 SHA=$(openssl dgst -sha512 -binary Mohammed-Game-Setup.exe | base64 -w0)
 SIZE=$(stat -c %s Mohammed-Game-Setup.exe)
+BSHA=$(openssl dgst -sha512 -binary Mohammed-Game-Update.exe | base64 -w0)
+# files: the old Electron app (v39) takes the installer from here; path/sha512: the Godot game up to v42 takes the bridge;
+# fullPath/fullSha512: v43 on takes the installer
 cat > latest.yml <<YML
 version: $V
 files:
   - url: Mohammed-Game-Setup.exe
     sha512: $SHA
     size: $SIZE
-path: Mohammed-Game-Setup.exe
-sha512: $SHA
+path: Mohammed-Game-Update.exe
+sha512: $BSHA
+fullPath: Mohammed-Game-Setup.exe
+fullSha512: $SHA
 releaseDate: '$(date -u +%Y-%m-%dT%H:%M:%S.000Z)'
 YML
 ls -la "$MG/build/release"

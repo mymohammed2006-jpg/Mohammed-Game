@@ -36,5 +36,6 @@ jobs:
           name: test-build
           path: |
             build/release/Mohammed-Game-Setup.exe
+            build/release/Mohammed-Game-Update.exe
             build/release/latest.yml
           retention-days: 7
