@@ -80,6 +80,7 @@ public class TeamBot
 			i++; double t = (double)i / fps;
 			if (t > T || crew.over) { done = true; return; }
 			var ins = crew.Step(1.0 / fps);
+			Bench(ins);
 			AudioCtx.manualTime += 1.0 / fps; performance.manual += 1000.0 / fps;
 			bool pic = !nodraw && Pic(i) && t >= from;
 			if (pic) G.gfx.BeginFrame();
@@ -89,7 +90,10 @@ public class TeamBot
 			G.particlesStep(1.0 / fps);
 			log.Append(str(Math.Round(t, 3))).Append(" p").Append(G.tm.page).Append(" g").Append(G.tm.gen).Append(" mt=").Append(str(Math.Round(G.tm.t, 2))).Append(" bt=").Append(str(Math.Round(G.tmBeatPub(), 2)));
 			foreach (var b in G.tm.b) log.Append(" | ").Append(str(Math.Round(b.x))).Append(',').Append(str(Math.Round(b.y))).Append(b.down ? "d" : "").Append(b.gate ? "g" : "");
-			log.Append(" | ").Append(crew.Mode).Append(" ").Append(str(Math.Round(crew.Tau, 3))).Append('\n');
+			log.Append(" | ").Append(crew.Mode).Append(" ").Append(str(Math.Round(crew.Tau, 3)));
+			foreach (var q in G.tm.th) if (q.k == "scale") log.Append(" sc=").Append(str(Math.Round(q.s, 3)));
+			if (System.Environment.GetEnvironmentVariable("FALLDBG") == "1") foreach (var q in G.tm.th) if (q.k == "fall") log.Append(" f").Append(str(Math.Round(q.X))).Append("=").Append(q.gone ? "G" : "").Append(str(Math.Round(q.timer, 2))).Append("/").Append(str(Math.Round(q.Y)));
+			log.Append(" bt=").Append(str(Math.Round(G.tmBeatPub(), 2))).Append('\n');
 			if (pic)
 			{
 				var g = G.g; g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#000"; g.fillRect(0, 0, 1280, 720);
@@ -97,7 +101,25 @@ public class TeamBot
 				G.tmView = view == "cycle" ? (G.tm.P.dark ? (int)(G.tm.pageAt / 3.2) % 3 : -1) : int.TryParse(view, out var vv) ? vv : -1;
 				G.drawTeam(performance.manual.Value);
 				if (G.flash > 0) { g.fillStyle = $"rgba(255,255,255,{str(Math.Min(0.8, G.flash))})"; g.fillRect(0, 0, 1280, 720); }
-				if (Env("LABELS") == "1" && G.tm.t - crew.LabelAt < 2.6 && crew.Label != "")
+				if (tag != null)
+				{
+					// a fixed line for a before/after clip (env TAG, its colour TAGC): old code or new, and what to look at
+					g.setTransform(1, 0, 0, 1, 0, 0); var rows = tag.Split('|'); string tc = Env("TAGC") ?? "#ff5a6e";
+					g.font = $"800 27px {G.FONT}"; double wd = rows.Max(r => g.measureText(r).width) + 48, hh = 16 + rows.Length * 36;
+					g.fillStyle = "rgba(8,6,20,0.82)"; G.rr(640 - wd / 2, 8, wd, hh, 14); g.fill();
+					g.strokeStyle = tc; g.lineWidth = 3; G.rr(640 - wd / 2, 8, wd, hh, 14); g.stroke();
+					for (int r = 0; r < rows.Length; r++) G.txt(rows[r], 640, 8 + 26 + r * 36, r == 0 ? 27 : 23, r == 0 ? tc : "#ffffff");
+				}
+				else if (crew.CapOn)
+				{
+					// the story's line at the top: one or two rows ("|"), on a dark box as wide as the text
+					g.setTransform(1, 0, 0, 1, 0, 0); var rows = crew.CapText.Split('|'); double a = Math.Min(1, Math.Min(crew.frame - crew.CapFrom, crew.CapTo - crew.frame) / 8.0);
+					g.font = $"800 27px {G.FONT}"; double wd = rows.Max(r => g.measureText(r).width) + 48, hh = 16 + rows.Length * 36;
+					g.globalAlpha = a; g.fillStyle = "rgba(8,6,20,0.78)"; G.rr(640 - wd / 2, 8, wd, hh, 14); g.fill();
+					for (int r = 0; r < rows.Length; r++) G.txt(rows[r], 640, 8 + 26 + r * 36, r == 0 ? 27 : 23, r == 0 ? "#ffffff" : "#ffd6f0");
+					g.globalAlpha = 1;
+				}
+				else if (Env("LABELS") == "1" && G.tm.t - crew.LabelAt < 2.6 && crew.Label != "")
 				{
 					g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "rgba(0,0,0,0.6)"; g.fillRect(340, 652, 600, 50);
 					G.txt(crew.Label, 640, 688, 28, "#ffffff");
@@ -106,6 +128,14 @@ public class TeamBot
 			}
 			if (!pic && i % 600 == 0) return;
 		}
+	}
+	// before/after clips (env): TP="frame:who:x:y" puts a square there at that frame (y "under" = below the map, x "same"),
+	// HOLD="who:from:to" leaves that square without keys in those frames
+	readonly string tag = Env("TAG");
+	void Bench(G.TIn[] ins)
+	{
+		if (Env("TP") is string tp) { var v = tp.Split(':'); if (int.Parse(v[0]) == i) { var b = G.tm.b[int.Parse(v[1])]; if (v[2] != "same") b.x = double.Parse(v[2]); b.vx = b.vy = 0; if (v[3] == "under") { b.y = G.tm.h * G.PT + 80; b.vy = -60; } else b.y = double.Parse(v[3]); } }
+		if (Env("HOLD") is string hd) { var v = hd.Split(':'); if (i >= int.Parse(v[1]) && i <= int.Parse(v[2])) ins[int.Parse(v[0])] = new G.TIn(); }
 	}
 	void Finish()
 	{
@@ -134,7 +164,48 @@ public class Crew
 	readonly Random rng0; readonly double JIT, REACT, MIS, ALL3; readonly int MISN;
 	public string Label = ""; public double LabelAt = -99;   // a short line for the video (env LABELS=1)
 	static readonly string[] NM = { "الأحمر", "الأزرق", "الأصفر" };
-	void Say(string s) { Label = s; LabelAt = G.tm?.t ?? 0; }
+	void Say(string s, bool story = false) { if (STORY && !story) return; Label = s; LabelAt = G.tm?.t ?? 0; if (STORY) Cap(s, 3.2); }
+	// the story video's lines: each stays its time (a new one waits until the last was up 2.2 s), drawn at the top
+	public string CapText = ""; public int CapFrom, CapTo; readonly Queue<(string s, int n)> capQ = new();
+	void Cap(string s, double sec) { int n = (int)(sec * 60); if (CapText != "" && frame < CapTo && frame - CapFrom < 132) { capQ.Enqueue((s, n)); return; } CapText = s; CapFrom = frame; CapTo = frame + n; }
+	void CapTick() { if (capQ.Count > 0 && (frame >= CapTo || frame - CapFrom >= 132)) { var (s, n) = capQ.Dequeue(); CapText = s; CapFrom = frame; CapTo = frame + n; } }
+	public bool CapOn => STORY && CapText != "" && frame < CapTo;
+	// env STORY=<file> (tools/human-bot-plat/story_P2.txt): the video where they learn the level. Per room: the first try with a
+	// set mistake (and its line), then the try that solves it with lines at route times; a demo while waiting for the beat;
+	// one falling on purpose while the others keep playing and one comes to help. Their timing has no error (the mistakes are set).
+	class RoomStory { public string intro, failSay, again, done; public Mistake fail; public bool keep; public List<(double t, string s)> says = new(), failSays = new(); public int forceWho = -1, helpWho = -1; public double forceAt, helpAt, firstWait; public string forceSay, demo; public int[] demoWho; }
+	readonly Dictionary<int, RoomStory> story = new(); readonly List<string> storyStart = new(); string storyWin; public readonly bool STORY = Env("STORY") != null;
+	RoomStory St => story.GetValueOrDefault(room); bool FailTry => St?.fail != null && tries.GetValueOrDefault(room) == 1; bool SolveTry => St != null && !solved.Contains(room) && tries.GetValueOrDefault(room) == (St.fail != null ? 2 : 1); readonly HashSet<int> solved = new();
+	bool lastWasFail; int failRoom = -1;
+	readonly double[] home = new double[3];
+	int sayI; bool failSaid, forced1, helpGo, doneSaid, waitSaid = false, startSaid; int demoState = -1; double demoT; int demoFrom = -1;
+	void LoadStory(string f)
+	{
+		RoomStory r = null;
+		foreach (var raw in File.ReadAllLines(f))
+		{
+			var l = raw.Trim(); if (l.Length == 0 || l.StartsWith("#")) continue;
+			var w = l.Split(' ', StringSplitOptions.RemoveEmptyEntries); string rest(int n) => string.Join(' ', w.Skip(n));
+			switch (w[0])
+			{
+				case "start": storyStart.Add(rest(1)); break;
+				case "win": storyWin = rest(1); break;
+				case "room": r = new RoomStory(); story[int.Parse(w[1])] = r; break;
+				case "intro": r.intro = rest(1); break;
+				case "again": r.again = rest(1); break;
+				case "done": r.done = rest(1); break;
+				case "fail": r.fail = new Mistake { kind = w[1], who = int.Parse(w[2]), at = double.Parse(w[3]), len = double.Parse(w[4]), shift = double.Parse(w[4]) }; break;
+				case "failsay": r.failSay = rest(1); break;
+				case "failat": r.failSays.Add((double.Parse(w[1]), rest(2))); break;
+				case "keep": r.keep = true; break;
+				case "say": r.says.Add((double.Parse(w[1]), rest(2))); break;
+				case "force": r.forceWho = int.Parse(w[1]); r.forceAt = double.Parse(w[2]); r.forceSay = rest(3); break;
+				case "help": r.helpWho = int.Parse(w[1]); r.helpAt = double.Parse(w[2]); break;
+				case "demo": r.demo = w[1]; r.demoWho = new[] { int.Parse(w[2]), int.Parse(w[3]) }; break;
+				case "firstwait": r.firstWait = double.Parse(w[1]); break;
+			}
+		}
+	}
 	public bool over; public string Mode = ""; public double Tau => tau;
 	readonly StringBuilder ev = new(), bugs = new(); readonly HashSet<string> bugSeen = new(), evSeen = new();
 	public int nBugs, nDeaths, nRevives, nRestarts, nMistakes, nForced, nRooms; public bool won;
@@ -204,6 +275,7 @@ public class Crew
 			else if (f[0] == "ref" && refOut == null && File.Exists(Path.Combine(dir, f[1]))) LoadRef(Path.Combine(dir, f[1]));
 		}
 		if (refOut != null) { JIT = 0; MIS = 0; ALL3 = 0; CHAOS = false; }
+		if (STORY) { LoadStory(Env("STORY")); JIT = 0; MIS = 0; ALL3 = 0; CHAOS = false; }
 	}
 	static string Env(string k) => System.Environment.GetEnvironmentVariable(k);
 	static double D(string k, double d) => double.TryParse(Env(k), out var v) ? v : d;
@@ -248,20 +320,87 @@ public class Crew
 		for (int k = 0; k < 3; k++) { var b = tm.b[k]; bugs.Append($"   p{k}: x={str(Math.Round(b.x))} y={str(Math.Round(b.y))} hp={b.hp} down={b.down} gate={b.gate} vx={str(Math.Round(b.vx))} vy={str(Math.Round(b.vy))}\n"); }
 	}
 
+	void SayTick() { if (!STORY) return; var sl = FailTry ? St.failSays : SolveTry ? St.says : null; while (sl != null && sayI < sl.Count && sl[sayI].t <= tau) Cap(sl[sayI++].s, 3.6); }
+	// story: someone is down and the others keep playing their routes; the set helper goes to them from its time
+	G.TIn[] Keep(G.TIn[] ins, List<int> downs, double bt)
+	{
+		var tm = G.tm; tau = Clock(bt); Mode = "keep"; frames++; SayTick();
+		int d = downs[0]; var db = tm.b[d];
+		for (int k = 0; k < 3; k++)
+		{
+			var b = tm.b[k]; if (b.down) continue;
+			if (SolveTry && k == St.helpWho && tau >= St.helpAt)
+			{
+				if (!helpGo) { helpGo = true; spot = Spot(b, db) ?? db.x; Say($"{NM[k]} رايح ينعش {NM[d]}", true); Ev($"p{k} goes to bring p{d} back (story)"); }
+				ins[k] = Walk(k, spot, b.y, true); continue;
+			}
+			ins[k] = Play(k, Math.Max(0, tau));
+		}
+		return ins;
+	}
+	// story: while they wait for the beat, two of them show standing on a head: the one under jumps, the one on top stays
+	G.TIn[] Demo(G.TIn[] ins, double bt)
+	{
+		var tm = G.tm; Mode = "demo"; int c = St.demoWho[0], u = St.demoWho[1]; var cb = tm.b[c]; var ub = tm.b[u];
+		double left = (startBeat - bt) * L.spb;   // seconds until they go (about)
+		if (demoState < 0) { if (left < 12) { demoState = 9; return ins; } demoState = 0; demoT = tm.t; for (int k = 0; k < 3; k++) home[k] = tm.b[k].x; Ev("DEMO start"); Cap($"وهم ينتظرون الإيقاع: {NM[c]} يطلع على راس {NM[u]}", 3.4); }
+		double s = tm.t - demoT;
+		switch (demoState)
+		{
+			case 0:   // climbs on the head
+				{
+					double dx = ub.x - cb.x;
+					ins[c] = new G.TIn { x = Math.Abs(dx) < 3 ? 0 : Math.Clamp(dx / 25, -1, 1), jump = cb.ground && cb.onB == null && Math.Abs(dx) < 40 && frame % 20 == 0, jumpHeld = !cb.ground };
+					if (cb.onB == ub && cb.ground) { demoState = 1; demoT = tm.t; }
+					else if (s > 5) { demoState = 3; demoT = tm.t; }
+					break;
+				}
+			case 1:   // the one under jumps twice
+				{
+					if (s >= 0.7 && s < 0.7 + 1.0 / 60) Cap($"{NM[u]} ينط، واللي فوق راسه ما يرتفع معه|قبل التصليح كان ينط معه بدون ما يضغط", 4.4);
+					bool j = (s >= 0.8 && s < 0.84) || (s >= 2.0 && s < 2.04); ins[u] = new G.TIn { jump = j, jumpHeld = j || (!ub.ground && ub.vy < 0) };
+					if (s > 3.4) { demoState = 2; demoT = tm.t; }
+					break;
+				}
+			default:  // all back to the start
+				{
+					bool there = true;
+					for (int k = 0; k < 3; k++) { var b = tm.b[k]; if (Math.Abs(b.x - home[k]) > 8 || !b.ground) { there = false; ins[k] = Walk(k, home[k], tm.sy[k], false); } }
+					if ((there && s > 0.5) || left < 1.5) { demoState = 9; Ev("DEMO end" + (there ? "" : " (not all back)")); }
+					break;
+				}
+		}
+		return ins;
+	}
+
 	// ---------- before each step: everyone's buttons ----------
 	public G.TIn[] Step(double dt)
 	{
 		var tm = G.tm; var ins = new G.TIn[3]; frame++;
 		if (tm.gen != gen) NewTry();
 		double bt = G.tmBeatPub();
-		if (tm.won || tm.doneAt >= 0 || tm.restartAt >= 0) { Mode = tm.won ? "won" : tm.doneAt >= 0 ? "next" : "restart"; return ins; }
+		if (STORY) CapTick();
+		if (tm.won || tm.doneAt >= 0 || tm.restartAt >= 0)
+		{
+			Mode = tm.won ? "won" : tm.doneAt >= 0 ? "next" : "restart";
+			if (Mode == "next" && !doneSaid) { doneSaid = true; Ev($"NEXT room {room} done"); if (STORY && FailTry && St.done != null) Cap(St.done, 3.6); if (STORY && SolveTry && St.done != null) Cap(St.done, 3.6); solved.Add(room); }
+			return ins;
+		}
 		var downs = Enumerable.Range(0, 3).Where(k => tm.b[k].down).ToList();
-		if (downs.Count > 0 || regroupTill >= 0 || resumeBeat >= 0) return Help(ins, downs, bt);
+		if (STORY && downs.Count > 0 && ((FailTry && St.keep) || (SolveTry && St.helpWho >= 0))) return Keep(ins, downs, bt);
+		if (downs.Count > 0 || regroupTill >= 0 || resumeBeat >= 0 || pausedAt >= 0) return Help(ins, downs, bt);   // (pausedAt: all up again, the regroup is next)
 		// the route's clock follows the music: where the clean run was at this beat (waiting at the start for it, counting in)
 		tau = Clock(bt);
-		if (tau < 0) { Mode = "wait"; return ins; }
-		if (Mode == "wait") Ev($"go (room {room}, try {tries[room]}) at beat {str(Math.Round(bt, 2))}");
-		Mode = "play"; frames++; if (refOut != null && refB.TryGetValue(room, out var rbl) && rbl.Count < frames) rbl.Add(bt);
+		if (tau < 0) { if (STORY && St?.demo != null && SolveTry && demoState < 9) return Demo(ins, bt); Mode = "wait"; return ins; }
+		if (Mode == "wait" || frames == 0)
+		{
+			Ev($"go (room {room}, try {tries[room]}) at beat {str(Math.Round(bt, 2))}");
+			if (STORY && tries[room] == 1 && St?.intro != null) Cap(St.intro, 4);
+			if (STORY && SolveTry && St.fail != null && St.again != null) Cap(St.again, 3.4);
+		}
+		Mode = "play";
+		SayTick();
+		frames++; if (refOut != null && refB.TryGetValue(room, out var rbl) && rbl.Count < frames) rbl.Add(bt);
 		for (int k = 0; k < 3; k++) ins[k] = Play(k, tau);
 		return ins;
 	}
@@ -282,11 +421,13 @@ public class Crew
 		int P = per.GetValueOrDefault(room, 1); tau = 0;
 		// still failing after the clean tries: wait for the very same place in the song as the clean run (a whole loop)
 		if (tries[room] > MISN + 3 && tries[room] % 2 == 0 && !tm.P.cont && tm.P.beats != null) P = tm.P.beats.Length - 1;   // (every other try: the same beat to the frame can still fail the same way)
+		if (STORY && tries[room] >= 2 && !tm.P.cont && tm.P.beats != null) P = tm.P.beats.Length - 1;   // the story's tries must work: the very same place in the song
 		frames = 0; dB = 0; startBeat = bt; Mode = "";
 		if (refBeat.TryGetValue(room, out var rb) && refOut == null)
 		{
 			double k = Math.Floor((bt - rb) / P), s0 = rb + k * P;
 			startBeat = bt - s0 <= 0.3 ? s0 : s0 + P; dB = startBeat - rb;
+			if (STORY && tries[room] == 1 && St?.firstWait > 0) { startBeat = rb + St.firstWait; dB = St.firstWait; }
 		}
 		// person-like timing: each of the route's presses a little early or late
 		var rr = routes.GetValueOrDefault(room);
@@ -296,6 +437,8 @@ public class Crew
 		for (int k = 0; k < 3; k++) { int n = rr?[k]?.Length ?? 0; jit[k] = new double[n]; for (int j = 0; j < n; j++) jit[k][j] = Math.Clamp(Gauss(rng) * JIT * js, -2.5 * JIT, 2.5 * JIT); }
 		// a mistake on purpose (the first tries of each room), sometimes all three
 		mis = null; chaos.Clear(); lateHelp = rng.NextDouble() < 0.5; leaveTouch = rng.NextDouble() < 0.5;
+		sayI = 0; failSaid = forced1 = helpGo = doneSaid = false; demoState = -1;
+		if (STORY && FailTry) { var f = St.fail; mis = new Mistake { kind = f.kind, who = f.who, at = f.at, len = f.len, shift = f.shift }; }
 		// chaos (env CHAOS=1): silly things a person might do, several times a try, on the tries with mistakes
 		if (CHAOS && tries[room] <= MISN + 1 && rr != null)
 		{
@@ -312,8 +455,12 @@ public class Crew
 			mis = new Mistake { who = rng.Next(3), at = 0.8 + rng.NextDouble() * Math.Max(0.5, dur - 2), kind = kinds[rng.Next(kinds.Length)], len = 0.5 + rng.NextDouble() * 0.8, shift = 0.18 + rng.NextDouble() * 0.2 };
 			if (rng.NextDouble() < ALL3) mis.kind = "all3";
 		}
-		Ev((restart ? "RESTART -> " : "ROOM ") + $"{room} try {tries[room]} (beat {str(Math.Round(bt, 2))}, start on {str(Math.Round(startBeat, 2))})" + (mis != null ? $" plan: {mis.kind} by p{mis.who} at {str(Math.Round(mis.at, 1))}s" : ""));
+		Ev((restart ? "RESTART -> " : "ROOM ") + $"{room} try {tries[room]} (beat {str(Math.Round(bt, 2))}, start on {str(Math.Round(startBeat, 2))})" + (mis != null ? $" plan: {mis.kind} by p{mis.who} at {str(Math.Round(mis.at, 1))}s" : "")
+			+ (STORY ? (FailTry ? " STORY fail" : SolveTry ? " STORY solve" : " STORY replay") : ""));
 		if (restart) { nRestarts++; Say("رجعوا لبداية الصفحة، ينتظرون الإيقاع"); }
+		if (STORY && restart && lastWasFail) Say(room != failRoom ? "الصفحة تعيد: يرجعون لأول غرفة فيها، ويعيدون اللي حلوه" : "الصفحة تعيد من أولها", true);
+		if (STORY && !startSaid) { startSaid = true; foreach (var x in storyStart) Cap(x, 3.6); }
+		lastWasFail = STORY && FailTry; failRoom = room;
 	}
 	// room time on the clean run's clock at this beat (-1 before its start)
 	double Clock(double bt)
@@ -339,6 +486,7 @@ public class Crew
 			for (int j = 0; j < rr.Length; j++) { double at = rr[j].t + jit[k][j] + (rr[j].t >= (mis?.at ?? 1e9) ? sh : 0); if (at <= t + 1e-9) kk = rr[j].k; else if (rr[j].t > t + 1) break; }
 		}
 		foreach (var c in chaos) if ((c.who == k || c.kind == "pile") && t >= c.at && t < c.at + c.len && !c.done) return Chaos(k, c, t);
+		if (STORY && SolveTry && St.forceWho == k && t >= St.forceAt && !forced1) { forced1 = true; if (St.forceSay != null) Cap(St.forceSay, 3.6); cause[k] = "story"; Force(k, "story"); }
 		if (mis != null && (mis.who == k || mis.kind == "all3") && t >= mis.at && !mis.done)
 		{
 			if (!mis.hit) { mis.hit = true; nMistakes++; Say(mis.kind switch { "all3" => "غلطة متعمدة: الثلاثة يرمون نفسهم", "freeze" => $"غلطة متعمدة: {NM[mis.who]} يوقف فجأة", "late" => $"غلطة متعمدة: {NM[mis.who]} يتأخر", "early" => $"غلطة متعمدة: {NM[mis.who]} يستعجل", _ => $"غلطة متعمدة: {NM[mis.who]} يمشي للخطر" }); Ev($"MISTAKE {mis.kind} by p{(mis.kind == "all3" ? "all" : mis.who.ToString())}"); }
@@ -391,7 +539,15 @@ public class Crew
 			tgtFor[k] = gen; double? target = null; double best = 1e9;
 			for (int y = 0; y < tm.h; y++) for (int x = 0; x < tm.w; x++)
 			{
-				if (tm.m[y][x] != '^') continue; double top = y * G.PT; if (top < feet - 5 || top > feet + 45) continue;
+				if (tm.m[y][x] != '^') continue; double top = y * G.PT;
+				if (tm.P.mirror > 0 && top < feet && top > feet - G.PT - 5)
+				{
+					// in the mirror: walk where the reflection meets these spikes
+					double rx = 2 * tm.P.mirror - (x * G.PT + G.PT / 2);
+					if (Math.Abs(rx - b.x) < best && Math.Abs(rx - b.x) < 500 && Walkable(b.x, rx, feet)) { best = Math.Abs(rx - b.x); target = rx; }
+					continue;
+				}
+				if (top < feet - 5 || top > feet + 45) continue;
 				double cx = x * G.PT + G.PT / 2, edge = cx - Math.Sign(cx - b.x) * (G.PT / 2 + 3);
 				if (Math.Abs(cx - b.x) < best && Math.Abs(cx - b.x) < 500 && (Math.Abs(edge - b.x) < 6 || Walkable(b.x, edge, feet))) { best = Math.Abs(cx - b.x); target = cx; }
 			}
@@ -429,9 +585,9 @@ public class Crew
 			if (helper < 0 && reachable)
 			{
 				double bd = 1e9; for (int k = 0; k < 3; k++) { var o = tm.b[k]; if (o.down || k == d || !o.ground) continue; var sp = Spot(o, db); double dd = Math.Abs(o.x - db.x); if (sp != null && dd < bd && dd < 600) { bd = dd; helper = k; spot = sp.Value; } }
-				if (helper >= 0) Say($"{NM[helper]} رايح ينعش {NM[d]}");
+				if (helper >= 0) Say($"{NM[helper]} رايح ينعش {NM[d]}", true);
 				if (helper >= 0) Ev($"p{helper} goes to bring p{d} back ({str(Math.Round(bd))} px)");
-				else if (!said) { said = true; Say($"ما فيه طريق آمن لـ{NM[d]}: ينتظرون ٦ ثواني"); Ev($"no safe way to p{d}: the others wait"); }
+				else if (!said) { said = true; Say($"ما فيه طريق آمن لـ{NM[d]}: ينتظرون ٦ ثواني", !waitSaid); waitSaid = true; Ev($"no safe way to p{d}: the others wait"); }
 			}
 			if (CHAOS && lateHelp && helper >= 0 && helpFrom < db.downAt + 3.6) { helpFrom = db.downAt + 3.6; Ev($"chaos: p{helper} waits to bring p{d} back near the end of the 6 s"); }
 			if (helper >= 0 && tm.t >= helpFrom && !tm.b[helper].down)
@@ -486,6 +642,7 @@ public class Crew
 		{
 			int tx = (int)Math.Floor(x / G.PT); if (tx < 0 || tx >= tm.w || ty < 0 || ty >= tm.h || tb < 0) return false;
 			char c = tm.m[tb][tx]; if (c is '#' or 'I' or '^' or 'v') return false;
+			if (tm.P.mirror > 0) { double rx = 2 * tm.P.mirror - x; foreach (double e in new[] { -HALF - 7, 0, HALF + 7 }) { int rt = (int)Math.Floor((rx + e) / G.PT); if (rt >= 0 && rt < tm.w && tm.m[tb][rt] is '^' or 'v') return false; } }   // the reflection must not meet spikes either
 			bool floor = tm.m[ty][tx] is '#' or 'I' || tm.th.Any(s => s.solid && s.one && Math.Abs(s.Y - feet) < 4 && x > s.X && x < s.X + s.W) || tm.th.Any(s => s.solid && !s.one && Math.Abs(s.Y - feet) < 4 && x > s.X && x < s.X + s.W);
 			if (!floor) return false;
 			foreach (var sw in tm.P.saws) if (SawNear(sw, x, feet - HALF, 14)) return false;
@@ -509,8 +666,8 @@ public class Crew
 	{
 		var tm = G.tm; double bt = G.tmBeatPub();
 		if (refOut != null && refPos.TryGetValue(room, out var rp) && tm.gen == gen && Mode == "play") rp.Add(tm.b.SelectMany(b => new[] { b.x, b.y }).ToArray());
-		if (tm.won && !won) { won = true; Say("خلصوا المرحلة"); Ev($"WON after {nRestarts} restarts, {nDeaths} falls; letters {string.Join(" ", Enumerable.Range(0, 3).Select(G.tmRank))}"); Check(); }
-		if (tm.won && tm.t - tm.wonAt > 8) over = true;
+		if (tm.won && !won) { won = true; Say("خلصوا المرحلة"); if (STORY && storyWin != null) Cap(storyWin, 6); Ev($"WON after {nRestarts} restarts, {nDeaths} falls; letters {string.Join(" ", Enumerable.Range(0, 3).Select(G.tmRank))}"); Check(); }
+		if (tm.won && tm.t - tm.wonAt > (STORY ? 12 : 8)) over = true;
 		for (int k = 0; k < 3; k++)
 		{
 			var b = tm.b[k];
@@ -519,7 +676,8 @@ public class Crew
 			{
 				downAt[k] = tm.t; nDeaths++; touchT[k] = 0;
 				string c = cause[k] ?? Cause(b); cause[k] = null;
-				Say(tm.b.Count(o => o.down) == 3 ? "طاحوا الثلاثة" : $"{NM[k]} طاح");
+				if (STORY && FailTry && St.failSay != null && !failSaid) { failSaid = true; Cap(St.failSay, 4.4); }
+				else if (c != "forced") Say(tm.b.Count(o => o.down) == 3 ? "طاحوا الثلاثة: الصفحة تعيد على طول" : $"{NM[k]} طاح", true);
 				Ev($"DOWN p{k} at ({str(Math.Round(b.x))},{str(Math.Round(b.y))}) cause={c}");
 				if (c == "nothing") Bug("down-nothing-" + tm.page, $"p{k} fell with nothing hurting it (no spikes, saw, ice, lightning, wall or chain near; on screen at {str(Math.Round(b.x))},{str(Math.Round(b.y))})");
 				if (tm.t - buildAt < 1.6 && !moved[k]) Bug("down-spawn-" + tm.page, $"p{k} fell {str(Math.Round(tm.t - buildAt, 2))} s after the page started while still standing at the start (cause={c})");
@@ -527,7 +685,7 @@ public class Crew
 			if (!b.down && downAt[k] >= 0)
 			{
 				double held = touchT[k]; downAt[k] = -1;
-				if (tm.gen == gen) { nRevives++; Say($"{NM[k]} رجع بعد ثانية لمس"); Ev($"UP p{k} (touched {str(Math.Round(held, 2))} s)"); if (held < 0.9) Bug("rev-short", $"p{k} came back after only {str(Math.Round(held, 2))} s of touching (needs 1 s)"); }
+				if (tm.gen == gen) { nRevives++; Say($"{NM[k]} رجع بعد ثانية لمس", true); Ev($"UP p{k} (touched {str(Math.Round(held, 2))} s)"); if (held < 0.9) Bug("rev-short", $"p{k} came back after only {str(Math.Round(held, 2))} s of touching (needs 1 s)"); }
 			}
 			if (b.down)
 			{
@@ -552,6 +710,7 @@ public class Crew
 			if (!ok && me < 0) Bug("restart-why", "the page restarts with no reason (not all down, no one down 6 s)");
 			Ev(tm.b.All(b => b.down) ? "all three down -> restart" : "down too long -> restart");
 		}
+		if (THINGLOG) ThingLog();
 		// songs: never more stems than the level has, playing at once
 		int playing = SongVoices(); overT = playing > L.stems.Length ? overT + dt : 0;
 		if (overT > 0.35) Bug("song-overlap", $"{playing} song voices playing at once for {str(Math.Round(overT, 2))} s (the level has {L.stems.Length} stems): {VoiceList()}");
@@ -564,7 +723,23 @@ public class Crew
 			for (int k = 0; k < 3; k++) Force(k, "stuck");
 		}
 	}
-	static FieldInfo voicesF = typeof(AudioCtx).GetField("voices", BindingFlags.NonPublic | BindingFlags.Static);
+	// env THINGLOG=1: every change of the room's things and of what each square does (to write the video's lines)
+	readonly bool THINGLOG = Env("THINGLOG") == "1"; readonly Dictionary<string, string> thingWas = new(); int thingGen = -1;
+	void ThingLog()
+	{
+		var tm = G.tm; if (thingGen != tm.gen) { thingGen = tm.gen; thingWas.Clear(); }
+		void C(string key, string v) { if (thingWas.TryGetValue(key, out var o) && o == v) return; bool first = !thingWas.ContainsKey(key); thingWas[key] = v; if (!first) Ev($"T {str(Math.Round(tau, 2))} {key}={v}"); }
+		for (int i = 0; i < tm.th.Count; i++)
+		{
+			var q = tm.th[i];
+			string id = q.d?.id ?? ""; string v = $"{(q.on ? "on" : "")}{(q.solid ? "" : "-open")}{(q.gone ? "-gone" : "")}{(q.melt ? "-melt" : "")}";
+			if (q.k == "scale") v = q.s > 0.98 ? "L-down" : q.s < -0.98 ? "L-up" : "mid"; if (q.k == "ride") v = q.n + "on"; if (q.k == "mover" || q.k == "chase") continue;
+			C($"{q.k}{i}{(id != "" ? "(" + id + ")" : "")}@{Math.Round(q.X)},{Math.Round(q.Y)}", v);
+		}
+		for (int k = 0; k < 3; k++) { var b = tm.b[k]; if (b.onB != null || b.ground) C($"p{k}.on", b.onB != null ? "head of p" + b.onB.i : b.onT?.k ?? "ground"); C($"p{k}.carry", b.carry != null ? "pic" : "-"); C($"p{k}.gate", b.gate ? "in" : "-"); }
+		C("got", tm.got.Count.ToString()); C("flips", string.Join(",", tm.flips)); C("chain", tm.snapAt >= 0 ? "snap" : "ok");
+	}
+	static FieldInfo voicesF =typeof(AudioCtx).GetField("voices", BindingFlags.NonPublic | BindingFlags.Static);
 	static FieldInfo doneF = typeof(Voice).GetField("done", BindingFlags.NonPublic | BindingFlags.Instance);
 	double overT;
 	public static string VoiceList()

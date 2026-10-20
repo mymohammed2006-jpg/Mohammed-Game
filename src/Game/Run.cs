@@ -168,7 +168,7 @@ public static partial class G
 	public static void overlay(double a = 0.62) { g.fillStyle = $"rgba(5,3,10,{str(a)})"; g.fillRect(0, 0, W, H); }
 
 	// ---------- the bot's runs (songs/bot.js -> data/bot.json) ----------
-	public class BotRunJ { public string r { get; set; } public int hz { get; set; } public List<SegJ> segs { get; set; } }
+	public class BotRunJ { public string r { get; set; } public int v { get; set; } public int hz { get; set; } public List<SegJ> segs { get; set; } }
 	public class SegJ { public double cp { get; set; } public double seed { get; set; } public double t0 { get; set; } public int n { get; set; } public string d { get; set; } }
 	static Dictionary<string, BotRunJ> BOT_RUNS;
 	static readonly Dictionary<string, RpDoc> botCache = new();
@@ -184,7 +184,7 @@ public static partial class G
 	{
 		string k = L.id + m; if (botCache.TryGetValue(k, out var c)) return c;
 		LoadBotRuns(); if (!BOT_RUNS.TryGetValue(k, out var R)) return null;
-		return botCache[k] = new RpDoc { r = R.r, hz = R.hz, segs = R.segs.Select(s => new RpSeg { cp = s.cp, seed = i32(s.seed), t0 = s.t0, n = s.n, b = unpackRp(s.d) }).ToList() };
+		return botCache[k] = new RpDoc { r = R.r, v = R.v, hz = R.hz, segs = R.segs.Select(s => new RpSeg { cp = s.cp, seed = i32(s.seed), t0 = s.t0, n = s.n, b = unpackRp(s.d) }).ToList() };
 	}
 	public class BotPt { public double x, y; public int d; }
 	public static BotPt botPos(RpDoc d, double t)

@@ -90,6 +90,8 @@ public class BotRun
 			if (G.state == "rpEnd" || i + 1 > to) return false;
 			i++; AudioCtx.manualTime += 1.0 / FPS; performance.manual += 1000.0 / FPS;
 			if (G.state == "rpGap") G.rpSeg(G.rp.seg + 1); else G.updateReplay(1.0 / FPS);
+			{ double fd = 1.0 / FPS; foreach (var q in G.particles) { q.x += q.vx * fd; q.y += q.vy * fd; double f = Math.Pow(0.04, fd); q.vx *= f; q.vy *= f; q.life -= fd; } G.particles = G.particles.Where(q => q.life > 0).ToList();
+			  G.gloom += (G.gloomT - G.gloom) * Math.Min(1, fd * 3); G.shake = Math.Max(0, G.shake - fd * 50); G.flash = Math.Max(0, G.flash - fd * 2.2); G.cpMsg -= fd; }   // what step() does each frame
 			Log(); return true;
 		}
 		const double dt = 1.0 / 60;

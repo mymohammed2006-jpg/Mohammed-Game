@@ -31,7 +31,7 @@ public static partial class G
 		return a;
 	}
 
-	public static bool rpFixed() => !rp.bot && rp.doc.v >= 4;
+	public static bool rpFixed() => rp.doc.v >= 4;   // the bot's old runs have no v (old timing); its new ones (v 4) are on fixed steps
 	public static double rpFrom(RpSeg s) => s.cp == 0 ? 0 : B(s.cp - 2);
 	public static double rpLen(RpSeg s) => Math.Max(0, s.t0 - rpFrom(s)) + (s.n - 1) / (double)rp.doc.hz;
 	public static void rpTimeline() { double o = 0; rp.off = rp.doc.segs.Select(s => { double a = o; o += rpLen(s); return a; }).ToArray(); rp.tot = o; }

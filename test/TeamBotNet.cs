@@ -98,10 +98,12 @@ public class TeamBotNet
 			foreach (var b in tm.b) log.Append(" | ").Append(str(Math.Round(b.x))).Append(',').Append(str(Math.Round(b.y))).Append(b.down ? "d" : "").Append(b.gate ? "g" : "");
 			log.Append(" | ").Append(crew?.Mode).Append(" got=").Append(tm.got.Count).Append(" falls=").Append(string.Join(",", tm.falls));
 			if (tm.won) log.Append(" WON");
+			foreach (var q in tm.th) if (q.k == "scale") log.Append(" sc=").Append(str(Math.Round(q.s, 3)));
+			log.Append(" bt=").Append(str(Math.Round(G.tmBeatPub(), 2)));
 		}
 		log.Append(" songs=").Append(Crew.SongVoices()).Append('\n');
 		if (draw) { G.gfx.EndFrame(); shot = true; }
-		if (done) { Note($"end: state={G.state} msg={endMsg}"); Save(); host.GetTree().Quit(); }
+		if (done) { Note($"end: state={G.state} msg={endMsg}"); Save(); System.Environment.Exit(0); }   // Quit() alone kept the frames running after a leave
 	}
 	static int PauseSel() => (int)(typeof(G).GetField("pauseSel", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)?.GetValue(null) ?? 0);
 	double SongClock() => G.tm?.t ?? 0;

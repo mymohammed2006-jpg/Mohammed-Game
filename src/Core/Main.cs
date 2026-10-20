@@ -40,6 +40,7 @@ public partial class Main : Node
 			if (args[i] == "--plat-run") platTest = PlatTest.FromArgs(args, i + 1);
 			if (args[i] == "--team-bot-net") teamBotNet = TeamBotNet.FromArgs(args, i + 1);
 			if (args[i] == "--team-bot") teamBot = TeamBot.FromArgs(args, i + 1);
+			if (args[i] == "--dodge") { G.DodgeTool(args, i + 1); GetTree().Quit(); return; }   // test/DodgeTool.cs
 			if (args[i] == "--team-run") teamTest = TeamTest.FromArgs(args, i + 1);
 			if (args[i] == "--net-test") netTest = NetTest.FromArgs(args, i + 1);
 			if (args[i] == "--team-net") teamNet = TeamNetTest.FromArgs(args, i + 1);

@@ -15,6 +15,9 @@ public static partial class G
 	{
 		["L1"] = 1.0, ["F6"] = 1.1, ["F1"] = 1.1, ["F2"] = 1.1, ["L2"] = 1.3, ["L11"] = 1.4, ["L3"] = 1.5, ["L9"] = 1.5, ["L4"] = 1.7, ["L10"] = 1.7,
 		["L8"] = 1.8, ["L5"] = 1.8, ["F5"] = 2.4, ["F3"] = 2.5, ["F4"] = 2.5, ["L6"] = 2.7, ["L7"] = 3.1, ["F7"] = 3.2, ["F8"] = 3.3,
+		["L12"] = 1.8,   // Hard Spike: the same as L5 (Mohammed, 10-20)
+		["L13"] = 1.8,   // A beat further: the same difficulty as L5
+		["L14"] = 1.8,   // Jump again: the same difficulty as L5 (Mohammed, 10-20)
 		["P1"] = 1.5,   // the platformer's first level
 		["P2"] = 2.0,   // the co-op level for three (harder than P1, easier than Link)
 	};
@@ -38,10 +41,12 @@ public static partial class G
 	public static readonly Chal[] CHALS =
 	{
 		new Chal { id = "crystal", name = "الكريستال", text = "جيب S في ٣ مراحل\nنورمال", xp = 300, prog = n => (Math.Min(3, ALL_LV().Count(L => n(L.id) == "S")), 3) },
-		new Chal { id = "circuit", name = "الدائرة", text = "خلّص كل المراحل\nالرئيسية نورمال", xp = 500, prog = n => (LEVELS.Count(L => L.name != null && n(L.id) != null), LEVELS.Count(L => L.name != null)) },
+		new Chal { id = "circuit", name = "الدائرة", text = "خلّص أول ١١ مرحلة\nرئيسية نورمال", xp = 500, prog = n => (LEVELS.Count(L => circuitLv(L) && n(L.id) != null), LEVELS.Count(circuitLv)) },
 		new Chal { id = "bolt", name = "البرق", text = "خلّص نورمال\nالمرحلة السابعة\nأو Let Me Love You", xp = 750, prog = n => (n("L7") != null || n("F7") != null ? 1 : 0, 1) },
 		new Chal { id = "eq", name = "الإيقاع", text = "خلّص On The Floor\nنورمال", xp = 1000, prog = n => (n("F8") != null ? 1 : 0, 1) },
 	};
+	// the Circuit challenge is the 11 main levels it was made with; the new data-file levels (L12 on) are not in it
+	static bool circuitLv(Level L) => L.name != null && Array.IndexOf(DODGE_IDS, L.id) < 0;
 	static string myN(string id) => lvId(id)?.best;
 	public static (int have, int need) chalProg(Chal c) => c.prog(myN);
 	public static bool chalDone(Chal c, Func<string, string> n = null) { var (h, nd) = c.prog(n ?? myN); return h >= nd; }

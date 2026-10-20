@@ -36,6 +36,7 @@ public static partial class G
 	public static List<Level> ALL_LV() => LEVELS.Concat(FRIENDS).Where(L => L.name != null).Concat(classicUi ? new List<Level>() : PLAT_LV).ToList();   // the platformer's levels last (not in the v39 comparison runs)
 	static G()
 	{
+		AddDodgeLevels();   // the new levels after L11 are data files (Dodge.cs)
 		for (int i = 0; i < LEVELS.Count; i++) LEVELS[i].id ??= "L" + (i + 1);
 		for (int i = 0; i < FRIENDS.Count; i++) FRIENDS[i].id ??= "F" + (i + 1);
 	}

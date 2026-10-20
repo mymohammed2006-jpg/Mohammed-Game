@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="fonts.css"><style>body{margin:0;background:#000}canvas{display:block}</style></head>
+<body><canvas id="c" width="1280" height="720"></canvas><script>
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+var g;
+function sShine(ch,x,y,w,now,glow){
+  const per=1700,p=-0.3+((now%per)/per)*1.6,a=clamp(p-0.16,0,1),b=clamp(p,0,1),c=clamp(p+0.16,0,1);
+  const gr=g.createLinearGradient(x-w/2,y-w/2,x+w/2,y+w/2);gr.addColorStop(0,'#ff2436');gr.addColorStop(a,'#ff2436');gr.addColorStop(b,'#ffe0e4');gr.addColorStop(c,'#ff2436');gr.addColorStop(1,'#ff2436');
+  g.shadowColor='#ff2436';g.shadowBlur=glow*(1+0.45*Math.sin(now/260));g.fillStyle=gr;g.fillText(ch,x,y);g.shadowBlur=0;
+}
+async function run(){await document.fonts.load('150px Audiowide');await document.fonts.load('32px Audiowide');
+g=document.getElementById('c').getContext('2d');
+g.fillStyle="#07040d";g.fillRect(0,0,1280,720);
+var T='"Audiowide","Segoe UI",sans-serif';
+var ps=[-0.2,0.1,0.35,0.6,0.9];
+for(var i=0;i<5;i++){var now=1700*(ps[i]+0.3)/1.6+5*1700;
+g.save();g.translate(140+250*i,200);g.scale(1.1,1.1);g.font="150px "+T;g.textAlign="center";g.textBaseline="middle";g.direction="ltr";sShine("S",0,0,110,now,30);g.restore();
+g.font="32px "+T;g.textAlign="center";g.textBaseline="middle";g.direction="ltr";sShine("S",140+250*i,450,26,now,12);}
+g.font="150px "+T;g.fillStyle="#ff2436";g.shadowColor="#ff2436";g.shadowBlur=30;g.fillText("A",640,600);g.shadowBlur=0;
+document.title='done';}
+run();
+</script></body></html>
