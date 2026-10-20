@@ -105,7 +105,7 @@ public static partial class G
 	public class TBody
 	{
 		public int i; public double x, y, vx, vy, coyote, jbuf, dash, ddx, ddy, fx = 1, sa, sk, inv, hurt, ex, downAt, dt0 = -9, prevB;
-		public double revT, mdx, mdy, still; public bool armed = true; public TBody onB; public TS carry; public int hp = P_HP; public bool ground, canDash = true, jumpHeld, down, gate; public TS onT;
+		public double revT, mdx, mdy, still, gx = double.NaN, gy; public bool armed = true; public TBody onB; public TS carry; public int hp = P_HP; public bool ground, canDash = true, jumpHeld, down, gate; public TS onT;
 		public List<(double x, double y, double t)> trail = new();
 	}
 	public struct TIn { public double x, y; public bool jump, jumpHeld, dash; }
@@ -374,7 +374,7 @@ public static partial class G
 			if (b.revT >= TM_REV_HOLD) { b.revT = 0; b.down = false; b.hp = P_HP; b.inv = 1.5; b.vx = b.vy = 0; burst(b.x, b.y, TM_COL[b.i], 30, 320); sfx(tt => { sTone(tt, 523, 0.12, "triangle", 0.1); sTone(tt + 0.08, 784, 0.18, "triangle", 0.1); }); }
 		}
 		if (tm.b.Any(b => b.down) && tm.b.Any(b => b.gate)) foreach (var b in tm.b) if (b.gate && tmMine(b)) b.gate = false;   // out of the gate to help
-		if (tmBoss && (tm.b.All(b => b.down) || tm.b.Any(b => b.down && tm.t - b.downAt > TM_REVIVE))) { tm.restartAt = tm.t + 0.9; flash = 0.3; tnTell("rs", new() { ["t"] = tm.restartAt }); }
+		if (tmBoss && (tm.b.All(b => b.down) || tm.b.Any(b => b.down && tm.t - b.downAt > TM_REVIVE + (tmMine(b) ? 0 : 0.4)))) { tm.restartAt = tm.t + 0.9; flash = 0.3; tnTell("rs", new() { ["t"] = tm.restartAt }); }
 		// the photo's pieces: each one takes their own, carries it up and puts it in its place in the big frame
 		foreach (var s in tm.th) if (s.k == "pic" && !s.on)
 		{
@@ -553,7 +553,8 @@ public static partial class G
 		if (b.down || b.gate) return;
 		// carried by what it stands on
 		if (b.onT != null) { if (b.onT.solid) { b.x += b.onT.dx; b.y += b.onT.dy; } else { b.onT = null; b.ground = false; } }
-		if (b.onB != null) { if (!b.onB.down && !b.onB.gate) { b.x += b.onB.mdx; b.y += b.onB.mdy; } else { b.onB = null; b.ground = false; } }
+		// on someone's head: it goes along sideways and down with them, but their jump doesn't throw it up (it jumped with them without pressing anything)
+		if (b.onB != null) { if (!b.onB.down && !b.onB.gate && b.onB.mdy > -0.5) { b.x += b.onB.mdx; b.y += b.onB.mdy; } else { b.onB = null; b.ground = false; } }
 		double mx = Math.Abs(inp.x) < 0.25 ? 0 : inp.x, my = inp.y;
 		b.jumpHeld = inp.jumpHeld; if (inp.jump) b.jbuf = P_BUFFER;
 		if (inp.dash && b.canDash && b.dash <= 0 && b.carry == null)
@@ -636,6 +637,8 @@ public static partial class G
 				tm.steps.Add((b.x - (b.onT?.X ?? 0), b.y + P_HALF, tm.t, b.i));
 		}
 		{ double sp = hypot(b.vx, b.vy), tg = b.dash > 0 ? 1 : Math.Min(1, sp / P_SPEED) * 0.3; if (sp > 1) b.sa = JS.atan2(b.vy, b.vx); b.sk = b.sk + (tg - b.sk) * Math.Min(1, dt * (tg > b.sk ? 30 : 12)); }
-		if (b.y > tm.h * PT + 40) { b.hp = 1; tmDamage(b); }
+		if (b.ground && (b.onT == null || b.onT.k is "sink" or "cloud" or "vis" or "bridge" or "path")) { b.gx = b.x; b.gy = b.y; }   // the last firm ground
+		// fallen out: it lies where it last stood, so the others can still bring it back (under the screen no one could reach it)
+		if (b.y > tm.h * PT + 40) { if (!double.IsNaN(b.gx)) { b.x = b.gx; b.y = b.gy; b.onT = null; b.onB = null; } b.hp = 1; tmDamage(b); b.vx = b.vy = 0; }
 	}
 }
