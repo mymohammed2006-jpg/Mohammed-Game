@@ -33,7 +33,7 @@ th=[
  dict(k='fall',x=28,y=11,w=2,a=1,b=4),
  dict(k='wind',x=18,y=9,w=13,h=7,a=230,b=2,c=0.5),
  dict(k='hail',x=19,y=9,w=12,h=7,a=470),
- dict(k='scale',id='sc',x=25,y=8,w=2,x1=1,y1=16,a=3,b=5,c=9,need=['bt']),
+ dict(k='scale',id='sc',x=25,y=8,w=2,x1=1,y1=16,a=2.4,b=5,c=9,need=['bt']),   # a: 3 -> 2.4 (10-20): online the pan came down late into the saw
  dict(k='hatch',of='sc',x=1,y=8,w=2,h=1),
  dict(k='btn',id='bt',x=3,y=8,w=2,h=0.2),
  dict(k='path',x=5,y=3,w=19,h=0.3,need=['bt']),
