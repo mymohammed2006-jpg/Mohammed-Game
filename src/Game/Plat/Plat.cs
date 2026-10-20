@@ -40,6 +40,7 @@ public static partial class G
 	// intro: entering from the level list shows the level's card and draws the map in first (his words 15:13 10-19: no skip, only on entry)
 	public static void plStart(PlatLevel L, bool intro = false)
 	{
+		plStopMusic();   // a run before this one (a versus rematch started a second copy of the song over the first)
 		pl = new PlatRun { L = L, m = L.map.Select(r => r.ToCharArray()).ToArray() }; pl.h = pl.m.Length; pl.w = pl.m[0].Length;
 		pl.stemOn = (bool[])L.on.Clone();
 		hitsTotal = 0; deaths = 0;

@@ -271,11 +271,11 @@ public static partial class G
 	static void tnStart(double goAt)
 	{
 		var n = net; n.goAt = goAt; foreach (var l in n.ts) l.Clear(); n.hist.Clear(); n.later.Clear();
-		netSetPhase("play"); state = "tmIntro"; stopMenu(); ensureAudio(); particles = new List<Particle>(); tm = null;
+		netSetPhase("play"); state = "tmIntro"; stopMenu(); ensureAudio(); particles = new List<Particle>(); tmStopMusic(); tm = null;
 	}
 	static void tnBegin()
 	{
-		var n = net; tmMe = tmView = n.seat; tm = null;
+		var n = net; tmMe = tmView = n.seat; tmStopMusic(); tm = null;
 		tmStart(n.L.team, Math.Clamp(tnPage0, 0, n.L.team.pages.Count - 1));
 		for (int i = 0; i < TM_N; i++) tm.names[i] = tnName(i);
 		state = "tmPlay";
