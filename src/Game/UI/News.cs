@@ -11,9 +11,12 @@ namespace MG;
 public static partial class G
 {
 	public record NewsItem(string hd, string ic, string[] pts, int from, int to);
-	public static string NEWS_V => classicUi ? "37" : "40";   // the comparison tools stay on v39's page
+	public static string NEWS_V => classicUi ? "37" : "41";   // the comparison tools stay on v39's page
 	public static readonly NewsItem[] NEWS_ITEMS =
 	{
+		new("البلاتفورم", null, new[] { "طور جديد: من المراحل الرئيسية اختار البلاتفورم.", "المرحلة الأولى: سولو، أو ضد صاحبك أونلاين." }, 0, 41),
+		new("تعاوني", null, new[] { "مرحلة جديدة لـ ٣ لاعبين أونلاين.", "سوّ غرفة وعط الكود لربعك." }, 0, 41),
+		new("الحركة", null, new[] { "حركة المربع صارت نفسها على أي عدد فريمات." }, 0, 41),
 		new("ملء الشاشة", null, new[] { "ملء الشاشة الحقيقي.", "من الإعدادات: نافذة، أو بدون حواف، أو ملء الشاشة الكامل." }, 0, 40),
 		new("المستوى و XP", null, new[] { "XP من أفضل حرف لك في كل مرحلة.", "المراحل الأصعب تعطي أكثر.", "مستواك تحت حسابك وفي البروفايل.", "أول صفحة في الترتيب صارت للمستوى." }, 0, 40),
 		new("التحديات", null, new[] { "٤ تحديات، كل واحد يعطيك XP وشكل جديد للمربع." }, 0, 40),

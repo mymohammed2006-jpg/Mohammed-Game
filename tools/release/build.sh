@@ -23,6 +23,7 @@ rm -rf build/win build/release; mkdir -p build/win build/release
 "$GD" --headless --path . --export-release "Windows Desktop" "$MG/build/win/Mohammed Game.exe" 2>&1 | grep -E "ERROR|error" && exit 1 || true
 [ -f "build/win/Mohammed Game.exe" ] && [ -f "build/win/Mohammed Game.pck" ] || { echo "export failed"; exit 1; }
 rm -f build/win/*_console.exe
+cp -r licenses build/win/   # the libraries' licenses go with the game
 
 # the program's own icon and name (Godot's export would need rcedit for this)
 npx --yes resedit-cli@3.1.1 --in "build/win/Mohammed Game.exe" --out "build/win/Mohammed Game.exe" --delete-allicon --icon 1,assets/icon.ico \
