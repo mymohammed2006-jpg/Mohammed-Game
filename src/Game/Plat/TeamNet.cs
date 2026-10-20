@@ -27,7 +27,8 @@ public static partial class G
 		public string[] nm = new string[TM_N]; public bool[] hi = new bool[TM_N], said = new bool[TM_N];
 		public double[] rt = { -1, -1, -1 }, connAt = new double[TM_N], pingT = new double[TM_N];
 		public List<TSnap>[] ts = { new(), new(), new() }; public List<(double at, double x, double y)> hist = new();
-		public List<(string k, JsonNode j)> later = new();   // events from a page build this PC hasn't reached yet (it is a little behind)
+		public List<(string k, JsonNode j)> later = new();
+		public byte[] world; public bool worldNew;   // guests: the maker's last word on the things the three move by standing on them (type 3)   // events from a page build this PC hasn't reached yet (it is a little behind)
 		public double goAt;
 		public List<Peer> all() => team ? tp.Where(p => p != null).ToList() : peer != null ? new List<Peer> { peer } : new List<Peer>();
 	}
@@ -106,6 +107,35 @@ public static partial class G
 	{
 		var n = net; var o = new JsonObject { ["k"] = "ro", ["n"] = new JsonArray(n.nm.Select(x => (JsonNode)(x ?? "")).ToArray()), ["h"] = new JsonArray(n.hi.Select(x => (JsonNode)x).ToArray()) };
 		tnSend(o);
+	}
+	// the maker, 30 times a second: the things the three drive by standing on them (scale, ride, sinking and falling clouds, stones,
+	// buttons), as it sees them. Each PC saw the others 100 ms late and differently, so the pans drifted apart (gold rode into the
+	// saw on its own PC only); now the two follow the maker. Type 3: page build, how many, then per thing: flags, a number, a timer.
+	static readonly HashSet<string> TN_WORLD = new() { "scale", "ride", "sink", "fall", "stone", "btn", "cbtn" };
+	static int tnBase() { int k = tm.th.FindIndex(q => q.k == "snap"); return k < 0 ? tm.th.Count : k; }
+	static void tnWorldSend()
+	{
+		int nb = Math.Min(tnBase(), 400); var d = new byte[4 + nb * 9]; int o = 0;
+		d[o++] = 3; d[o++] = (byte)(tm.gen & 255); BitConverter.TryWriteBytes(d.AsSpan(o), (short)nb); o += 2;
+		for (int i = 0; i < nb; i++)
+		{
+			var s = tm.th[i]; int fl = 0; double v = 0, t = 0;
+			if (TN_WORLD.Contains(s.k))
+			{
+				int occ = s.k == "scale" ? (tmOnIt(s.L) > 0 && tmOnIt(s.R) > 0 ? 1 : 0) : tmOnIt(s);
+				fl = (s.on ? 1 : 0) | (occ > 0 ? 2 : 0) | (s.melt ? 4 : 0) | (s.gone ? 8 : 0) | (Math.Min(3, occ) << 4);
+				v = s.k == "scale" ? s.s : s.k == "ride" ? s.X : s.off; t = s.timer;
+			}
+			d[o++] = (byte)fl; BitConverter.TryWriteBytes(d.AsSpan(o), (float)v); o += 4; BitConverter.TryWriteBytes(d.AsSpan(o), (float)t); o += 4;
+		}
+		tnSendB(false, d);
+	}
+	// a guest: the maker's word on thing s (false: none for this page build yet, or this PC is the maker or a test)
+	public static bool tnWorld(TS s, out int fl, out double v, out double t)
+	{
+		fl = 0; v = t = 0; var n = net; if (tmMe <= 0 || n?.world == null || n.world[1] != (tm.gen & 255)) return false;
+		var d = n.world; int i = tm.th.IndexOf(s), nb = BitConverter.ToInt16(d, 2); if (i < 0 || i >= nb || 4 + i * 9 + 9 > d.Length) return false;
+		int o = 4 + i * 9; fl = d[o]; v = BitConverter.ToSingle(d, o + 1); t = BitConverter.ToSingle(d, o + 5); return true;
 	}
 	// my square, 30 times a second (type 2: seat, page build, flags, lives, falls, moves, swaps, what it stands on, then the numbers)
 	static void tnSnapSend()
@@ -237,6 +267,7 @@ public static partial class G
 			var p = n.tp[s]; if (p == null) continue;
 			while (p.inbox.TryDequeue(out var m))
 			{
+				if (!m.rel && m.d.Length > 0 && m.d[0] == 3) { if (!n.host) { n.world = m.d; n.worldNew = true; } continue; }
 				if (!m.rel) { if (n.host) tnSendB(false, m.d, s); tnSnapGot(m.d, now); continue; }
 				JsonNode j; try { j = JsonNode.Parse(Encoding.UTF8.GetString(m.d)); } catch (Exception) { continue; }
 				string k = S(j?["k"]);
@@ -257,7 +288,7 @@ public static partial class G
 		// the host measures each line (for the start's timing)
 		if (n.host && n.phase is "wait" or "lobby")
 			for (int s = 1; s < TM_N; s++) if (n.said[s] && now - n.pingT[s] > 1000) { n.pingT[s] = now; n.tp[s].Send(new JsonObject { ["k"] = "ping", ["t"] = now }.ToJsonString()); }
-		if (tm != null && tmMe >= 0 && state is "tmPlay" or "tmPause" or "tmSet" && now - n.sendAt >= 33) { n.sendAt = now; tnSnapSend(); }
+		if (tm != null && tmMe >= 0 && state is "tmPlay" or "tmPause" or "tmSet" && now - n.sendAt >= 33) { n.sendAt = now; tnSnapSend(); if (n.host) tnWorldSend(); }
 	}
 
 	// ---------- the start ----------
@@ -270,7 +301,7 @@ public static partial class G
 	}
 	static void tnStart(double goAt)
 	{
-		var n = net; n.goAt = goAt; foreach (var l in n.ts) l.Clear(); n.hist.Clear(); n.later.Clear();
+		var n = net; n.goAt = goAt; foreach (var l in n.ts) l.Clear(); n.hist.Clear(); n.later.Clear(); n.world = null;
 		netSetPhase("play"); state = "tmIntro"; stopMenu(); ensureAudio(); particles = new List<Particle>(); tmStopMusic(); tm = null;
 	}
 	static void tnBegin()

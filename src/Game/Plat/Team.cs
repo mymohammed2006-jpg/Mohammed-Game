@@ -271,6 +271,7 @@ public static partial class G
 		// buttons and stones first (from where everyone stood last step)
 		foreach (var s in tm.th)
 		{
+			if (s.k is "stone" or "btn" or "cbtn" && tnWorld(s, out int wf, out _, out _)) { s.on = (wf & 1) != 0; continue; }   // online: as the maker sees it
 			if (s.k == "stone") { double sx0 = s.d.x * PT; s.on = s.of != null && !s.of.melt && tm.b.Any(b => !b.down && b.onT == s.of && Math.Abs(b.x - sx0) < 26); }
 			else if (s.k == "btn" && s.d.a == 1) s.on = tm.b.Any(b => tmStands(b, tmRx(b.x), s));
 			else if (s.k == "btn") s.on = tm.b.Any(b => !b.down && b.ground && Math.Abs(b.y + P_HALF - s.Y) < 3 && b.x > s.X - 4 && b.x < s.X + s.W + 4);
@@ -281,25 +282,31 @@ public static partial class G
 		foreach (var s in tm.th)
 		{
 			double y0 = s.Y, x0 = s.X; var d = s.d;
+			bool wk = tnWorld(s, out int wfl, out double wv, out double wt), fresh = wk && net.worldNew;   // online guests: the maker's word
 			switch (s.k)
 			{
 				case "sink":
-					if (s.melt) { s.timer -= dt; if (s.timer <= 0) { s.melt = false; s.solid = true; s.off = 0; s.Y = s.fy; } break; }
-					if (tmOnIt(s) > 0) s.off += d.b * dt; else s.off = Math.Max(0, s.off - 40 * dt);
+					if (fresh && s.melt != ((wfl & 4) != 0)) { s.melt = (wfl & 4) != 0; s.solid = !s.melt; s.timer = wt; s.off = s.melt ? wv : 0; s.Y = s.fy + s.off; }
+					if (s.melt) { s.timer -= dt; if (s.timer <= 0 && !wk) { s.melt = false; s.solid = true; s.off = 0; s.Y = s.fy; } break; }
+					if (wk ? (wfl & 2) != 0 : tmOnIt(s) > 0) s.off += d.b * dt; else s.off = Math.Max(0, s.off - 40 * dt);
+					if (fresh) s.off += (wv - s.off) * 0.5;
 					if (s.off >= d.a * PT) { s.melt = true; s.solid = false; s.timer = d.c * spb; burst(s.X + s.W / 2, s.Y, "rgba(255,255,255,0.8)", 26, 220); sfx(tt => sNoise(tt, 0.4, "lowpass", 900, 0.12)); }
 					s.Y = s.fy + s.off; break;
 				case "fall":
+					if (fresh && s.gone != ((wfl & 8) != 0)) { s.gone = (wfl & 8) != 0; s.solid = !s.gone; s.timer = s.gone ? wt : 0; s.off = s.gone ? wv : 0; s.fv = 0; s.Y = s.fy + s.off; }
+					if (s.gone && wk && s.timer - dt <= 0) { s.fv += 1800 * dt; s.off += s.fv * dt; s.Y = s.fy + s.off; break; }   // back up only on the maker's word
 					if (s.gone) { s.timer -= dt; s.fv += 1800 * dt; s.off += s.fv * dt; if (s.timer <= 0) { s.gone = false; s.solid = true; s.off = 0; s.fv = 0; s.timer = 0; s.Y = s.fy; } else s.Y = s.fy + s.off; break; }
 					if (s.timer > 0) { s.timer -= dt; if (s.timer <= 0) { s.gone = true; s.solid = false; s.timer = d.b * spb; s.fv = 0; sfx(tt => sNoise(tt, 0.25, "bandpass", 700, 0.1)); } }
-					else if (tmOnIt(s) > 0) s.timer = d.a * spb;
+					else if (wk ? (wfl & 2) != 0 : tmOnIt(s) > 0) s.timer = d.a * spb;
 					break;
 				case "bridge": case "path": s.solid = tmNeed(d); s.s = Math.Clamp(s.s + (s.solid ? 6 : -4) * dt, 0, 1); break;
 				case "door": s.solid = !tmNeed(d); s.s = Math.Clamp(s.s + (s.solid ? -3 : 5) * dt, 0, 1); break;
 				case "scale":
 					{
-						bool btn = tmAll(d.need), both = tmOnIt(s.L) > 0 && tmOnIt(s.R) > 0;
+						bool btn = tmAll(d.need), both = wk ? (wfl & 2) != 0 : tmOnIt(s.L) > 0 && tmOnIt(s.R) > 0;
 						double s0 = s.s;
 						if (btn) s.s = Math.Max(-1, s.s - 0.6 * dt); else if (both) s.s = Math.Min(1, s.s + 0.45 * dt);
+						if (fresh) s.s += (wv - s.s) * 0.5;
 						if (s.s != s0 && (long)(s.s * 40) != (long)(s0 * 40)) sfx(tt => sTone(tt, 160 + 60 * s.s, 0.05, "triangle", 0.03));
 						double ly = d.y * PT + (s.s >= 0 ? s.s * d.a : s.s * d.b) * PT, ry = d.y1 * PT - Math.Max(0, s.s) * d.c * PT;
 						s.L.dy = ly - s.L.Y; s.L.Y = ly; s.R.dy = ry - s.R.Y; s.R.Y = ry;
@@ -317,13 +324,15 @@ public static partial class G
 				case "hatch": s.solid = !(s.of != null && s.of.s > 0.02); s.s = Math.Clamp(s.s + (s.solid ? -4 : 4) * dt, 0, 1); break;
 				case "ride":
 					{
-						int n = tmOnIt(s); double ex = d.x1 * PT;
+						int n = wk ? (wfl >> 4) & 3 : tmOnIt(s); double ex = d.x1 * PT;
 						if (n >= TM_N) s.X = Math.Min(ex, s.X + d.a * dt); else if (s.X < ex) s.X = Math.Max(d.x * PT, s.X - d.b * dt);
+						if (fresh) s.X += (wv - s.X) * 0.5;
 						s.n = n; break;
 					}
 			}
 			if (s.k is not ("panL" or "panR" or "scale")) { s.dx = s.X - x0; s.dy = s.Y - y0; }
 		}
+		if (net != null) net.worldNew = false;
 		// the beat: hail columns and lightning
 		if (bi != tm.beatN)
 		{
