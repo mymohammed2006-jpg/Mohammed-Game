@@ -18,6 +18,7 @@ public static partial class G
 		["L12"] = 1.8,   // Hard Spike: the same as L5 (Mohammed, 10-20)
 		["L13"] = 1.8,   // A beat further: the same difficulty as L5
 		["L14"] = 1.8,   // Jump again: the same difficulty as L5 (Mohammed, 10-20)
+		["L15"] = 4.0,   // Abra Macabre: the hardest level, On The Floor x3.3 + 20% (Mohammed, 10-21)
 		["P1"] = 1.5,   // the platformer's first level
 		["P2"] = 2.0,   // the co-op level for three (harder than P1, easier than Link)
 	};

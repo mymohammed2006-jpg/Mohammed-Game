@@ -158,7 +158,7 @@ public static partial class G
 			int tx = I("x"), ty = I("y"); string key = tx + "," + ty;
 			if (ty >= 0 && ty < pl.h && tx >= 0 && tx < pl.w && !pl.got.Contains(key)) { char c = pl.m[ty][tx]; plTake(key, c, tx, ty, true); if (!plOpen()) pl.msg = n.other + " جاب " + pl.msg; }
 		}
-		else if (k == "cp") { pl.cx = I("x") * PT + PT / 2; pl.cy = (I("y") + 1) * PT - P_HALF; cpMsg = 1.8; }
+		else if (k == "cp") { pl.cx = I("x") * PT + PT / 2; pl.cy = (I("y") + 1) * PT - P_HALF; pl.hasCp = true; cpMsg = 1.8; }
 		else if (k == "rev" && pl.down)
 		{
 			pl.down = false; player.hp = P_HP; player.inv = 1.5; player.hurt = 0; pl.vx = pl.vy = 0;

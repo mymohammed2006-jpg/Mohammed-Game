@@ -177,7 +177,7 @@ public static partial class G
 			if (inp.pz || inp.back) resume();
 			else if (inp.confirm)
 			{
-				if (pauseSel == 0) resume(); else if (pauseSel == 1) { stopMusic(); requestStart(checkpoint); } else if (pauseSel == 2) { stopMusic(); requestStart(0); }
+				if (pauseSel == 0) resume(); else if (pauseSel == 1) { stopMusic(); if (checkpoint > 0) deaths++; requestStart(checkpoint); } else if (pauseSel == 2) { stopMusic(); requestStart(0); }   // 1: back to the last save = a death (his words 10:27 10-21); no save yet = a fresh start
 				else if (pauseSel == 3) { state = "pauseSet"; setSel = 0; } else { stopMusic(); player = null; hazards = new List<Hz>(); state = fromList; actx.resume(); }
 			}
 		}

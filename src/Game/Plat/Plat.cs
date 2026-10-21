@@ -21,6 +21,7 @@ public static partial class G
 		public PlatLevel L; public char[][] m; public int w, h;
 		public double vx, vy, coyote, jbuf; public bool ground, canDash = true, jumpHeld;
 		public double cx, cy;                       // checkpoint (where the square comes back)
+		public bool hasCp;                          // a checkpoint was reached (pause "back to the last save" counts a death only then)
 		public HashSet<string> got = new(); public bool[] stemOn;
 		public Voice[] voices; public double startWhen;
 		public double t; public long n;             // music time (seconds since the loop started) on the fixed steps
@@ -144,7 +145,7 @@ public static partial class G
 			if (c >= '1' && c <= '9' && !pl.got.Contains(k)) plTake(k, c, tx, ty);
 			else if (c == 'C' && (pl.cx != tx * PT + PT / 2 || pl.cy != (ty + 1) * PT - P_HALF))
 			{
-				pl.cx = tx * PT + PT / 2; pl.cy = (ty + 1) * PT - P_HALF; cpMsg = 1.8;
+				pl.cx = tx * PT + PT / 2; pl.cy = (ty + 1) * PT - P_HALF; pl.hasCp = true; cpMsg = 1.8;
 				if (online && net.coop) netTell(new System.Text.Json.Nodes.JsonObject { ["k"] = "cp", ["x"] = tx, ["y"] = ty });
 				sfx(tt => { sTone(tt, 659, 0.25, "square", 0.06); sTone(tt + 0.08, 880, 0.3, "square", 0.06); });
 			}
@@ -266,7 +267,7 @@ public static partial class G
 		{
 			int pn = PL_PAUSE_ON.Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
 			if (inp.pz || inp.back || (inp.confirm && pauseSel == 0)) state = "pltPlay";
-			else if (inp.confirm && pauseSel == 1) plRespawn();
+			else if (inp.confirm && pauseSel == 1) { if (!pl.down) deaths++; plRespawn(); }   // a death (his words 10:27 10-21); co-op down already counted it
 			else if (inp.confirm && pauseSel == 2) { state = "pltSet"; setSel = 0; }
 			else if (inp.confirm) netEnd(null, true);
 		}
@@ -278,7 +279,7 @@ public static partial class G
 			else if (inp.confirm)
 			{
 				actx.resume();
-				if (pauseSel == 1) plRespawn(); else if (pauseSel == 2) { plStopMusic(); plStart(pl.L); } else plExit();
+				if (pauseSel == 1 && pl.hasCp) { deaths++; plRespawn(); } else if (pauseSel == 1 || pauseSel == 2) { plStopMusic(); plStart(pl.L); } else plExit();
 			}
 		}
 		else if (state == "pltDead" && online)

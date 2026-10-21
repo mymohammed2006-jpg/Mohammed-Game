@@ -30,7 +30,7 @@ public class DodgeEv
 public static partial class G
 {
 	// the new dodge levels, in the order they come after L11
-	public static readonly string[] DODGE_IDS = { "L12", "L13", "L14" };
+	public static readonly string[] DODGE_IDS = { "L12", "L13", "L14", "L15" };
 
 	static Dictionary<string, Func<DodgeEv, Action>> _dk;
 	static Dictionary<string, Func<DodgeEv, Action>> DK => _dk ??= new();

@@ -19,7 +19,7 @@ public class RpState
 public static partial class G
 {
 	public const int RP_MAX_SEGS = 100, RP_MAX_BYTES = 900000;
-	public const int RP_V = 4;   // 4 = recorded with fixed steps (v41); 1-3 play back the old way
+	public const int RP_V = 5;   // 4 = recorded with fixed steps (v41); 1-3 play back the old way; 5 (v44) = every gap is a death (pause "back to the last save" counts one)
 	public static readonly RpState rp = new();
 	public static readonly double[] RP_RATES = { 0.25, 0.5, 0.75, 1, 1.5, 2 };
 	public const double RP_JUMP = 5, RP_SMALL = 1, RP_FINE = 0.1, RP_ST = 1.0 / 120;
@@ -112,7 +112,7 @@ public static partial class G
 		if ((t - s.t0) * rp.doc.hz >= s.n - 1)
 		{
 			int lf = b[(s.n - 1) * 3 + 2];
-			if (rp.seg < rp.doc.segs.Count - 1) { rp.gapDead = ((lf >> 1) & 7) == 0; if (rp.gapDead) { burst(p.x, p.y, CYAN, 50, 520); deaths++; } stopMusic(); state = "rpGap"; rp.gapAt = performance.now(); }
+			if (rp.seg < rp.doc.segs.Count - 1) { rp.gapDead = ((lf >> 1) & 7) == 0; if (rp.gapDead) burst(p.x, p.y, CYAN, 50, 520); if (rp.gapDead || rp.doc.v >= 5) deaths++; stopMusic(); state = "rpGap"; rp.gapAt = performance.now(); }
 			else { stopMusic(); state = "rpEnd"; rp.endAt = performance.now(); }
 			return;
 		}

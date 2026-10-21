@@ -19,6 +19,7 @@ public partial class Main : Node
 	TeamBotNet teamBotNet;    // --team-bot-net: the same bots online, three copies of the game (test/TeamBotNet.cs, a test tool)
 	TeamBot teamBot;          // --team-bot: the human-like bots on the co-op level (test/TeamBot.cs, a test tool)
 	TeamTest teamTest;        // --team-run: the co-op level with three players and no people (test/TeamTest.cs)
+	RestartTest restartTest;
 	PlatTest platTest;        // --plat-run: the platformer without a person (test/PlatTest.cs)              // --ui-run: the menus check (tools/compare/ui)
 	int frame;
 	Updater upd;
@@ -37,6 +38,7 @@ public partial class Main : Node
 			if (args[i] == "--updater-shot") { shotOut = args[i + 1]; shotState = args[i + 2]; shotPct = double.Parse(args[i + 3], CultureInfo.InvariantCulture); }
 			if (args[i] == "--bot-run") botRun = BotRun.FromArgs(args, i + 1);
 			if (args[i] == "--play-run") { botRun = BotRun.FromArgs(args, i + 1); botRun.play = true; }
+			if (args[i] == "--restart-test") restartTest = RestartTest.FromArgs(args, i + 1);
 			if (args[i] == "--plat-run") platTest = PlatTest.FromArgs(args, i + 1);
 			if (args[i] == "--team-bot-net") teamBotNet = TeamBotNet.FromArgs(args, i + 1);
 			if (args[i] == "--team-bot") teamBot = TeamBot.FromArgs(args, i + 1);
@@ -57,6 +59,7 @@ public partial class Main : Node
 		if (shotOut != null) { upd = new Updater { state = shotState, percent = shotPct, shown = shotPct }; G.gfx.Resize(1280, 720); return; }
 		if (botRun != null) { botRun.Start(this); return; }
 		if (uiRun != null) { uiRun.Start(this); return; }
+		if (restartTest != null) { restartTest.Start(this); return; }
 		if (platTest != null) { platTest.Start(this); return; }
 		if (teamBot != null) { teamBot.Start(this); return; }
 		if (teamBotNet != null) { teamBotNet.Start(this); return; }
@@ -110,7 +113,7 @@ public partial class Main : Node
 
 	public override void _Input(InputEvent e)
 	{
-		if (botRun != null || uiRun != null || pvRun != null || platTest != null || teamTest != null || teamBot != null || teamBotNet != null || netTest != null || teamNet != null || canvasTestOut != null) return;
+		if (restartTest != null || botRun != null || uiRun != null || pvRun != null || platTest != null || teamTest != null || teamBot != null || teamBotNet != null || netTest != null || teamNet != null || canvasTestOut != null) return;
 		if (upd != null && upd.state != "done") return;
 		if (e is InputEventKey k)
 		{
@@ -154,6 +157,7 @@ public partial class Main : Node
 		}
 
 		if (uiRun != null) { uiRun.Process(); return; }
+		if (restartTest != null) { restartTest.Process(); return; }
 		if (platTest != null) { platTest.Process(); return; }
 		if (teamBot != null) { teamBot.Process(); return; }
 		if (teamBotNet != null) { teamBotNet.Process(); return; }
