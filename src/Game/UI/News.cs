@@ -11,9 +11,12 @@ namespace MG;
 public static partial class G
 {
 	public record NewsItem(string hd, string ic, string[] pts, int from, int to);
-	public static string NEWS_V => classicUi ? "37" : "44";   // the comparison tools stay on v39's page
+	public static string NEWS_V => classicUi ? "37" : "45";   // the comparison tools stay on v39's page
 	public static readonly NewsItem[] NEWS_ITEMS =
 	{
+		new("طور الهاردكور", null, new[] { "طور جديد يفتح لك لما توصل مستوى ٥.", "٣ قلوب بدل ٥، وما فيه إيزي.", "٣ مراحل جديدة، صاروا في البروفايل والترتيب." }, 0, 45),
+		new("أشكال جديدة", null, new[] { "٣ تحديات في الهاردكور.", "خلّص كل مرحلة وتفتح شكل:", "الجمجمة، التابوت، الدبدوب." }, 0, 45),
+		new("إصلاح", null, new[] { "الإعدادات من الإيقاف في التعاوني أونلاين صارت تفتح.", "حبال البندول في Abra\u00a0Macabre صارت وردية." }, 0, 45),
 		new("مرحلة جديدة", null, new[] { "المرحلة ١٥: Abra\u00a0Macabre.", "أصعب مرحلة في اللعبة.", "صارت في البروفايل والترتيب." }, 0, 44),
 		new("إصلاح", null, new[] { "إعادة من آخر حفظ صارت تنحسب موتة.", "إعادة من البداية تصفّر كل شي." }, 0, 44),
 		new("مراحل جديدة", null, new[] { "المرحلة ١٢: Hard\u00a0Spike.", "المرحلة ١٣: A\u00a0beat\u00a0further.", "المرحلة ١٤: Jump\u00a0again.", "صاروا في البروفايل والترتيب.", "تحدي الدائرة باقي على أول ١١ مرحلة." }, 0, 42),

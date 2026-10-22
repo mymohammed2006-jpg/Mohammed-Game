@@ -33,10 +33,11 @@ public static partial class G
 		new Level { name = "Let Me Love You", by = "AJF", ver = "AJF", bpm = 100, off = 0.225, end = 270, cps = new double[] { 0, 112, 208 }, energy = EF7, ezg = V(1), ezc = V(1), ez = () => afkOff ? 0.37 : 0.29, build = () => afkOff ? buildFriend7v30() : buildFriend7(), buildName = "buildFriend7" },
 		new Level { id = "F8", name = "On The Floor", by = "Link", ver = "Nightmare", bpm = 130, off = 0.114, end = 274, cps = new double[] { 0, 122, 186 }, energy = EF8, ezg = V(1), ezc = V(1), ez = V(0.3), build = () => buildFriend8(), buildName = "buildFriend8" },
 	};
-	public static List<Level> ALL_LV() => LEVELS.Concat(FRIENDS).Where(L => L.name != null).Concat(classicUi ? new List<Level>() : PLAT_LV).ToList();   // the platformer's levels last (not in the v39 comparison runs)
+	public static List<Level> ALL_LV() => LEVELS.Concat(FRIENDS).Where(L => L.name != null).Concat(classicUi ? new List<Level>() : HCLV.Concat(PLAT_LV)).ToList();   // then Hardcore, the platformer's levels last (not in the v39 comparison runs)
 	static G()
 	{
 		AddDodgeLevels();   // the new levels after L11 are data files (Dodge.cs)
+		AddHcLevels();      // the Hardcore levels are data files too (UI/Hard.cs)
 		for (int i = 0; i < LEVELS.Count; i++) LEVELS[i].id ??= "L" + (i + 1);
 		for (int i = 0; i < FRIENDS.Count; i++) FRIENDS[i].id ??= "F" + (i + 1);
 	}

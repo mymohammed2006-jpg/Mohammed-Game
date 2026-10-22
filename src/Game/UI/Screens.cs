@@ -55,6 +55,12 @@ public static partial class G
 	static void drawBests(Level L, double x, double y)
 	{
 		txt("أفضل تقييم", x, y + 88, 17, "rgba(255,255,255,0.55)", 500);
+		if (L.hc)   // Hardcore: Normal only
+		{
+			g.font = $"32px {TFONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr";
+			if (L.best == "S") sShine("S", x, y + 122, 26, performance.now(), 12); else { g.fillStyle = L.best != null ? "#ff2436" : "rgba(255,255,255,0.25)"; g.fillText(L.best ?? "-", x, y + 122); }
+			ezBadge(x, y + 150, 0.75, "NORMAL", "#ff2436", "#fff"); return;
+		}
 		g.strokeStyle = "rgba(255,255,255,0.15)"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x, y + 110); g.lineTo(x, y + 152); g.stroke();
 		foreach (var (e, dx) in new[] { (false, 48.0), (true, -48.0) })
 		{
@@ -179,8 +185,8 @@ public static partial class G
 		bgShapes(now); txt("الترتيب", W / 2, 62, 46, "#fff");
 		var L = boardLv(board.idx); double cy = 128;
 		// the board's name with arrows right and left
-		txt(L != null ? L.name : boardXp ? "اللفل" : "النقاط", W / 2, cy, 34, "#fff", 800);
-		if (L != null) { g.font = $"17px {TFONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillStyle = RED3; g.fillText(L.plat && L.best == null ? "؟؟؟" : !string.IsNullOrEmpty(L.song) ? L.song : "by " + L.by, W / 2, cy + 32); }   // a platformer song stays hidden until you finish it
+		txt(L != null ? lvName(L) : boardXp ? "اللفل" : "النقاط", W / 2, cy, 34, "#fff", 800);
+		if (L != null) { g.font = $"17px {TFONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillStyle = RED3; g.fillText((L.plat && L.best == null) || hcHidden(L) ? "؟؟؟" : !string.IsNullOrEmpty(L.song) ? L.song : "by " + L.by, W / 2, cy + 32); }   // a platformer song stays hidden until you finish it
 		g.fillStyle = "rgba(255,255,255,0.75)";
 		if (board.idx < ALL_LV().Count + bOff) zone(W / 2 - 320, cy - 26, 56, 52, null, "left");
 		if (board.idx > 0) zone(W / 2 + 264, cy - 26, 56, 52, null, "right");
@@ -242,10 +248,10 @@ public static partial class G
 		{
 			var L = LV[i]; double y = y0 + (i - prof.sc) * rh + (i >= LEVELS.Count ? gap : 0); bool selR = i == prof.row; if (y < y0 - rh * 1.5 || y > y0 + boxH + rh) continue;
 			rr(W / 2 - 360, y - rh / 2 + 3, 720, rh - 6, 10); g.fillStyle = selR ? $"rgba({RGB},0.10)" : "rgba(255,255,255,0.035)"; g.fill();
-			txt(L.name, lx, y + 1, 22, selR ? "#fff" : "#e9e6f5", selR ? 800 : 500, "right");
+			txt(lvName(L), lx, y + 1, 22, selR ? "#fff" : "#e9e6f5", selR ? 800 : 500, "right");
 			foreach (var (m, cx, col, c) in new[] { ("n", nx, 0, "#ff2436"), ("e", ex, 1, "#7cc8ff") })
 			{
-				if (L.plat && m == "e") continue;   // no Easy in the platformer
+				if (noEz(L) && m == "e") continue;   // no Easy in the platformer or Hardcore
 				string r = gv(p.F(m), L.id); bool sel = selR && prof.col == col, hr = hasRp(p, L, m);
 				int ri = i, ci = col; if (y - rh / 2 >= y0 - rh / 2 - 1 && y + rh / 2 <= y0 - rh / 2 + boxH + 1) zone(cx - 62, y - rh / 2 + 5, 124, rh - 10, () => { prof.row = ri; prof.col = ci; });
 				if (sel) { rr(cx - 62, y - rh / 2 + 5, 124, rh - 10, 9); g.strokeStyle = RED; g.lineWidth = 2.5; g.stroke(); }
@@ -328,14 +334,17 @@ public static partial class G
 		var items = mainItems(); bool tight = items.Length > MAIN.Length; double y0 = items.Length > 7 ? 270 : 288, dy = items.Length > 7 ? 52 : 58;
 		for (int i = 0; i < items.Length; i++)
 		{
-			var (s, id) = items[i]; double y = tight ? y0 + i * dy : APP ? 300 + i * 66 : 310 + i * 72, bh = tight ? dy - 4 : 64; bool sel = id == menuSel;
+			var (s, id) = items[i]; double y = tight ? y0 + i * dy : APP ? 300 + i * 66 : 310 + i * 72, bh = tight ? dy - 4 : 64; bool sel = id == menuSel, hc = id == HC;
 			zone(W / 2 - 240, y - bh / 2, 480, bh, () => menuSel = id);
+			double hx = hc ? hcItemDx() : 0; if (hc) { g.globalAlpha = oa * hcItemAlpha(); g.save(); g.translate(hx, 0); }
 			if (sel)
 			{
 				rr(W / 2 - 240, y - bh / 2, 480, bh, 16); g.fillStyle = $"rgba({RGB},{str(0.08 + 0.08 * pulse)})"; g.fill(); g.strokeStyle = RED; g.lineWidth = 2; g.stroke();
 				g.save(); g.translate(W / 2 + 205, y); g.rotate(now / 420); g.fillStyle = RED; double q = 8 * (1 + 0.3 * pulse); g.fillRect(-q, -q, 2 * q, 2 * q); g.restore();
 			}
-			txt(s, W / 2, y, tight ? (sel ? dy * 0.62 : dy * 0.535) : sel ? 40 : 34, sel ? "#fff" : "rgba(255,255,255,0.5)", 800);
+			if (hc && !easy) { g.save(); g.shadowColor = HC_RED; g.shadowBlur = 14 + 8 * pulse; txt(s, W / 2, y, tight ? (sel ? dy * 0.62 : dy * 0.535) : sel ? 40 : 34, sel ? "#fff" : HC_RED, 800); g.restore(); g.shadowBlur = 0; }
+			else txt(s, W / 2, y, tight ? (sel ? dy * 0.62 : dy * 0.535) : sel ? 40 : 34, sel ? "#fff" : "rgba(255,255,255,0.5)", 800);
+			if (hc) { g.restore(); g.globalAlpha = oa; }
 		}
 		drawEasyBox(now);
 		drawPtsBox(now); drawAccBox(now); drawLvBadge();

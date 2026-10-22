@@ -9,7 +9,7 @@ public static partial class G
 {
 	public static void LoadBests()
 	{
-		foreach (var L in LEVELS.Concat(FRIENDS))
+		foreach (var L in LEVELS.Concat(FRIENDS).Concat(HCLV))
 		{
 			if (L.name == null) continue;
 			var v = localStorage.getItem("mg_best_" + L.name);
@@ -32,7 +32,7 @@ public static partial class G
 	{
 		MENUS["normal"].buf = LoadSong("SONG_MENU"); applyMenu();
 		MENUS["easy"].buf = LoadSong("SONG_EZ"); applyMenu();
-		foreach (var L in LEVELS.Concat(FRIENDS))
+		foreach (var L in LEVELS.Concat(FRIENDS).Concat(HCLV))
 		{
 			if (!SONG_FILE.TryGetValue(L.id, out var f)) continue;
 			var b = LoadSong(f); if (b != null) L.buf = b; else L.err = true;

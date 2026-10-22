@@ -332,7 +332,7 @@ public static partial class G
 		var n = net; if (n == null || !n.team) { tmStopMusic(); tm = null; tmMe = tmView = -1; state = "pltList"; return true; }
 		if (state == "tmIntro") { if (now >= n.goAt) tnBegin(); return true; }
 		if (tm == null) return true;
-		bool play = state == "tmPlay";
+		bool play = state == "tmPlay", opened = false;
 		if (play && tm.won) { if (inp.back || (inp.confirm && tm.t - tm.wonAt > 7.3)) { netEnd(null, true); return true; } }
 		else if (play && inp.pz) { state = "tmPause"; pauseSel = 0; play = false; }   // online: the others keep going (so does this square, standing)
 		else if (play) { if (inp.jump) tm.jumpQ = true; if (inp.pdash) tm.dashQ = true; tm.jumpHeld = inp.jumpHeld; }
@@ -340,12 +340,12 @@ public static partial class G
 		{
 			int pn = TM_PAUSE.Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
 			if (inp.pz || inp.back || (inp.confirm && pauseSel == 0)) state = "tmPlay";
-			else if (inp.confirm && pauseSel == 1) { state = "tmSet"; setSel = 0; }
+			else if (inp.confirm && pauseSel == 1) { state = "tmSet"; setSel = 0; opened = true; }
 			else if (inp.confirm) { netEnd(null, true); return true; }
 		}
 		if (!play) { tm.jumpQ = tm.dashQ = tm.jumpHeld = false; }
 		tnRun(play ? inp : null, now);
-		return state != "tmSet";   // the settings screen reads its own keys
+		return state != "tmSet" || opened;   // the settings screen reads its own keys, from the next frame (the press that opened it must not press its first row too)
 	}
 	// the fixed steps up to the music's time (like the platformer's), my buttons on the last step of this frame
 	static void tnRun(Inp inp, double now)

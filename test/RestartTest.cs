@@ -46,7 +46,7 @@ public class RestartTest
 
 	void Dodge(string id)
 	{
-		var L = G.ALL_LV().First(x => x.id == id); log.Append($"== {id} {L.name}\n");
+		var L = G.ALL_LV().Concat(G.HCLV).First(x => x.id == id); log.Append($"== {id} {L.name}\n");
 		G.easy = false; G.cur = L; G.fromList = "levels"; G.levelTiming(L); L.buf = G.LoadSong(G.SONG_FILE[L.id]); G.noMus = false;
 		G.requestStart(0); Ok(Until(() => G.state == "play", 2000), "starts");
 		// 1) no save yet: back to the last save = a fresh start, no death
@@ -57,7 +57,7 @@ public class RestartTest
 		Ok(Until(() => G.checkpoint > 0, 240 * 200), $"reached a save (beat {G.checkpoint})"); double cp = G.checkpoint;
 		Until(() => G.songT > G.B(cp) + 1, 2000); G.player.hp = 1; G.hitsTotal = 4;
 		Pause(1); Ok(G.deaths == 1 && G.hitsTotal == 4 && G.checkpoint == cp, $"back to the save = death (deaths {G.deaths} hits {G.hitsTotal})");
-		Ok(Until(() => G.state == "play", 2000) && G.player.hp == 5 && G.songT < G.B(cp), $"  back at the save with 5 hearts (songT {G.songT:F2})");
+		Ok(Until(() => G.state == "play", 2000) && G.player.hp == G.maxHp(G.cur) && G.songT < G.B(cp), $"  back at the save with 5 hearts (songT {G.songT:F2})");
 		Until(() => G.songT > G.B(cp) + 1, 2000); Pause(1); Ok(G.deaths == 2, $"again = 2 deaths ({G.deaths})");
 		Until(() => G.state == "play", 2000); Until(() => G.songT > G.B(cp) + 1, 2000);
 		// the replay of that run counts them too (new replays); an old (v4) one stays as recorded

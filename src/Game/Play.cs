@@ -19,6 +19,7 @@ public class Level
 	public string best, bestE;
 	public object buf;            // the decoded song (null until loaded)
 	public bool err;
+	public bool hc;               // a Hardcore level (UI/Hard.cs): 3 hearts, no Easy
 	public bool plat;             // a platformer level (data/plat_<id>.json): only its letter is here, for XP, points, the board and the profile
 	public Dictionary<string, double> ezLifeOld, ezLifeNew, ezLife;
 	public static Func<double> K(double v) => () => v;
@@ -129,7 +130,7 @@ public static partial class G
 		hazards = new List<Hz>(); particles = new List<Particle>(); gloom = gloomT = 0; events = cur.build(); ezStart();
 		double fromB = cp == 0 ? 0 : cp - 2, fromT = cp == 0 ? 0 : B(fromB);
 		evIdx = events.FindIndex(e => e.b >= fromB); if (evIdx < 0) evIdx = events.Count; afkStart(fromB);
-		player = new Player { x = 200, y = H / 2, r = easy ? EZ_R : 5, hp = 5, inv = 1.0, hurt = 0, dash = 0, cd = 0, fx = 1, fy = 0, ddx = 1, ddy = 0, ang = 0 };
+		player = new Player { x = 200, y = H / 2, r = easy ? EZ_R : 5, hp = maxHp(cur), inv = 1.0, hurt = 0, dash = 0, cd = 0, fx = 1, fy = 0, ddx = 1, ddy = 0, ang = 0 };
 		playMusic(fromT); songT = fromT - 0.12; sim0 = songT; simN = 0; dashQ = false; inX = inY = 0;
 		// a checkpoint: long-lived things (backgrounds and such, keep) come back with the player
 		if (cp > 0)

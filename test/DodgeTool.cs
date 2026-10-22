@@ -21,7 +21,7 @@ public static partial class G
 		localStorage.Memory = true; noMus = true; padsDisabled = true; classicUi = false;
 		performance.manual = 100000; AudioCtx.manualTime = 0; InitSound(); JS.SeedRandom(12345);
 		string mode = a[k], id = a[k + 1], m = a[k + 2];
-		var L = ALL_LV().First(x => x.id == id); easy = m == "e"; cur = L; levelTiming(L);
+		var L = ALL_LV().Concat(HCLV).First(x => x.id == id); easy = m == "e"; cur = L; levelTiming(L);
 		if (mode == "diff") DodgeDiff(L);
 		else if (mode == "speed") DodgeSpeed(L);
 		else if (mode == "hbot") DodgeHBot.Run(a.Skip(k + 1).ToArray());

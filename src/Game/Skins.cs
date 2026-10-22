@@ -9,7 +9,7 @@ namespace MG;
 public static partial class G
 {
 	public static string skin = "";   // "" = the original square
-	public static readonly string[] SKINS = { "", "crystal", "circuit", "bolt", "eq" };
+	public static readonly string[] SKINS = { "", "crystal", "circuit", "bolt", "eq", "skull", "coffin", "teddy" };   // the last 3: Hardcore (HardSkins.cs)
 	// replays show the look of whoever played them (the bot and old replays: the original square)
 	public static string playerSkin() => classicUi ? "" : state is "replay" or "rpGap" or "rpEnd" ? (rp.bot || rp.doc == null ? "" : rp.doc.sk) : skin;
 	public static string skinName(string s) => s == "" ? "العادي" : Array.Find(CHALS, c => c.id == s)?.name ?? "";
@@ -23,6 +23,9 @@ public static partial class G
 			case "circuit": skCircuit(k); break;
 			case "bolt": skBolt(k); break;
 			case "eq": skEq(k, now); break;
+			case "skull": skSkull(k, now); break;
+			case "coffin": skCoffin(k, now); break;
+			case "teddy": skTeddy(k, now); break;
 			default:
 				g.shadowColor = CYAN; g.shadowBlur = 14 * k; g.fillStyle = CYAN; g.fillRect(-9, -9, 18, 18); g.shadowBlur = 0; g.fillStyle = ARENA; g.fillRect(-3, -3, 6, 6); break;
 		}
@@ -104,6 +107,7 @@ public static partial class G
 		var w = p.wkTrail; int n = w.Count; if (n == 0) return; double t = songT;
 		double age(int i) => clamp(1 - (t - w[i].t) / WK_KEEP, 0, 1);   // 1 = new, 0 = gone
 		g.save();
+		if (hcWalkTrail(s, w, age)) { g.restore(); return; }
 		switch (s)
 		{
 			case "":
@@ -155,6 +159,7 @@ public static partial class G
 	{
 		var pts = new List<TrailPt>(p.skTrail); if (p.dash > 0) pts.Add(new TrailPt { x = p.x, y = p.y, d = true }); int n = pts.Count; if (n < 2) return;
 		g.save();
+		if (hcDashTrail(s, pts)) { g.restore(); return; }
 		switch (s)
 		{
 			case "crystal":

@@ -19,7 +19,7 @@ public class DodgeHBot
 {
 	static readonly CultureInfo IC = CultureInfo.InvariantCulture;
 	const double FR = 1.0 / 60;
-	static Level Lv(string id) => G.ALL_LV().First(x => x.id == id);
+	static Level Lv(string id) => G.ALL_LV().Concat(G.HCLV).First(x => x.id == id);
 	static void Begin(Level L, bool ez, int seed)
 	{
 		G.easy = ez; G.applyTheme(ez); G.cur = L; G.levelTiming(L); G.hitsTotal = 0; G.deaths = 0; G.rec = new RecState(); G.state = "play";

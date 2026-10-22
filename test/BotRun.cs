@@ -36,7 +36,7 @@ public class BotRun
 		performance.manual = 100000; AudioCtx.manualTime = 0;
 		G.InitSound();
 		G.gfx.Resize(1280, 720); G.scale = 1; G.offX = 0; G.offY = 0;
-		var L = G.ALL_LV().First(x => x.id == id);
+		var L = G.ALL_LV().Concat(G.HCLV).First(x => x.id == id);
 		if (System.Environment.GetEnvironmentVariable("SKIN") is string sk) { G.classicUi = false; G.skin = sk == "none" ? "" : sk; }   // SKIN=<look|none>: today's game with that look (previews)
 		JS.SeedRandom(SEED);
 		G.rpOverlayOff = true;

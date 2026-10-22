@@ -10,11 +10,23 @@ namespace MG;
 public static partial class G
 {
 	const int CHAL = 9, SKINSM = 10;
-	static (string s, int id)[] mainItems() => classicUi ? MAIN : MAIN.Take(2).Append(("الأشكال", SKINSM)).Append(("التحديات", CHAL)).Concat(MAIN.Skip(2).Where(m => m.id != 2)).ToArray();   // v41: no "how to play"
+	static (string s, int id)[] mainItems() => classicUi ? MAIN : withHc(MAIN.Take(2).Append(("الأشكال", SKINSM)).Append(("التحديات", CHAL)).Concat(MAIN.Skip(2).Where(m => m.id != 2)).ToArray());   // v41: no "how to play"
 	public static int chalSel = 0;
 	public static double chalShake = 0;
 	const string GOLD = "#ffd25c";
 
+	// v45: 8 looks and 7 challenges don't fit on one screen: the cards slide like the levels list (the chosen one always shows)
+	static double skScr, chScr; static int skFirst, chFirst;
+	static double scrollTo(double scr, ref int first, int sel, int n, int vis)
+	{
+		if (sel < first) first = sel; else if (sel > first + vis - 1) first = sel - vis + 1;
+		double t = clamp(first, 0, Math.Max(0, n - vis)); scr += (t - scr) * Math.Min(1, fdt * 12); if (Math.Abs(t - scr) < 0.001) scr = t; return scr;
+	}
+	static void scrollArrows(double scr, int n, int vis, double cy, Action<int> pick)
+	{
+		if (scr > 0.01) { zone(W - 66, cy - 40, 56, 80, null, null, () => pick(Math.Max(0, (int)round(scr) - 1))); g.fillStyle = "rgba(255,255,255,0.5)"; g.beginPath(); g.moveTo(W - 30, cy); g.lineTo(W - 46, cy - 14); g.lineTo(W - 46, cy + 14); g.closePath(); g.fill(); }
+		if (scr + vis < n - 0.01) { zone(10, cy - 40, 56, 80, null, null, () => pick(Math.Min(n - 1, (int)round(scr) + vis))); g.fillStyle = "rgba(255,255,255,0.5)"; g.beginPath(); g.moveTo(30, cy); g.lineTo(46, cy - 14); g.lineTo(46, cy + 14); g.closePath(); g.fill(); }
+	}
 	static void xpBar(double x, double y, double w, double h, double k, string col)
 	{
 		rr(x, y - h / 2, w, h, h / 2); g.fillStyle = "rgba(255,255,255,0.12)"; g.fill();
@@ -33,24 +45,28 @@ public static partial class G
 	static void drawSkins(double now)
 	{
 		bgShapes(now); txt("الأشكال", W / 2, 70, 48, "#fff");
-		int n = SKINS.Length; double cw = 214, chh = 360, gp = 22, total = n * cw + (n - 1) * gp, cy = 370;
+		int n = SKINS.Length, vis = Math.Min(n, 5); double cw = 214, chh = 360, gp = 22, total = vis * cw + (vis - 1) * gp, cy = 370;
+		skScr = scrollTo(skScr, ref skFirst, chalSel, n, vis);
 		for (int i = 0; i < n; i++)
 		{
 			string s = SKINS[i]; bool open = skinOpen(s), sel = i == chalSel, on = s == skin;
-			double x = W / 2 + total / 2 - cw / 2 - i * (cw + gp);
+			double d = i - skScr, al = clamp(1 - Math.Max(-d, d - (vis - 1)), 0, 1); if (al <= 0) continue; g.globalAlpha = al;
+			double x = W / 2 + total / 2 - cw / 2 - d * (cw + gp);
 			if (sel && chalShake > 0) x += JS.sin(chalShake * 60) * 8 * chalShake / 0.4;
 			double lf = lift("K" + i, sel), top = cy - chh / 2 + lf;
-			int ii = i; zone(x - cw / 2, cy - chh / 2, cw, chh, () => chalSel = ii);
+			int ii = i; if (al > 0.99) zone(x - cw / 2, cy - chh / 2, cw, chh, () => chalSel = ii);
 			rr(x - cw / 2, top, cw, chh, 18); g.fillStyle = sel ? CARDS : CARD; g.fill();
 			g.strokeStyle = on ? CYAN : sel ? RED : "rgba(255,255,255,0.12)"; g.lineWidth = sel || on ? 3 : 1.5; g.stroke();
 			// the square, big
-			g.save(); g.translate(x, top + 100); g.scale(4.4, 4.4); g.globalAlpha = open ? 1 : 0.28; skinBody(s, 0.5, now); g.restore(); g.globalAlpha = 1;
+			g.save(); g.translate(x, top + 100); g.scale(4.4, 4.4); g.globalAlpha = al * (open ? 1 : 0.28); skinBody(s, 0.5, now); g.restore(); g.globalAlpha = al;
 			if (!open) { g.save(); g.translate(x, top + 106); g.scale(0.8, 0.8); lockIcon(0, 0); g.restore(); }
 			txt(skinName(s), x, top + 196, 30, "#fff", 800);
 			if (s == "") txt("الشكل الأصلي", x, top + 240, 19, "rgba(255,255,255,0.55)", 500);
 			string st = on ? "مختار" : open ? "مفتوح" : "مقفل";
 			txt(st, x, top + chh - 34, 24, on ? CYAN : open ? "#fff" : "rgba(255,255,255,0.35)", 800);
+			g.globalAlpha = 1;
 		}
+		scrollArrows(skScr, n, vis, cy, v => chalSel = v);
 		if (skinInfo) { drawSkinInfo(now); return; }
 		row(new[] { (BTN[kind].confirm, "اختار الشكل"), (BTN[kind].restart, "طريقة الفتح"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
 	}
@@ -88,12 +104,14 @@ public static partial class G
 	static void drawChal(double now)
 	{
 		bgShapes(now); txt("التحديات", W / 2, 70, 48, "#fff");
-		int n = CHALS.Length; double cw = 250, chh = 420, gp = 26, total = n * cw + (n - 1) * gp, cy = 380;
+		int n = CHALS.Length, vis = Math.Min(n, 4); double cw = 250, chh = 420, gp = 26, total = vis * cw + (vis - 1) * gp, cy = 380;
+		chScr = scrollTo(chScr, ref chFirst, chalView, n, vis);
 		for (int i = 0; i < n; i++)
 		{
 			var c = CHALS[i]; bool done = chalDone(c), sel = i == chalView;
-			double x = W / 2 + total / 2 - cw / 2 - i * (cw + gp), top = cy - chh / 2 + lift("C" + i, sel);
-			int ii = i; zone(x - cw / 2, cy - chh / 2, cw, chh, () => chalView = ii, null);
+			double d = i - chScr, al = clamp(1 - Math.Max(-d, d - (vis - 1)), 0, 1); if (al <= 0) continue; g.globalAlpha = al;
+			double x = W / 2 + total / 2 - cw / 2 - d * (cw + gp), top = cy - chh / 2 + lift("C" + i, sel);
+			int ii = i; if (al > 0.99) zone(x - cw / 2, cy - chh / 2, cw, chh, () => chalView = ii, null);
 			rr(x - cw / 2, top, cw, chh, 18); g.fillStyle = sel ? CARDS : CARD; g.fill(); g.strokeStyle = sel ? RED : done ? CYAN : "rgba(255,255,255,0.12)"; g.lineWidth = sel ? 3 : done ? 2.5 : 1.5; g.stroke();
 			var ls = c.text.Split('\n');
 			for (int j = 0; j < ls.Length; j++) txt(ls[j], x, top + 48 + j * 32 + (3 - ls.Length) * 16, 24, "#fff", 800);
@@ -107,7 +125,9 @@ public static partial class G
 			txt($"شكل {skinName(c.id)}", x, top + 346, 20, "#fff", 800);
 			g.font = $"800 19px {FONT}"; g.fillStyle = GOLD; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText($"+{ar(c.xp)} XP", x, top + 374);
 			txt(done ? "خلّصته ✓" : "", x, cy + chh / 2 + 26, 22, CYAN, 800);
+			g.globalAlpha = 1;
 		}
+		scrollArrows(chScr, n, vis, cy, v => chalView = v);
 		row(new[] { (BTN[kind].move, "تنقّل"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
 	}
 	// moving between the challenges only highlights them (nothing to pick here)

@@ -11,6 +11,7 @@ public class PvRun
 {
 	string outDir; int i; Main host; string pending;
 	readonly Dictionary<int, Action> at = new(); readonly Dictionary<int, string> shots = new();
+	BinaryWriter wav = System.Environment.GetEnvironmentVariable("WAV") != null ? new BinaryWriter(new MemoryStream()) : null;
 	public static PvRun FromArgs(string[] a, int k) => new PvRun { outDir = a[k] };
 
 	static void key(string k, bool down) { if (down) G.OnKeyDown(k, false); else G.OnKeyUp(k); }
@@ -26,10 +27,13 @@ public class PvRun
 		G.LoadXp(); G.setSkin("crystal"); JS.SeedRandom(12345);
 		var now = () => performance.manual.Value;
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "mouse") { MouseScene(now); G.last = now(); return; }
+		if (System.Environment.GetEnvironmentVariable("MG_PV") == "hc") { HcScene(now); G.last = now(); return; }
+		if (System.Environment.GetEnvironmentVariable("MG_PV") == "hc2") { HcOrder(now); G.last = now(); return; }
+		if (System.Environment.GetEnvironmentVariable("MG_PV") == "hcsk") { HcSkins(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "news")
 		{
 			endF = 200;
-			at[1] = () => { G.gatePassed = true; localStorage.setItem("mg_news", "37"); G.goMain(now()); };
+			at[1] = () => { G.gatePassed = true; localStorage.setItem("mg_news", System.Environment.GetEnvironmentVariable("MG_NEWS_SEEN") ?? "37"); G.goMain(now()); };
 			shots[120] = "n1-news-v39-player";
 			at[121] = () => { localStorage.setItem("mg_news", "30"); G.goMain(now()); };
 			shots[190] = "n2-news-v30-player";
@@ -83,7 +87,7 @@ public class PvRun
 	}
 
 	// the mouse and the free frame cap / volume: clicks go through G.mouseQ like real ones; the pictures show the zones in green
-	bool showZones; int endF = 1415;
+	bool showZones; int endF = 1415; Action over;
 	static G.Zone find(Func<bool> want) { foreach (var z in G.zonesNow) { z.hover?.Invoke(); if (want()) return z; } return null; }
 	static void click(G.Zone z, double fx = 0.5) { double x = z.x + z.w * fx, y = z.y + z.h / 2; G.mouseQ.Add((0, x, y)); G.mouseQ.Add((1, x, y)); G.mouseQ.Add((2, x, y)); }
 	static void log(string s) => GD.Print("MOUSE ", s);
@@ -149,6 +153,128 @@ public class PvRun
 		at[744] = () => log($"level card click -> {G.state} (want starting/levelIntro)");
 	}
 
+	// Hardcore (v45): the menu item (open, Easy on, pressed with Easy), the list, 3 hearts, and the unlock card on the win screen
+	void HcScene(Func<double> now)
+	{
+		endF = 1300; Directory.CreateDirectory(Path.Combine(outDir, "w")); bool fake = System.Environment.GetEnvironmentVariable("MG_HC_FAKE") == "1";
+		void tap(string k) { G.OnKeyDown(k, false); G.OnKeyUp(k); }
+		if (fake && G.HCLV.Count == 0)
+		{
+			var L12 = G.LEVELS.Find(l => l.id == "L12"); var F = G.LoadDodge("L12"); F.id = "H1"; F.hc = true; F.name = "اسم المرحلة"; F.song = "Song Name"; F.buf = L12.buf; G.HCLV.Add(F);
+		}
+		at[1] = () => { G.gatePassed = true; G.state = "main"; G.mainAt = now() - 3000; G.menuSel = 0; GD.Print($"HC xp {G.xp} lv {G.xpProg(G.xp).lv} open {G.hcOpen()}"); };
+		shots[40] = "h1-main";
+		at[41] = () => G.menuSel = 11;
+		shots[70] = "h2-main-selected";
+		at[71] = () => { G.setEasy(true); G.mainAt = now() - 3000; };
+		shots[110] = "h3-main-easy";
+		at[111] = () => key("Enter", true); at[113] = () => key("Enter", false);
+		at[114] = () => GD.Print($"HC easy press -> {G.state} (want main)");
+		shots[116] = "h4-main-easy-pressed";
+		at[160] = () => { G.setEasy(false); G.mainAt = now() - 3000; G.menuSel = 11; };
+		at[200] = () => key("Enter", true); at[202] = () => key("Enter", false);
+		at[203] = () => GD.Print($"HC press -> {G.state} (want hcList)");
+		shots[240] = "h5-list";
+		at[241] = () => { if (G.HCLV.Count > 0) { G.hcSel = 0; key("Enter", true); } }; at[243] = () => key("Enter", false);
+		at[700] = () => GD.Print($"HC start -> {G.state} hp {G.player?.hp} (want 3)");
+		shots[701] = "h6-level-3hearts";
+		at[702] = () =>
+		{
+			G.stopMusic(); G.player = null;
+			// below level 5, then a win that crosses it
+			var L11 = G.LEVELS.Find(l => l.id == "L11");
+			foreach (var L in G.ALL_LV()) { L.best = null; L.bestE = null; }
+			foreach (var L in G.LEVELS.Concat(G.FRIENDS)) { if (L == L11 || L.name == null) continue; foreach (var r in new[] { "S", "A", "B", "C" }) { L.best = r; if (G.xp < 1800) break; L.best = null; } }
+			// make sure the S on L11 crosses 1800
+			GD.Print($"HC before win xp {G.xp} lv {G.xpProg(G.xp).lv}");
+			G.cur = L11; G.xpMark(); L11.best = "S"; G.lastRank = "S"; G.lastEz = false; G.lastGain = 140; G.hitsTotal = 0; G.deaths = 0; G.fromList = "levels";
+			G.awardXp(); G.state = "win"; G.winAt = now(); G.winSlam = now() + 300; G.winHit = false;
+			GD.Print($"HC after win xp {G.xp} lv {G.lastLvFrom}->{G.lastLvTo}");
+		};
+		for (int f = 703; f < 1200; f++) shots[f] = "w/" + (f - 703).ToString("D4");
+		at[1201] = () => key("Escape", true); at[1203] = () => key("Escape", false);
+		shots[1240] = "h8-back-main-after";
+		at[1241] = () => { G.state = "main"; G.mainAt = now() - 3000; G.menuSel = 0; };
+		shots[1280] = "h9-main-now-open";
+	}
+
+	// Hardcore levels open in order; a locked one shows nothing and plays the radio static. Three stand-in levels (L12-L14 shapes).
+	// env WAV=<file>: the game's sound too (44100 Hz stereo), for the video
+	void HcOrder(Func<double> now)
+	{
+		endF = System.Environment.GetEnvironmentVariable("MG_HC_QUICK") == "1" ? 5 : 900; Directory.CreateDirectory(Path.Combine(outDir, "v"));
+		if (G.HCLV.Count == 0)
+			foreach (var (src, id, nm) in new[] { ("L12", "H1", "المرحلة الأولى (مثال)"), ("L13", "H2", "المرحلة الثانية (مثال)"), ("L14", "H3", "المرحلة الثالثة (مثال)") })
+			{ var O = G.LEVELS.Find(l => l.id == src); var F = G.LoadDodge(src); F.id = id; F.hc = true; F.name = nm; F.buf = O.buf; G.HCLV.Add(F); }
+		foreach (var L in G.HCLV) L.best = null;
+		at[1] = () =>
+		{
+			// the top: every letter S (Easy too where there is Easy)
+			var keep = G.ALL_LV().ToDictionary(L => L, L => (L.best, L.bestE));
+			foreach (var L in G.ALL_LV()) { L.best = "S"; if (!G.noEz(L)) L.bestE = "S"; }
+			GD.Print($"HC2 top xp {G.xp} level {G.xpProg(G.xp).lv} (want 15)");
+			foreach (var L in G.HCLV) L.best = null;
+			GD.Print($"HC2 top without Hardcore xp {G.xp} level {G.xpProg(G.xp).lv}");
+			foreach (var kv in keep) { kv.Key.best = kv.Value.best; kv.Key.bestE = kv.Value.bestE; }
+			G.gatePassed = true; G.state = "hcList"; G.hcSel = 0;
+		};
+		at[200] = () => { key("ArrowLeft", true); }; at[202] = () => key("ArrowLeft", false);
+		at[380] = () => { key("ArrowLeft", true); }; at[382] = () => key("ArrowLeft", false);
+		at[500] = () => { key("Enter", true); }; at[502] = () => key("Enter", false);
+		at[506] = () => GD.Print($"HC2 enter on locked -> {G.state} (want hcList)");
+		at[559] = () => GD.Print($"HC2 points before {G.ptsOf(false)} max {G.ptsMax(false)} easy max {G.ptsMax(true)}");
+		at[561] = () => GD.Print($"HC2 points after H1 B {G.ptsOf(false)} (want +200)");
+		at[560] = () => { G.HCLV[0].best = "B"; key("ArrowRight", true); }; at[562] = () => key("ArrowRight", false);   // the first one finished: the second opens
+		at[740] = () => GD.Print($"HC2 unlocked {G.hcUnlocked(0)} {G.hcUnlocked(1)} {G.hcUnlocked(2)} (want True True False)");
+		for (int f = 2; f < 900; f++) shots[f] = "v/" + f.ToString("D4");
+	}
+
+	// the 3 Hardcore looks: the looks screen, the challenges screen, each look moving and dashing in a level, and the win that opens one
+	void HcSkins(Func<double> now)
+	{
+		endF = System.Environment.GetEnvironmentVariable("MG_HC_QUICK") == "1" ? 45 : 1400; Directory.CreateDirectory(Path.Combine(outDir, "v"));
+		if (G.HCLV.Count == 0)
+			foreach (var (src, id, nm) in new[] { ("L12", "H1", "المرحلة الأولى (مثال)"), ("L13", "H2", "المرحلة الثانية (مثال)"), ("L14", "H3", "المرحلة الثالثة (مثال)") })
+			{ var O = G.LEVELS.Find(l => l.id == src); var F = G.LoadDodge(src); F.id = id; F.hc = true; F.name = nm; F.buf = O.buf; G.HCLV.Add(F); }
+		foreach (var L in G.HCLV) L.best = "A";
+		// first a close look: the 3 looks big, side by side
+		at[1] = () => over = () =>
+		{
+			var g = G.g; g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#000"; g.fillRect(0, 0, 1280, 720);
+			string[] ids = { "skull", "coffin", "teddy" };
+			for (int q = 0; q < 3; q++) { double x = 1280 - 230 - q * 410; g.save(); g.translate(x, 330); g.scale(17, 17); G.skinBody(ids[q], 0.5, performance.now()); g.restore(); G.txt(G.skinName(ids[q]), x, 560, 44, "#fff", 800); }
+		};
+		shots[40] = "s0-big";
+		at[41] = () => { over = null; G.gatePassed = true; G.state = "skins"; G.chalSel = 5; G.skinInfo = false; };
+		shots[60] = "s1-skins-skull";
+		at[61] = () => G.chalSel = 6; shots[100] = "s2-skins-coffin";
+		at[101] = () => G.chalSel = 7; shots[140] = "s3-skins-teddy";
+		at[141] = () => { G.HCLV[2].best = null; G.skinInfo = true; }; shots[170] = "s4-skin-info-locked";
+		at[171] = () => { G.skinInfo = false; G.HCLV[1].best = null; G.state = "chal"; G.chalView = 4; }; shots[220] = "s5-chal-hardcore";
+		at[221] = () => G.chalView = 6; shots[260] = "s6-chal-hardcore-end";
+		at[261] = () => { foreach (var L in G.HCLV) L.best = "A"; G.easy = false; G.startLevel(G.LEVELS[0], "levels"); };
+		string[] sk = { "skull", "coffin", "teddy" };
+		for (int k2 = 0; k2 < 3; k2++)
+		{
+			int f0 = 700 + k2 * 160; string ss = sk[k2];
+			at[f0] = () => { G.skin = ss; key("ArrowRight", true); key("ArrowUp", true); };
+			at[f0 + 50] = () => key("ArrowUp", false);
+			at[f0 + 60] = () => key("Space", true); at[f0 + 63] = () => key("Space", false);
+			at[f0 + 80] = () => { key("ArrowRight", false); key("ArrowLeft", true); key("ArrowDown", true); };
+			at[f0 + 120] = () => key("Space", true); at[f0 + 123] = () => key("Space", false);
+			at[f0 + 150] = () => { key("ArrowLeft", false); key("ArrowDown", false); };
+			for (int f = f0; f < f0 + 155; f++) shots[f] = $"v/{ss}-{f - f0:D3}";
+		}
+		at[1190] = () =>
+		{
+			G.stopMusic(); G.player = null; var H1 = G.HCLV[0]; H1.best = null; G.skin = "crystal";
+			G.cur = H1; G.xpMark(); H1.best = "A"; G.lastRank = "A"; G.lastEz = false; G.lastGain = 350; G.hitsTotal = 3; G.deaths = 0; G.fromList = "hcList";
+			G.awardXp(); G.state = "win"; G.winAt = now() - 1000; G.winSlam = now() - 900; G.winHit = true;
+			GD.Print($"HCSK win: +{G.lastXp} XP, challenges {string.Join(",", G.lastChals.Select(c => c.id + " " + c.xp))}");
+		};
+		shots[1320] = "s7-win-skull";
+	}
+
 	static void drawZones()
 	{
 		var g = G.g; g.setTransform(1, 0, 0, 1, 0, 0); g.strokeStyle = "rgba(60,255,120,0.9)"; g.lineWidth = 2;
@@ -158,10 +284,20 @@ public class PvRun
 	{
 		if (pending != null) { G.gfx.game.GetTexture().GetImage().SavePng(Path.Combine(outDir, pending + ".png")); pending = null; }
 		int f = ++i;
-		if (f > endF) { GD.Print("preview done"); host.GetTree().Quit(); return; }
+		if (f > endF)
+		{
+			if (wav != null)
+			{
+				var pcm = ((MemoryStream)wav.BaseStream).ToArray(); using var wf = new BinaryWriter(File.Create(System.Environment.GetEnvironmentVariable("WAV")));
+				wf.Write(System.Text.Encoding.ASCII.GetBytes("RIFF")); wf.Write(36 + pcm.Length); wf.Write(System.Text.Encoding.ASCII.GetBytes("WAVEfmt ")); wf.Write(16); wf.Write((short)1); wf.Write((short)2);
+				wf.Write(AudioCtx.SR); wf.Write(AudioCtx.SR * 4); wf.Write((short)4); wf.Write((short)16); wf.Write(System.Text.Encoding.ASCII.GetBytes("data")); wf.Write(pcm.Length); wf.Write(pcm);
+			}
+			GD.Print("preview done"); host.GetTree().Quit(); return;
+		}
+		if (wav != null) { int n = AudioCtx.SR / 60; var l = new float[n]; var r = new float[n]; AudioCtx.RenderAt(l, r, n, AudioCtx.manualTime.Value); for (int j = 0; j < n; j++) { wav.Write((short)(Math.Clamp(l[j], -1, 1) * 32767)); wav.Write((short)(Math.Clamp(r[j], -1, 1) * 32767)); } }
 		if (at.TryGetValue(f, out var a)) a();
 		int k = int.TryParse(System.Environment.GetEnvironmentVariable("MG_PV_HZ"), out var hz) ? hz / 60 : 1;   // 240 Hz like Mohammed's screen: 4 steps per picture frame
-		for (int j = 0; j < k; j++) { AudioCtx.manualTime += 1.0 / 60 / k; performance.manual += 1000.0 / 60 / k; G.gfx.BeginFrame(); G.step(performance.manual.Value); if (showZones && j == k - 1) drawZones(); G.gfx.EndFrame(); }
-		if (shots.TryGetValue(f, out var s)) pending = s;
+		for (int j = 0; j < k; j++) { AudioCtx.manualTime += 1.0 / 60 / k; performance.manual += 1000.0 / 60 / k; G.gfx.BeginFrame(); G.step(performance.manual.Value); if (showZones && j == k - 1) drawZones(); if (over != null && j == k - 1) over(); G.gfx.EndFrame(); }
+		if (shots.TryGetValue(f, out var s)) { pending = s; if (s.StartsWith("v/") && G.player != null) File.AppendAllText(Path.Combine(outDir, "pos.txt"), $"{s} {G.player.x:F1} {G.player.y:F1}\n"); }
 	}
 }

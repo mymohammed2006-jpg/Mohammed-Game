@@ -24,6 +24,17 @@ public static partial class G
 			else if (pv.src == null && P != null && P.best == null && now - pv.at > 350 && actx.state == "running") { pvStartStatic(); pv.had = true; }   // ؟؟؟: static
 			return;
 		}
+		if (state == "hcList")
+		{
+			// an open Hardcore level plays its song (played or not); a locked one plays the radio static like a ؟؟؟ platformer level
+			var H = hcAt(hcSel); bool hu = hcUnlocked(hcSel); string hk = "hc" + str(hcSel) + (hu ? "u" : "");
+			if (hk != pv.sel) { pv.sel = hk; pv.at = now; pvStop(); }
+			if (pv.src == null && now - pv.at > 350 && actx.state == "running")
+			{
+				if (hu && H.buf != null && H.ok) { pvStart(H); pv.had = true; } else if (!hu) { pvStartStatic(); pv.had = true; }
+			}
+			return;
+		}
 		if (state != "levels" && state != "friends") { pvStop(); pv.sel = ""; pv.had = false; return; }
 		var L = state == "levels" ? (lvlSel < LEVELS.Count ? LEVELS[lvlSel] : null) : (friSel < FRIENDS.Count ? FRIENDS[friSel] : null); string k = state + str(lvlSel) + ":" + str(friSel);
 		if (k != pv.sel) { pv.sel = k; pv.at = now; pvStop(); }
@@ -31,7 +42,7 @@ public static partial class G
 	}
 
 	// ---------- screen transitions: the old picture fades into the new screen's background, then the new screen fades in ----------
-	static readonly string[] TR_ST = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "news", "chal", "skins" };
+	static readonly string[] TR_ST = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "news", "chal", "skins", "hcList" };
 	const double TR_OUT = 110, TR_IN = 170;
 	static ImageTexture trSnap; static string trLast = ""; static bool trOn = false; static double trAt = -1e9;
 	public static void trCheck(double now)
@@ -63,6 +74,7 @@ public static partial class G
 		else if (state == "news") drawNews(now);
 		else if (state == "main") drawMain(now);
 		else if (state == "levels") drawLevels(now);
+		else if (state == "hcList") drawHcList(now);
 		else if (state == "howto") drawHowto();
 		else if (state == "settings") drawSettings();
 		else if (state == "friends") drawFriends(now);
@@ -86,6 +98,7 @@ public static partial class G
 		else if (state == "main")
 		{
 			var MO = new[] { 5 }.Concat(mainItems().Select(m => m.id)).Concat(new[] { 4 }).ToArray(); int mn = MO.Length;
+			if (menuSel == HC && !hcOpen()) menuSel = 0;   // the level went below 5 (logged out): the item is gone
 			if (menuSel == ACC) { if (inp.down) menuSel = 0; else if (inp.up) menuSel = 4; else if (inp.right) menuSel = 5; }
 			else
 			{
@@ -97,6 +110,7 @@ public static partial class G
 				if (menuSel == 4) setEasy(!easy); else if (menuSel == 5) state = "points"; else if (menuSel == EXIT) quitApp();
 				else if (menuSel == ACC) { state = "account"; accSel = 0; authMsg = ""; logoutArm = 0; }
 				else if (menuSel == CHAL) { state = "chal"; chalView = 0; }
+				else if (menuSel == HC) hcPress();
 				else if (menuSel == SKINSM) { state = "skins"; skinInfo = false; chalSel = Math.Max(0, Array.IndexOf(SKINS, skin)); }
 				else if (menuSel == BOARD) { if (!classicUi) board.idx = 0; state = "board"; board.mode = easy ? "e" : "n"; board.sel = -1; _ = loadBoard(false); }
 				else state = new[] { classicUi ? "levels" : "modes", "friends", "howto", "settings" }[menuSel];
@@ -119,6 +133,7 @@ public static partial class G
 			else if (inp.back || inp.pz) state = "main";
 		}
 		else if (state == "chal") stepChal(inp, dt);
+		else if (state == "hcList") stepHcList(inp);
 		else if (stepPlat(inp, now, dt)) { }
 		else if (state == "skins") stepSkins(inp, dt);
 		else if (state == "howto") { if (inp.back || inp.pz || inp.confirm) state = "main"; }
@@ -165,12 +180,13 @@ public static partial class G
 		{
 			int n = ALL_LV().Count; prof.msgT -= dt; { double t = profScT(); prof.sc += (t - prof.sc) * Math.Min(1, dt * 14); if (Math.Abs(t - prof.sc) < 0.002) prof.sc = t; }
 			if (inp.down && prof.row < n - 1) prof.row++; else if (inp.up && prof.row > 0) prof.row--;
-			if (inp.left && prof.col == 0 && !ALL_LV()[prof.row].plat) prof.col = 1; else if (inp.right && prof.col == 1) prof.col = 0;
-			if (ALL_LV()[prof.row].plat) prof.col = 0;
+			if (inp.left && prof.col == 0 && !noEz(ALL_LV()[prof.row])) prof.col = 1; else if (inp.right && prof.col == 1) prof.col = 0;
+			if (noEz(ALL_LV()[prof.row])) prof.col = 0;
 			if (inp.confirm)
 			{
 				var L = ALL_LV()[prof.row]; string m = prof.col != 0 ? "e" : "n", r = gv(prof.p.F(m), L.id);
-				if (r != null && !L.plat && hasRp(prof.p, L, m)) openReplay(prof.p, L, m); else { prof.msg = r == null ? "ما خلّص هذي المرحلة للحين" : prof.busy && !L.plat ? "لحظة، جاري التحميل…" : "ما فيه Replay لهذي المرحلة"; prof.msgT = 2.2; }
+				if (hcHidden(L)) { prof.msg = "افتح هذي المرحلة في الهاردكور أول"; prof.msgT = 2.2; }
+				else if (r != null && !L.plat && hasRp(prof.p, L, m)) openReplay(prof.p, L, m); else { prof.msg = r == null ? "ما خلّص هذي المرحلة للحين" : prof.busy && !L.plat ? "لحظة، جاري التحميل…" : "ما فيه Replay لهذي المرحلة"; prof.msgT = 2.2; }
 			}
 			else if (inp.back || inp.pz) state = "board";
 		}
@@ -198,7 +214,7 @@ public static partial class G
 		else if (inp.restart) { double? nx = null; foreach (var c in pr.L.cps) { double bc = B(c); if (bc > pr.t + 0.5) { nx = bc; break; } } pr.t = nx == null ? 0 : round(nx.Value * 10) / 10; pr.sel = 0; }
 		else if (d != 0 && r == "t") pr.t = clamp(d > 0 ? Math.Floor(pr.t / 5 + 1e-6) * 5 + 5 : Math.Ceiling(pr.t / 5 - 1e-6) * 5 - 5, 0, prMaxT());
 		else if (d != 0 && r == "spd") pr.spd = PR_SPD[(int)clamp(Array.IndexOf(PR_SPD, pr.spd) - d, 0, PR_SPD.Length - 1)];
-		else if ((d != 0 || inp.confirm) && r == "let") { int i = Array.IndexOf(PR_LET, pr.let), n = PR_LET.Length; pr.let = PR_LET[(i + (d != 0 ? d : 1) + n) % n]; int v = PR_LETLV[pr.let]; pr.inf = v == 0; if (v != 0) pr.lv = v; }
+		else if ((d != 0 || inp.confirm) && r == "let") { int i = Array.IndexOf(PR_LET, pr.let), n = PR_LET.Length; pr.let = PR_LET[(i + (d != 0 ? d : 1) + n) % n]; int v = pr.let == "A" ? maxHp(pr.L) : PR_LETLV[pr.let]; pr.inf = v == 0; if (v != 0) pr.lv = v; }
 		else if (d != 0 && r == "inf") { int v = pr.inf ? 0 : pr.lv; v = (v + d + PR_LVMAX + 1) % (PR_LVMAX + 1); pr.inf = v == 0; if (v != 0) pr.lv = v; }
 		else if ((d != 0 || inp.confirm) && r == "ghost") pr.ghost = !pr.ghost;
 		else if (inp.confirm) prGo();

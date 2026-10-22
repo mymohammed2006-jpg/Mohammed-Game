@@ -151,7 +151,7 @@ public static partial class G
 	public static void drawHUD()
 	{
 		var p = player; if (p == null) return;
-		for (int i = 0, hn = pr.on && !pr.inf ? pr.lv : 5; i < hn; i++)
+		for (int i = 0, hn = pr.on && !pr.inf ? pr.lv : maxHp(cur); i < hn; i++)
 		{
 			double x = 34 + i * 28, y0 = 34;
 			if (i < p.hp) { g.fillStyle = CYAN; g.fillRect(x - 9, y0 - 9, 18, 18); }

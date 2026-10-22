@@ -10,6 +10,7 @@ public static partial class G
 {
 	public static double fdt = 0, last = 0;
 	public static double gatePressAt = 0, introAt = 0, shakeCard = 0;
+	public static Func<double> viewFlip;   // no initializer: a level file sets it from its own static fields
 	public static bool gateHint = false;
 	public static int lvlSel = 0, friSel = 0, lvlFirst = 0, friFirst = 0;
 	public static double lvlScr = 0, friScr = 0;
@@ -23,8 +24,8 @@ public static partial class G
 	}
 
 	static readonly string[] IN_GAME = { "play", "paused", "pauseSet", "dead", "win", "starting", "replay", "rpGap", "rpEnd", "prEnd" };
-	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins" };
-	static readonly string[] FS_HINT = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "pltPause", "pltSet", "tmPause", "tmSet", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "chal", "skins" };
+	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins", "hcList" };
+	static readonly string[] FS_HINT = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "pltPause", "pltSet", "tmPause", "tmSet", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "chal", "skins", "hcList" };
 
 	public static void draw(double now)
 	{
@@ -56,6 +57,8 @@ public static partial class G
 		else if (!inGame) { drawSpawn(); if (state == "levelIntro") drawLevelInfo(now); }
 		else
 		{
+			// the room turned over like a mirror (a level can set viewFlip: 0 normal .. 1 mirrored), not the hearts and the bar
+			double vf = viewFlip?.Invoke() ?? 0; g.save(); if (vf > 0) { g.translate(W / 2, 0); g.scale(JS.cos(vf * Math.PI), 1); g.translate(-W / 2, 0); }
 			foreach (var h in hazards) h.draw(songT);
 			if (gloom > 0.01 && player != null)
 			{
@@ -64,7 +67,7 @@ public static partial class G
 			}
 			foreach (var q in particles) { g.globalAlpha = Math.Max(0, q.life / q.max); g.fillStyle = q.col; g.fillRect(q.x - q.s / 2, q.y - q.s / 2, q.s, q.s); }
 			g.globalAlpha = 1;
-			drawGhost(); drawPlayer(); drawHUD(); prHUD();
+			drawGhost(); drawPlayer(); g.restore(); drawHUD(); prHUD();
 		}
 		if (state == "paused")
 		{
@@ -122,6 +125,7 @@ public static partial class G
 			drawWinXp(now);
 			if (now - Math.Max(winAt + 800, winSlam + 300) > 0) { row(new[] { (K.confirm, "العب مرة ثانية") }, W / 2, H / 2 + 135); row(new[] { (K.back, "المراحل") }, W / 2, H / 2 + 190); }
 		}
+		if (state == "win") drawHcNote(now);
 		if (state == "prEnd") drawPrEnd(now);
 		if ((state is "replay" or "rpGap" or "rpEnd") && rp.doc != null) drawRpOverlay(now);
 		if (state == "starting" && audioHint) { overlay(0.4); txt("اضغط على الشاشة مرة وحدة عشان يشتغل الصوت 🔊", W / 2, H / 2, 32, "#fff", 500); }
@@ -139,7 +143,7 @@ public static partial class G
 		zonesFlip();
 	}
 
-	static readonly string[] MENU_MUSIC = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "practice", "news", "chal", "skins" };
+	static readonly string[] MENU_MUSIC = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "practice", "news", "chal", "skins", "hcList" };
 	public static void step(double now, bool nd = false)
 	{
 		double dt = Math.Min(0.05, Math.Max(0, now - last) / 1000); last = now; fdt = dt;
@@ -191,7 +195,7 @@ public static partial class G
 		double edt = (state is "replay" or "rpGap" or "rpEnd") ? (rp.paused ? 0 : dt * rp.rate) : dt;
 		foreach (var q in particles) { q.x += q.vx * edt; q.y += q.vy * edt; double f = JS.pow(0.04, edt); q.vx *= f; q.vy *= f; q.life -= edt; }
 		particles = particles.Where(q => q.life > 0).ToList();
-		gloom += (gloomT - gloom) * Math.Min(1, edt * 3); shake = Math.Max(0, shake - edt * 50); flash = Math.Max(0, flash - edt * 2.2); cpMsg -= edt; toastT -= dt; shakeCard = Math.Max(0, shakeCard - dt);
+		gloom += (gloomT - gloom) * Math.Min(1, edt * 3); shake = Math.Max(0, shake - edt * 50); flash = Math.Max(0, flash - edt * 2.2); cpMsg -= edt; toastT -= dt; shakeCard = Math.Max(0, shakeCard - dt); hcTick(dt);
 		{
 			double k = Math.Min(1, dt * 12);
 			if (lvlSel < lvlFirst) lvlFirst = lvlSel; else if (lvlSel > lvlFirst + 3) lvlFirst = lvlSel - 3;

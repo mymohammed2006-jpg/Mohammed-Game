@@ -477,7 +477,8 @@ public static partial class G
 			if (t < tw) return; double a = ang(t), x = px + JS.cos(a) * len, y = py + JS.sin(a) * len, al = 1 - L15k(t, te, te + 0.4); bool on = t >= ta && t < te;
 			g.save(); g.globalAlpha = al;
 			g.strokeStyle = L15G(0.18); g.lineWidth = 2; g.setLineDash(new double[] { 8, 10 }); g.beginPath(); g.arc(px, py, len, Math.PI / 2 - amp, Math.PI / 2 + amp); g.stroke(); g.setLineDash(new double[0]);
-			g.strokeStyle = on ? "rgba(150,140,150,0.9)" : L15G(0.4); g.lineWidth = 6; g.beginPath(); g.moveTo(px, py); g.lineTo(x, y); g.stroke();
+			// the rope kills too, so it is pink while the blade is
+			g.strokeStyle = on ? PINK : L15G(0.4); g.lineWidth = 6; if (on) { g.shadowColor = PINK; g.shadowBlur = 10; } g.beginPath(); g.moveTo(px, py); g.lineTo(x, y); g.stroke(); g.shadowBlur = 0;
 			// the blade: a crescent across the swing
 			g.save(); g.translate(x, y); g.rotate(a); g.fillStyle = on ? PINK : L15G(0.5); if (on) { g.shadowColor = PINK; g.shadowBlur = 16; }
 			g.beginPath(); g.arc(-R * 0.6, 0, R * 1.4, -1.15, 1.15); g.arc(-R * 1.3, 0, R * 1.25, 0.95, -0.95, true); g.closePath(); g.fill(); g.restore();
