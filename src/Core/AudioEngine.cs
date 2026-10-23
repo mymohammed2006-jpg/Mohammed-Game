@@ -91,6 +91,8 @@ public sealed class Voice
 	public AParam playbackRate = new AParam(1);
 	public double startAt = double.PositiveInfinity, offset, stopAt = double.PositiveInfinity;
 	public AParam gain = new AParam(1);
+	public AParam murk;             // a song heard through a broken radio (the radio level): 0 clear .. 1 all garbled; null = untouched
+	double[] mz = new double[8]; double mhL; int mhN; long mFrame;
 	// biquad
 	public string ftype;
 	public double ffreq, fq = 1;
@@ -209,6 +211,7 @@ public sealed class Voice
 				var a = pb.MixAudio((float)(rate * AudioCtx.deviceRate / sr), k);
 				if (AudioCtx.check && (int)(t0 * 2) != (int)((t0 - n / sr) * 2)) GD.PrintErr("MG_AUDIO ", pos.ToString("F3", System.Globalization.CultureInfo.InvariantCulture), " ", pb.GetPlaybackPosition().ToString("F3", System.Globalization.CultureInfo.InvariantCulture), " ", AudioCtx.deviceRate);
 				double gn = gain.At(t);
+				if (murk != null) Murk(a, t, sr);
 				for (int j = 0; j < a.Length && i + j < n; j++)
 				{
 					double g2 = j == 0 ? gn : gain.At(t + j / sr);
@@ -226,6 +229,29 @@ public sealed class Voice
 			else if (!loop && (pos >= songLen || !pb.IsPlaying())) { done = true; return; }
 		}
 	}
+
+	// the broken radio: the highs cut away (a low pass that opens as it clears), the samples held in steps (a crunchy, digital
+	// sound), the signal fading in and out and cutting off for moments. At 0 the song is left as it is.
+	void Murk(Vector2[] a, double t, double sr)
+	{
+		double m = Math.Clamp(murk.At(t), 0, 1); if (m <= 0.001) { mFrame += a.Length; return; }
+		double fc = 20000 * Math.Pow(380.0 / 20000, m), w0 = 2 * Math.PI * Math.Min(fc, sr * 0.45) / sr, cw = Math.Cos(w0), al = Math.Sin(w0) / (2 * 0.7071);
+		double A0 = 1 + al, b0 = (1 - cw) / 2 / A0, b1 = (1 - cw) / A0, b2 = b0, a1 = -2 * cw / A0, a2 = (1 - al) / A0;
+		int hold = 1 + (int)Math.Floor(m * 5.5);
+		for (int j = 0; j < a.Length; j++, mFrame++)
+		{
+			double x = (a[j].X + a[j].Y) * 0.5;   // a radio is mono
+			if (mhN <= 0) { mhL = x; mhN = hold; } mhN--; x = mhL;
+			for (int k = 0; k < 2; k++)   // two low passes in a row (12 dB an octave each)
+			{
+				int o = k * 4; double y = b0 * x + b1 * mz[o] + b2 * mz[o + 1] - a1 * mz[o + 2] - a2 * mz[o + 3]; mz[o + 1] = mz[o]; mz[o] = x; mz[o + 3] = mz[o + 2]; mz[o + 2] = y; x = y;
+			}
+			double ts = mFrame / sr, h = Hash(Math.Floor(ts / 0.11)), fade = 1 - 0.45 * m * (0.5 + 0.5 * Math.Sin(ts * 2 * Math.PI * 0.37 + Math.Sin(ts * 1.3)));
+			if (h < 0.3 * m) fade *= 1 - 0.92 * m;   // a dropout
+			a[j] = new Vector2((float)(x * fade), (float)(x * fade));
+		}
+	}
+	static double Hash(double x) { double s = Math.Sin(x * 12.9898 + 78.233) * 43758.5453; return s - Math.Floor(s); }
 
 	static double Blep(double t, double dt)
 	{

@@ -15,7 +15,7 @@ public class TeamTest
 	string id, outDir; int page, fps = 60, every = 1, i; double T; bool done, shot, nodraw = System.Environment.GetEnvironmentVariable("NODRAW") == "1";
 	int hits0; string[] routes; (int room, double t, string k)[][] lines; System.Collections.Generic.Dictionary<int, double> entry = new(); G.TeamRun lastTm; string[] lastK = new string[G.TM_N]; StringBuilder log = new(); Main host;
 	double from = double.TryParse(System.Environment.GetEnvironmentVariable("FROM"), out var fr) ? fr : 0;   // env FROM: pictures only after this time
-	string view;   // env VIEW: a player's screen (0-2), or "cycle" (each one's screen in turn in the dark rooms); else everyone's
+	string view; int pass = -1; bool[] beatJ = new bool[G.TM_N]; double[] heldTo = new double[G.TM_N];   // env VIEW: a player's screen (0-2), or "cycle" (each one's screen in turn in the dark rooms); else everyone's
 	BinaryWriter wav = System.Environment.GetEnvironmentVariable("WAV") != null ? new BinaryWriter(new MemoryStream()) : null;
 
 	// the ride's part (0-3) this player should be on for the next strike: stay if it is safe, else the nearest safe part
@@ -54,9 +54,23 @@ public class TeamTest
 		G.tmStart(G.LoadTeam(id), page); G.state = "team";
 		view = System.Environment.GetEnvironmentVariable("VIEW");
 	}
+	void duoShot()
+	{
+		var g = G.g; if (pass > 0) G.gfx.BeginFrame(); g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#000"; g.fillRect(0, 0, 1280, 720);
+		double sx = (random() * 2 - 1) * G.shake, sy = (random() * 2 - 1) * G.shake; g.setTransform(1, 0, 0, 1, sx, sy);
+		G.tmView = pass - 1; G.drawTeam(performance.manual.Value);
+		if (G.flash > 0) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = $"rgba(255,255,255,{str(Math.Min(0.8, G.flash))})"; g.fillRect(0, 0, 1280, 720); }
+		g.setTransform(1, 0, 0, 1, 0, 0);
+		if (pass == 0) G.txt("الخريطة كاملة (للفيديو بس، ما تطلع باللعبة)", 1250, 700, 20, "rgba(255,255,255,0.7)", 700, "right");
+		else G.txt(pass == 1 ? "شاشة الأزرق" : "شاشة الأصفر", 1250, 700, 34, G.tmCol(pass - 1), 800, "right");
+		G.gfx.EndFrame(); shot = true;
+	}
 	public void Process()
 	{
-		if (shot) { G.gfx.game.GetTexture().GetImage().SavePng(Path.Combine(outDir, $"f{i:D6}.png")); shot = false; }
+		if (shot) { G.gfx.game.GetTexture().GetImage().SavePng(Path.Combine(outDir, pass >= 0 ? $"f{i:D6}_{pass}.png" : $"f{i:D6}.png")); shot = false; }
+		// VIEW=duo: three pictures of each frame (the whole map, then each player's own screen)
+		if (pass >= 0 && pass < 2) { pass++; duoShot(); return; }
+		pass = -1;
 		if (done)
 		{
 			File.WriteAllText(Path.Combine(outDir, "state.log"), log.ToString());
@@ -71,14 +85,17 @@ public class TeamTest
 		while (true)
 		{
 			i++; double t = (double)i / fps; if (t > T) { done = true; if (!nodraw) G.gfx.EndFrame(); return; }
-			var ins = new G.TIn[G.TM_N];
+			var ins = new G.TIn[G.tm.b.Length];
 			if (G.tm != lastTm) { lastTm = G.tm; if (!entry.ContainsKey(G.tm.page) || G.tm.page == page) entry[G.tm.page] = t; }
 			int rm = G.tm.page; double rt = t - entry[rm];
-			for (int k = 0; k < G.TM_N; k++)
+			for (int k = 0; k < G.tm.b.Length; k++)
 			{
 				string kk = ""; foreach (var l in lines[k]) if (l.room == rm && l.t <= rt + 1e-9) kk = l.k;
 				bool dashNow = kk.Contains('X') && !lastK[k].Contains('X'), jumpNow = kk.Contains('J') && !lastK[k].Contains('J'); lastK[k] = kk;
-				ins[k] = new G.TIn { x = (kk.Contains('R') ? 1 : 0) - (kk.Contains('L') ? 1 : 0), y = (kk.Contains('D') ? 1 : 0) - (kk.Contains('U') ? 1 : 0), jump = jumpNow, jumpHeld = kk.Contains('J'), dash = dashNow };
+				// "J!": the jump waits for the next beat (the radio's waves need a jump on the beat)
+				if (jumpNow && kk.Contains("J!")) { beatJ[k] = true; jumpNow = false; }
+				if (beatJ[k]) { double bt = G.tmBeatPub(), nb = bt + 1.0 / fps / G.tm.L.spb; if (Math.Floor(nb) != Math.Floor(bt)) { jumpNow = true; beatJ[k] = false; heldTo[k] = t + 0.3; } }
+				ins[k] = new G.TIn { x = (kk.Contains('R') ? 1 : 0) - (kk.Contains('L') ? 1 : 0), y = (kk.Contains('D') ? 1 : 0) - (kk.Contains('U') ? 1 : 0), jump = jumpNow, jumpHeld = kk.Contains('J') || t < heldTo[k], dash = dashNow };
 				// "@<x>": walk to x and stop there; "A": on the ride, step to a part the next lightning misses
 				var b = G.tm.b[k]; double? goal = null;
 				foreach (var tok in kk.Split(' ', StringSplitOptions.RemoveEmptyEntries)) if (tok.StartsWith("@")) goal = double.Parse(tok[1..]);
@@ -111,6 +128,7 @@ public class TeamTest
 			log.Append('\n');
 			if (G.tm.won && System.Environment.GetEnvironmentVariable("TEAM_FALLS") is string tf) { var fs = tf.Split(','); for (int k = 0; k < G.TM_N; k++) G.tm.falls[k] = int.Parse(fs[k]); G.tm.restarts = int.Parse(System.Environment.GetEnvironmentVariable("TEAM_RESTARTS") ?? "0"); }
 			if (System.Environment.GetEnvironmentVariable("TEAM_NAMES") is string tn) G.tm.names = tn.Split(',');
+			if (!nodraw && i % every == 0 && t >= from && view == "duo") { pass = 0; duoShot(); return; }
 			if (!nodraw && i % every == 0 && t >= from)
 			{
 				var g = G.g; g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#000"; g.fillRect(0, 0, 1280, 720);

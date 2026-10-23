@@ -17,6 +17,7 @@ public static partial class G
 
 	public static void drawTeam(double now)
 	{
+		if (tmDuo) { drawDuo(now); return; }
 		double b = tmBeat(), bp = ((b % 1) + 1) % 1; pulse = JS.exp(-bp * 5) * 0.8;
 		double prog = Math.Clamp((tm.got.Count + (tm.b.Count(q => q.gate) > 0 ? 0.5 : 0)) / Math.Max(1.0, tmPieces() + 0.5), 0, 1);
 		long bi = (long)Math.Floor(b);
@@ -279,12 +280,13 @@ public static partial class G
 		var gr = g.createLinearGradient(0, 0, 0, H);
 		if (theme == 1) { gr.addColorStop(0, "#3a0c16"); gr.addColorStop(0.6, "#5e1222"); gr.addColorStop(1, "#7e1a2a"); }
 		else if (theme == 2) { gr.addColorStop(0, "#141238"); gr.addColorStop(0.6, "#2a1f5c"); gr.addColorStop(1, "#3d2a72"); }
+		else if (theme == 3) { gr.addColorStop(0, "#0a0f22"); gr.addColorStop(0.6, "#18224a"); gr.addColorStop(1, "#24306a"); }
 		else { gr.addColorStop(0, "#ffd9c7"); gr.addColorStop(0.6, "#ffb3b8"); gr.addColorStop(1, "#ff8f8f"); }
 		double cy0 = Math.Max(0, y0), ch = Math.Min(H, y1) - cy0;
 		g.save(); g.fillStyle = gr; if (ch > 0) g.fillRect(0, cy0, W, ch);
 		// soft lighter puffs inside, drifting, so it reads as a thick cloud and not a flat wall
 		// (only while the cloud's body is on screen: an empty clip clips nothing, and the puffs flashed over the whole page)
-		if (ch > 1) { g.save(); g.beginPath(); g.rect(0, cy0, W, ch); g.clip(); g.fillStyle = theme == 1 ? "rgba(255,110,130,0.14)" : theme == 2 ? "rgba(200,190,255,0.16)" : "rgba(255,240,232,0.35)";
+		if (ch > 1) { g.save(); g.beginPath(); g.rect(0, cy0, W, ch); g.clip(); g.fillStyle = theme == 1 ? "rgba(255,110,130,0.14)" : theme == 3 ? "rgba(170,195,255,0.12)" : theme == 2 ? "rgba(200,190,255,0.16)" : "rgba(255,240,232,0.35)";
 		for (int i = 0; i < 14; i++) { double cx = ((i * 211 + now / 40 * (1 + i % 3)) % (W + 300)) - 150, cy = (i * 149) % H, r = 70 + (i * 29) % 60; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.arc(cx + r * 0.9, cy + 10, r * 0.75, 0, TAU); g.fill(); }
 		g.restore(); } g.fillStyle = gr;
 		// a row of big puffs along the moving edge, a second softer row behind it
@@ -299,7 +301,7 @@ public static partial class G
 
 	static void tmDrawBody(TBody p, double now)
 	{
-		string col = TM_COL[p.i];
+		string col = tmCol(p.i);
 		if (p.gate) return;
 		if (p.down)
 		{
