@@ -184,7 +184,7 @@ ev(211.8, 'F9open')
 
 EV.sort(key=lambda d: d['b'])
 en = json.load(open(os.path.join(HERE, 'energy.json')))['energy']
-D = {'id': 'F9', 'name': "I'm Still Here", 'by': 'azm511', 'ver': '', 'file': 'SONG_F9', 'bpm': 85, 'off': 0.405, 'end': 212, 'cps': [0, 104, 165],
+D = {'id': 'F9', 'name': "I'm Still Here", 'by': 'azm511', 'ver': 'Mohammed', 'file': 'SONG_F9', 'bpm': 85, 'off': 0.405, 'end': 212, 'cps': [0, 104, 165],
      'ez': {'ezg': 0, 'ezc': 1, 'ez': 1.0, 'ezsp': 0.9, 'ezwn': 1.3}, 'energy': en, 'events': EV}
 json.dump(D, open(OUT, 'w'), ensure_ascii=False, separators=(',', ':'))
 print(len(EV), 'events')
