@@ -37,7 +37,7 @@ public static partial class G
 		var s = new Voice { song = staticBuf, loop = true, loopStart = STATIC_LOOP, loopEnd = 2 * STATIC_LOOP };
 		s.gain.value = tmStaticGain(tm.murk); s.start(when, STATIC_LOOP); tm.stat = new[] { AudioCtx.Add(s) };
 	}
-	static double tmStaticGain(double m) => 0.42 * Math.Pow(Math.Max(0, m), 1.3);
+	static double tmStaticGain(double m) => 0.23 * Math.Pow(Math.Max(0, m), 1.5);
 	static void tmMurkTo(double tc)
 	{
 		if (tm.voices != null) foreach (var v in tm.voices) v?.murk?.setTargetAtTime(tm.murk, actx.currentTime, tc);
