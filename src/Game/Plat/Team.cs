@@ -315,8 +315,8 @@ public static partial class G
 					if (s.timer > 0) { s.timer -= dt; if (s.timer <= 0) { s.gone = true; s.solid = false; s.timer = d.b * spb; s.fv = 0; sfx(tt => sNoise(tt, 0.25, "bandpass", 700, 0.1)); } }
 					else if (wk ? (wfl & 2) != 0 : tmOnIt(s) > 0) s.timer = d.a * spb;
 					break;
-				case "bridge": case "path": s.solid = tmNeed(d); s.s = Math.Clamp(s.s + (s.solid ? 6 : -4) * dt, 0, 1); break;
-				case "door": s.solid = !tmNeed(d); s.s = Math.Clamp(s.s + (s.solid ? -3 : 5) * dt, 0, 1); break;
+				case "bridge": case "path": s.solid = tmKeyHeld(s, dt); s.s = Math.Clamp(s.s + (s.solid ? 6 : -4) * dt, 0, 1); break;
+				case "door": s.solid = !tmKeyHeld(s, dt); s.s = Math.Clamp(s.s + (s.solid ? -3 : 5) * dt, 0, 1); break;
 				case "scale":
 					{
 						bool btn = tmAll(d.need), both = wk ? (wfl & 2) != 0 : tmOnIt(s.L) > 0 && tmOnIt(s.R) > 0;

@@ -104,6 +104,21 @@ public class TeamTest
 				foreach (var tok in kk.Split(' ', StringSplitOptions.RemoveEmptyEntries)) if (tok.StartsWith("@")) goal = double.Parse(tok[1..]);
 				if (kk.Contains('A')) goal = dodge(b, k);
 				if (goal != null) { double d = goal.Value - b.x; ins[k].x = Math.Abs(d) < 2 ? 0 : Math.Clamp(d / 25, -1, 1); }
+				// "Z": wait while a saw is near the way to the goal and not going away from it
+				if (kk.Split(' ').Contains("Z") && goal != null)
+					foreach (var sw in G.tm.P.saws)
+					{
+						double sx = G.tmSawPosPub(sw, 0, out double sy), sx2 = G.tmSawPosPub(sw, 0.1, out _), dir = Math.Sign(goal.Value - b.x);
+						bool ahead = (sx - b.x) * dir > -40 && (sx - b.x) * dir < 160, away = (sx2 - sx) * dir > 0;
+						if (Math.Abs(sy - b.y) < 70 && ahead && !(away && (sx - b.x) * dir > 60)) ins[k].x = 0;
+					}
+				// "S": jump a saw coming at you (standing on a key under one)
+				if (kk.Split(' ').Contains("S") && b.ground)
+					foreach (var sw in G.tm.P.saws)
+					{
+						double sx = G.tmSawPosPub(sw, 0, out double sy), sx2 = G.tmSawPosPub(sw, 0.12, out _);
+						if (Math.Abs(sy - b.y) < 40 && Math.Abs(sx2 - b.x) < sw.r + 26 && Math.Abs(sx2 - b.x) <= Math.Abs(sx - b.x) + 1) { ins[k].jump = true; ins[k].jumpHeld = true; heldTo[k] = t + 0.25; }
+					}
 				// the cable: "P" pumps the swing (pushes the way it goes), "Q<deg>" lets go with a jump once the swing is that far up (moving right; "q" moving left)
 				if (kk.Contains('P') && b.hang) ins[k].x = Math.Abs(b.vx) < 30 ? 1 : Math.Sign(b.vx);
 				foreach (var tok in kk.Split(' ', StringSplitOptions.RemoveEmptyEntries)) if ((tok[0] == 'Q' || tok[0] == 'q') && tok.Length > 1 && (b.hang || b.ropeC > 0))

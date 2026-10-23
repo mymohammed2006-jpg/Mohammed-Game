@@ -34,6 +34,44 @@ g[17][56]='G'
 th=[]
 p1=dict(name='السلك',map=[''.join(r) for r in g],things=th,saws=[],loop=[B[0],B[64]],beats=B[:65],theme=3,zoom=1.6,murk=1.0,mstep=0.04,rope=300,nodash=True)
 
-L=dict(id='P3',name='المرحلة الثالثة',song='زينة عماد - صوتك أقوى',stems=['PL_RADIO'],stemNames=['الأغنية'],on=[True],spb=0.6453,players=2,cols=[1,2],pages=[p1])
+# ---------------- page 2: the keys (his yes 21:29 10-23) ----------------
+# Two ways: gold's up top (floor row 13), blue's below (floor row 32); a curtain at each way's door lets only its own one in.
+# Each one's buttons (only they press them) move the OTHER one's way: their clouds, doors and lift. Pink saws sweep over
+# some buttons, so holding one means jumping the saw while the other one is out on what it holds.
+W,Hh=72,34
+g=grid()
+fill(g,1,70,1,32)
+fill(g,1,7,1,31,'.'); fill(g,1,4,17,17,'#'); g[16][2]='S'; fill(g,6,7,15,15,'#')    # the start: a ledge, a step up to gold's way
+fill(g,8,62,1,12,'.')                               # gold's way (floor row 13)
+fill(g,8,62,18,31,'.')                              # blue's way (floor row 32)
+fill(g,63,70,1,31,'.')                              # the gate's hall: both ways end in it
+fill(g,15,27,13,13,'^')                             # gold: the first pit (only blue's bridge goes over it)
+fill(g,34,49,13,13,'^')                             # gold: the stepping pit
+g[9][21]='1'; g[5][44]='2'
+fill(g,37,62,22,31,'#')                             # blue: the high block (only the lift goes up)
+fill(g,50,53,22,22,'^')                             # blue: a pit on top of it
+g[20][44]='3'; g[19][51]='4'
+g[31][67]='G'
+BL,GD=0,1
+def cb(id,a,x,y,w=1.6): return dict(k='cbtn',id=id,a=a,x=x,y=y,w=w)
+th=[dict(k='cwall',a=GD,x=8,y=1,w=0.5,h=12),dict(k='cwall',a=BL,x=8,y=18,w=0.5,h=14),
+    # 1: blue holds the bridge over gold's pit; gold opens blue's door
+    cb('a1',BL,11.2,32),dict(k='path',need=['a1'],x=15,y=13,w=13,h=0.4),
+    cb('b1',GD,30.2,13),dict(k='door',need=['b1'],x=16,y=18,w=0.6,h=14),
+    # 2: blue's three buttons hold gold's stepping clouds (each one is held by two buttons, so they go along)
+    cb('a2a',BL,20.2,32),cb('a2b',BL,25.2,32),cb('a2c',BL,30.2,32),
+    dict(k='path',need=['a2a'],x=35,y=12.5,w=3,h=0.4),dict(k='path',need=['a2a'],alt=['a2b'],x=39.5,y=10.5,w=3,h=0.4),
+    dict(k='path',need=['a2b'],alt=['a2c'],x=43.5,y=8.5,w=3,h=0.4),dict(k='path',need=['a2c'],x=47,y=10.5,w=2.5,h=0.4),
+    # 3: gold on a button under a saw runs blue's lift up to the high ledge, and the bridge over blue's last pit
+    cb('b2',GD,53.2,13),dict(k='mover',need=['b2'],x=34.2,y=32,x1=34.2,y1=22,w=2.6,h=0.4,b=4),
+    dict(k='path',need=['b2'],x=50,y=22,w=4,h=0.4),
+    # 4: the doors at the end: blue opens gold's, then gold (through it) opens blue's
+    cb('a3',BL,55.2,22),dict(k='door',need=['a3'],x=58,y=1,w=0.6,h=12),
+    cb('b3',GD,60.2,13),dict(k='door',need=['b3'],x=58.2,y=18,w=0.6,h=4)]
+saws=[dict(x0=51,y0=12.4,x1=56,y1=12.4,beats=3,r=15),      # over gold's lift button
+      dict(x0=22,y0=31.4,x1=28.5,y1=31.4,beats=2,r=15)]     # over blue's middle buttons
+p2=dict(name='المفاتيح',map=[''.join(r) for r in g],things=th,saws=saws,loop=[B[64],B[145]],beats=B[64:146],theme=3,zoom=1.6,murk=0.84,mstep=0.04)
+
+L=dict(id='P3',name='المرحلة الثالثة',song='زينة عماد - صوتك أقوى',stems=['PL_RADIO'],stemNames=['الأغنية'],on=[True],spb=0.6453,players=2,cols=[1,2],pages=[p1,p2])
 json.dump(L,open(os.path.join(root,'data/team_P3.json'),'w',encoding='utf-8'),ensure_ascii=False,indent=1)
-for r in p1['map']: print(r)
+for r in p2['map']: print(r)

@@ -67,6 +67,42 @@ public static partial class G
 			if (s.X > vx1 || s.X + s.W < vx0 || s.Y > vy1 || s.Y + s.H + 20 < vy0) continue;
 			if (s.k == "tower") duoTower(s, b, now);
 			else if (s.k == "cloud") duoGrille(s.X, s.Y, s.W, "#c9d4ff", 1);
+			else if (s.k == "cwall")
+			{
+				// a curtain only its own one walks through: their colour, waving
+				string c = tmCol((int)s.d.a); g.save(); g.globalAlpha = 0.14; g.fillStyle = c; g.fillRect(s.X, s.Y, s.W, s.H); g.globalAlpha = 0.7;
+				g.strokeStyle = c; g.shadowColor = c; g.shadowBlur = 10; g.lineWidth = 2; g.beginPath();
+				for (int i = 0; i < 3; i++) { double x = s.X + 3 + i * (s.W - 6) / 2; g.moveTo(x, s.Y); for (double y = s.Y; y < s.Y + s.H; y += 10) g.lineTo(x + Math.Sin(y / 9 + now / 150 + i) * 3, y + 10); }
+				g.stroke(); g.restore();
+			}
+			else if (s.k == "cbtn")
+			{
+				// a key: only its own one presses it (their colour), and it drives the other one's things (lit while pressed)
+				string c = tmCol((int)s.d.a); double dn = s.on ? 4 : 0; g.save(); g.fillStyle = c; g.globalAlpha = s.on ? 1 : 0.6; g.shadowColor = c; g.shadowBlur = s.on ? 22 + 8 * pulse : 6;
+				g.fillRect(s.X + 4, s.Y - 9 + dn, s.W - 8, 9 - dn); g.shadowBlur = 0; g.globalAlpha = s.on ? 0.9 : 0.4; g.fillStyle = "#05070f";
+				for (int i = 0; i < 3; i++) g.fillRect(s.X + s.W / 2 - 7 + i * 5, s.Y - 7 + dn + (2 - i) * 1.5, 3, 5 - (2 - i) * 1.5);   // the signal bars
+				g.restore();
+			}
+			else if (s.k == "path" || s.k == "mover")
+			{
+				// a step the other one's key holds: in the key's colour; while it is not held, only a dotted outline
+				string c = duoKeyCol(s.d); double k = s.k == "mover" ? (s.d.need == null || tmNeed(s.d) ? 1 : 0.6) : s.s;
+				if (s.k == "path" && s.solid && !tmNeed(s.d) && Math.Floor(s.timer * 10) % 2 == 0) k *= 0.3;   // let go: it blinks out
+				if (k > 0.02) { g.save(); g.globalAlpha = k; g.shadowColor = c; g.shadowBlur = 14; duoGrille(s.X, s.Y, s.W, c, 1); g.restore(); }
+				if (k < 0.98 && s.k == "path") { g.save(); g.strokeStyle = c; g.globalAlpha = 0.45 * (1 - k); g.lineWidth = 2; g.setLineDash(new double[] { 5, 7 }); g.strokeRect(s.X + 2, s.Y, s.W - 4, 10); g.setLineDash(new double[0]); g.restore(); }
+				if (s.k == "mover") { g.save(); g.strokeStyle = c; g.globalAlpha = 0.25; g.lineWidth = 2; g.setLineDash(new double[] { 3, 8 }); double rx = s.X + s.W / 2; g.beginPath(); g.moveTo(rx, s.d.y * PT); g.lineTo(rx, s.d.y1 * PT); g.stroke(); g.setLineDash(new double[0]); g.restore(); }
+			}
+			else if (s.k == "door")
+			{
+				// a door the other one's key opens: bars in the key's colour that slide away
+				string c = duoKeyCol(s.d); double open = s.s;
+				if (!s.solid && !tmNeed(s.d) && s.timer > 0 && Math.Floor(s.timer * 10) % 2 == 0) { g.save(); g.strokeStyle = c; g.globalAlpha = 0.7; g.lineWidth = 2; g.setLineDash(new double[] { 5, 6 }); g.strokeRect(s.X, s.Y, s.W, s.H); g.setLineDash(new double[0]); g.restore(); }   // let go: about to shut
+				if (open > 0.98) continue;
+				g.save(); g.globalAlpha = 1 - open; g.fillStyle = "#101634"; g.fillRect(s.X, s.Y, s.W, s.H * (1 - open));
+				g.strokeStyle = c; g.shadowColor = c; g.shadowBlur = 10; g.lineWidth = 3; g.strokeRect(s.X, s.Y, s.W, s.H * (1 - open));
+				g.fillStyle = c; for (double y = s.Y + 12; y < s.Y + s.H * (1 - open) - 6; y += 22) g.fillRect(s.X + 3, y, s.W - 6, 4);
+				g.restore();
+			}
 			else if (s.k == "echo" && s.timer > 0)
 			{
 				double k = Math.Min(1, s.timer / 0.3), blink = s.timer < 0.3 && Math.Floor(s.timer * 20) % 2 == 0 ? 0.35 : 1;
@@ -113,6 +149,14 @@ public static partial class G
 			g.beginPath(); g.arc(w.x, w.y, Math.Min(w.r, w.R), 0, TAU); g.stroke();
 			if (!w.miss && w.r > 30) { g.globalAlpha = a * 0.4; g.lineWidth = 1.5; g.beginPath(); g.arc(w.x, w.y, Math.Min(w.r, w.R) - 22, 0, TAU); g.stroke(); }
 			g.restore();
+		}
+		// the saws (pink: they hurt)
+		foreach (var sw in tm.P.saws)
+		{
+			double sx = tmSawPos(sw, out double sy); if (sx < vx0 - 40 || sx > vx1 + 40 || sy < vy0 - 40 || sy > vy1 + 40) continue;
+			g.save(); g.translate(sx, sy); g.rotate(now / 120); g.fillStyle = PINK; g.shadowColor = PINK; g.shadowBlur = 12 + 8 * pulse; g.beginPath();
+			int teeth = 10; for (int i = 0; i < teeth * 2; i++) { double a = i * Math.PI / teeth, r2 = i % 2 == 0 ? sw.r : sw.r * 0.72; if (i == 0) g.moveTo(JS.cos(a) * r2, JS.sin(a) * r2); else g.lineTo(JS.cos(a) * r2, JS.sin(a) * r2); }
+			g.closePath(); g.fill(); g.shadowBlur = 0; g.fillStyle = "#05070f"; g.beginPath(); g.arc(0, 0, sw.r * 0.25, 0, TAU); g.fill(); g.restore();
 		}
 		foreach (var q in particles) { g.globalAlpha = Math.Max(0, q.life / q.max); g.fillStyle = q.col; g.fillRect(q.x - q.s / 2, q.y - q.s / 2, q.s, q.s); }
 		g.globalAlpha = 1;
@@ -269,5 +313,11 @@ public static partial class G
 				g.beginPath(); g.arc(x, y, 2.5, 0, TAU); g.fill();
 			}
 		g.restore();
+	}
+	// the colour of the key that drives a thing (its first button's owner)
+	static string duoKeyCol(TThing d)
+	{
+		var id = d.need?.FirstOrDefault(); var k = id == null ? null : tm.th.FirstOrDefault(q => q.k == "cbtn" && q.d.id == id);
+		return k == null ? "#c9d4ff" : tmCol((int)k.d.a);
 	}
 }

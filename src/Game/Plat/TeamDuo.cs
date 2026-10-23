@@ -250,4 +250,21 @@ public static partial class G
 			else if (sy < 0) { int ty = (int)Math.Floor((b.y - P_HALF) / PT); for (int tx = tx0; tx <= tx1; tx++) if (tmTile(tx, ty)) { b.y = (ty + 1) * PT + P_HALF; b.vy = Math.Max(0, b.vy); break; } }
 		}
 	}
+	// for the bots: where a saw is `ahead` seconds from now
+	public static double tmSawPosPub(PlatSaw s, double ahead, out double y)
+	{
+		double b = tmBeat() + ahead / tm.L.spb, k0 = b / s.beats + s.ph, f = k0 - Math.Floor(k0), k = f < 0.5 ? f * 2 : 2 - f * 2; k = k * k * (3 - 2 * k);
+		y = (s.y0 + (s.y1 - s.y0) * k) * PT + PT / 2; return (s.x0 + (s.x1 - s.x0) * k) * PT + PT / 2;
+	}
+
+	// ---------- the keys (page two) ----------
+	// on the radio level a key let go still holds what it drives for KEY_HOLD seconds (it blinks), so the one out on it
+	// can get off; on the other levels it lets go at once
+	public const double KEY_HOLD = 1.0;
+	static bool tmKeyHeld(TS s, double dt)
+	{
+		if (tmNeed(s.d)) { s.timer = KEY_HOLD; return true; }
+		if (!tmDuo) return false;
+		s.timer -= dt; return s.timer > 0;
+	}
 }
