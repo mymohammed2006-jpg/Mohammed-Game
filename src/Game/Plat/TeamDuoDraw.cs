@@ -124,6 +124,7 @@ public static partial class G
 				double f = bp, r = 12 + 30 * (1 - f), a = 0.12 + 0.55 * f * f;
 				g.strokeStyle = tmCol(p.i); g.globalAlpha = a; g.lineWidth = 2; g.beginPath(); g.arc(p.x, p.y, r, 0, TAU); g.stroke(); g.globalAlpha = 1;
 			}
+		if (tm.P.rope > 0) duoCable(now);
 		foreach (var p in tm.b) tmDrawBody(p, now);
 		if (tmMe >= 0) foreach (var p in tm.b) if (p.i != tmMe && !p.gate) { g.globalAlpha = 0.75; txt(tm.names[p.i], p.x, p.y - 30, 16, "#fff", 700); g.globalAlpha = 1; }
 		g.restore();
@@ -242,5 +243,31 @@ public static partial class G
 		double ax = W / 2 + dx * k, ay = H / 2 + dy * k, a = JS.atan2(dy, dx); string c = tmCol(p.i);
 		g.save(); g.translate(ax, ay); g.rotate(a); g.fillStyle = c; g.shadowColor = c; g.shadowBlur = 12; g.globalAlpha = p.down ? 0.5 + 0.5 * Math.Sin(now / 120) : 0.9;
 		g.beginPath(); g.moveTo(16, 0); g.lineTo(-8, -11); g.lineTo(-3, 0); g.lineTo(-8, 11); g.closePath(); g.fill(); g.restore();
+	}
+	// the cable between the two: it sags when slack, pulls straight when tight (a light runs along it then), half each one's colour
+	static void duoCable(double now)
+	{
+		var a = tm.b[0]; var c = tm.b[1]; if (a.down || c.down || a.gate || c.gate) return;
+		double L = tm.P.rope, len = tmRopePath(a, c, out double px, out double py), tight = Math.Clamp((len - (L - 30)) / 30, 0, 1);
+		bool piv = !double.IsNaN(px);
+		// a bend over the edge: two straight parts; else one curve hanging as much as the cable is slack
+		double sag = piv ? 0 : Math.Sqrt(Math.Max(0, L * L - len * len)) * 0.45, mx = piv ? px : (a.x + c.x) / 2, my = piv ? py : (a.y + c.y) / 2 + sag;
+		(double, double) at(double t) => piv ? (t < 0.5 ? (a.x + (px - a.x) * t * 2, a.y + (py - a.y) * t * 2) : (px + (c.x - px) * (t * 2 - 1), py + (c.y - py) * (t * 2 - 1)))
+			: ((1 - t) * (1 - t) * a.x + 2 * t * (1 - t) * mx + t * t * c.x, (1 - t) * (1 - t) * a.y + 2 * t * (1 - t) * my + t * t * c.y);
+		g.save();
+		g.strokeStyle = "#05070f"; g.lineWidth = 6; g.beginPath(); for (int j = 0; j <= 24; j++) { var (x, y) = at(j / 24.0); if (j == 0) g.moveTo(x, y); else g.lineTo(x, y); } g.stroke();
+		for (int k = 0; k < 2; k++)
+		{
+			g.strokeStyle = tmCol(k); g.globalAlpha = 0.75 + 0.25 * tight; g.lineWidth = 2.5; g.beginPath();
+			for (int j = 0; j <= 12; j++) { var (x, y) = at(k * 0.5 + j / 24.0); if (j == 0) g.moveTo(x, y); else g.lineTo(x, y); }
+			g.stroke();
+		}
+		if (tight > 0)
+			for (int j = 0; j < 3; j++)
+			{
+				var (x, y) = at((now / 900.0 + j / 3.0) % 1); g.globalAlpha = tight; g.fillStyle = "#ffffff"; g.shadowColor = "#ffffff"; g.shadowBlur = 8;
+				g.beginPath(); g.arc(x, y, 2.5, 0, TAU); g.fill();
+			}
+		g.restore();
 	}
 }

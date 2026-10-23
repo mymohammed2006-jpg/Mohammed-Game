@@ -80,6 +80,8 @@ public class TeamPage
 	public double zoom { get; set; }                   // the close camera (the radio level): world px x this = screen px; 0 = the whole page on the screen
 	public double murk { get; set; } = -1;             // the radio level: how garbled the song is at the page's start (1 = all noise, 0 = clear)
 	public double mstep { get; set; }                  //   and how much each sound taken clears it
+	public double rope { get; set; }                   // the two tied by a cable this long (px): no one gets farther, the one off the ground hangs and swings
+	public bool nodash { get; set; }
 }
 public class TeamLevel
 {
@@ -110,7 +112,7 @@ public static partial class G
 	public class TBody
 	{
 		public int i; public double x, y, vx, vy, coyote, jbuf, dash, ddx, ddy, fx = 1, sa, sk, inv, hurt, ex, downAt, dt0 = -9, prevB;
-		public double revT, mdx, mdy, still, gx = double.NaN, gy; public bool armed = true; public TBody onB; public TS carry; public int hp = P_HP; public bool ground, canDash = true, jumpHeld, down, gate; public TS onT;
+		public double revT, mdx, mdy, still, ropeC, gx = double.NaN, gy; public bool armed = true; public TBody onB; public TS carry; public int hp = P_HP; public bool ground, canDash = true, jumpHeld, down, gate, hang; public TS onT;
 		public List<(double x, double y, double t)> trail = new();
 	}
 	public struct TIn { public double x, y; public bool jump, jumpHeld, dash; }
@@ -374,6 +376,7 @@ public static partial class G
 		tm.reveal = Math.Max(0, tm.reveal - dt * 1.8);
 		// everyone moves
 		for (int i = 0; i < tm.b.Length; i++) { var b = tm.b[i]; double px = b.x, py = b.y; if (tmMine(b)) tmBody(b, ins[i], dt); else tnBody(b); b.mdx = b.x - px; b.mdy = b.y - py; }
+		if (tm.P.rope > 0) tmRope();
 		// the chain: no one too far from the others
 		if (tm.P.tether > 0 && tm.snapAt < 0 && tmBoss)
 			for (int i = 0; i < tm.b.Length; i++) for (int j = i + 1; j < tm.b.Length; j++)
@@ -530,7 +533,7 @@ public static partial class G
 			tm.stemOn[s] = true; tm.voices?[s]?.gain.setTargetAtTime(1, actx.currentTime, 0.25); tm.taken.Add((s, tm.t));
 			tm.msg = tm.L.stemNames[s] + " انضاف للأغنية"; tm.msgT = 2.2;
 		}
-		if (tmOpen()) { tm.msg = "كملت! ادخلوا البوابة الثلاثة"; tm.msgT = 2.6; }
+		if (tmOpen()) { tm.msg = tm.b.Length == 2 ? "كملت! ادخلوا البوابة انتم الاثنين" : "كملت! ادخلوا البوابة الثلاثة"; tm.msgT = 2.6; }
 	}
 	// spikes and saws at a point (a body, or its reflection in the mirror)
 	static bool tmHitAt(double x, double y)
@@ -582,7 +585,7 @@ public static partial class G
 		if (b.onB != null) { if (!b.onB.down && !b.onB.gate && b.onB.mdy > -0.5) { b.x += b.onB.mdx; b.y += b.onB.mdy; } else { b.onB = null; b.ground = false; } }
 		double mx = Math.Abs(inp.x) < 0.25 ? 0 : inp.x, my = inp.y;
 		b.jumpHeld = inp.jumpHeld; if (inp.jump) b.jbuf = P_BUFFER;
-		if (inp.dash && b.canDash && b.dash <= 0 && b.carry == null)
+		if (inp.dash && b.canDash && b.dash <= 0 && b.carry == null && !tm.P.nodash)
 		{
 			double m = hypot(mx, my), dx = m > 0.3 ? mx / m : b.fx, dy = m > 0.3 ? my / m : 0;
 			b.ddx = dx; b.ddy = dy; b.dash = P_DASH_T; b.inv = Math.Max(b.inv, 0.28); b.canDash = false; b.dt0 = tm.t; b.sa = JS.atan2(dy, dx);
@@ -598,12 +601,13 @@ public static partial class G
 		else
 		{
 			double target = mx * P_SPEED, acc = b.ground ? P_ACC : P_AIR;
-			b.vx = b.vx < target ? Math.Min(target, b.vx + acc * dt) : Math.Max(target, b.vx - acc * dt);
-			if (b.jbuf > 0 && b.coyote > 0) { b.vy = -P_JUMP * (b.carry != null ? 0.82 : 1); b.jbuf = 0; b.coyote = 0; b.ground = false; b.onT = null; b.onB = null; sfx(tt => sTone(tt, 520, 0.08, "square", 0.03)); if (b.i == 0) tmFlip(0); tmDuoJump(b); }
-			if (!b.jumpHeld && b.vy < -300) b.vy *= P_CUT;
-			b.vy = Math.Min(P_FALL, b.vy + P_GRAV * dt);
+			if (b.hang) b.vx = tmSwing(b, mx, dt);   // on the cable: the stick pushes the swing, nothing slows it
+			else b.vx = b.vx < target ? Math.Min(target, b.vx + acc * dt) : Math.Max(target, b.vx - acc * dt);
+			if (b.jbuf > 0 && (b.coyote > 0 || b.hang)) { b.vy = -P_JUMP * (b.carry != null ? 0.82 : 1) * (b.hang || b.ropeC > 0 ? ROPE_JUMP : 1); b.hang = false; b.ropeC = 0; b.jbuf = 0; b.coyote = 0; b.ground = false; b.onT = null; b.onB = null; sfx(tt => sTone(tt, 520, 0.08, "square", 0.03)); if (b.i == 0) tmFlip(0); tmDuoJump(b); }
+			if (!b.jumpHeld && b.vy < -300 && !b.hang) b.vy *= P_CUT;
+			b.vy = Math.Min(b.hang ? ROPE_FALL : P_FALL, b.vy + P_GRAV * dt);
 		}
-		b.jbuf -= dt; b.coyote -= dt;
+		b.jbuf -= dt; b.coyote -= dt; b.ropeC -= dt;
 		// the wind pushes (not part of its own speed)
 		b.ex = 0;
 		foreach (var s in tm.th) if (s.k == "wind" && b.x > s.X && b.x < s.X + s.W && b.y > s.Y && b.y < s.Y + s.H)

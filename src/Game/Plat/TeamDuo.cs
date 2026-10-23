@@ -140,4 +140,114 @@ public static partial class G
 		if (c == 'G' || c == 'X') sTone(tt, 988, 0.22, "triangle", v);
 		if (c == '.') sTone(tt, 1500, 0.03, "sine", v * 0.4);
 	}
+
+	// ---------- the cable (the idea after his words 20:44 10-23: no jumping on a beat) ----------
+	// the two are tied: never farther apart than the cable. One on the ground holds the other one, who hangs and swings (the
+	// stick pushes the swing, a jump lets go of it); the one holding walks away and pulls the other one up. Both off the
+	// ground: nothing holds them.
+	const double ROPE_PUMP = 2000, ROPE_MAXV = 1100, ROPE_FALL = 1500, ROPE_JUMP = 1.15;   // a jump off the cable goes a little higher (the cable throws you)
+	static double tmSwing(TBody b, double mx, double dt) => Math.Clamp((b.vx + mx * ROPE_PUMP * dt) * (1 - 0.15 * dt), -ROPE_MAXV, ROPE_MAXV);
+	static void tmRope()
+	{
+		var a = tm.b[0]; var c = tm.b[1]; a.hang = c.hang = false;
+		if (a.down || c.down || a.gate || c.gate) return;
+		double L = tm.P.rope, len = tmRopePath(a, c, out double px, out double py); if (len <= L) return;
+		bool piv = !double.IsNaN(px);
+		double ax = piv ? px : c.x, ay = piv ? py : c.y, cx = piv ? px : a.x, cy = piv ? py : a.y;   // where each one's part of the cable goes
+		if (a.ground && !c.ground) tmHold(a, c, cx, cy, len - L);
+		else if (c.ground && !a.ground) tmHold(c, a, ax, ay, len - L);
+		else if (!a.ground)
+		{
+			double e = (len - L) / 2; tmPull(a, ax, ay, e); tmPull(c, cx, cy, e);
+			if (!piv)
+			{
+				double d = Math.Max(1, hypot(c.x - a.x, c.y - a.y)), nx = (c.x - a.x) / d, ny = (c.y - a.y) / d, va = a.vx * nx + a.vy * ny, vc = c.vx * nx + c.vy * ny;
+				if (vc > va) { double m = (va + vc) / 2; a.vx += (m - va) * nx; a.vy += (m - va) * ny; c.vx += (m - vc) * nx; c.vy += (m - vc) * ny; }
+			}
+		}
+		else
+		{
+			bool am = Math.Abs(a.mdx) >= Math.Abs(c.mdx); var m = am ? a : c; var o = am ? c : a;
+			double qx = am ? ax : cx, qy = am ? ay : cy; tmHoldX(m, qx, qy, L - (piv ? hypot(o.x - px, o.y - py) : 0));
+		}
+	}
+	// h hangs from the one on the ground, o (its part of the cable goes to q: o itself, or the edge it bends over)
+	static void tmHold(TBody o, TBody h, double qx, double qy, double e)
+	{
+		tmPull(h, qx, qy, e); h.hang = !h.ground && h.y > qy + 10;   // it holds you only from below if (h.hang) { h.coyote = Math.Max(h.coyote, P_COYOTE); h.ropeC = P_COYOTE; }   // a jump lets go of the cable (a moment after it slackens too)
+		double len = tmRopePath(o, h, out double px, out double py);
+		if (len > tm.P.rope + 1)   // stuck behind a wall: the one holding can't walk on
+		{
+			bool piv = !double.IsNaN(px);
+			tmHoldX(o, piv ? px : h.x, piv ? py : h.y, tm.P.rope - (piv ? hypot(h.x - px, h.y - py) : 0));
+		}
+	}
+	// pulled e along its part of the cable (toward q), and no speed away from q
+	static void tmPull(TBody h, double qx, double qy, double e)
+	{
+		double d = Math.Max(1, hypot(h.x - qx, h.y - qy)), nx = (h.x - qx) / d, ny = (h.y - qy) / d;
+		if (h.y > qy - P_HALF - 3 && Math.Abs(h.x - qx) < 16)   // right under the edge: up it, and over it once nearly there
+		{
+			if (h.y + P_HALF - qy <= 24) { tmShove(h, 0, qy - P_HALF - 2 - h.y); tmShove(h, Math.Sign(qx - h.x) * 6, 0); }
+			else { tmShove(h, 0, -e); tmShove(h, qx - h.x, 0); }
+		}
+		else
+		{
+			double x0 = h.x, wx = -nx * e; tmShove(h, wx, -ny * e);
+			// dragged against a lip it nearly clears: over it
+			if (Math.Abs(wx) > 0.01 && Math.Abs(h.x - x0) < Math.Abs(wx) * 0.5)
+			{
+				int tx = (int)Math.Floor((h.x + Math.Sign(wx) * (P_HALF + 1)) / PT), ty = (int)Math.Floor((h.y + P_HALF - 0.01) / PT);
+				double top = ty * PT; if (tmTile(tx, ty) && !tmTile(tx, ty - 1) && h.y + P_HALF - top <= 22) { tmShove(h, 0, top - P_HALF - 0.5 - h.y); tmShove(h, wx - (h.x - x0), 0); }
+			}
+		}
+		double vr = h.vx * nx + h.vy * ny; if (vr > 0) { h.vx -= vr * nx; h.vy -= vr * ny; }
+	}
+	// m stays where the cable lets it: no farther than L from q (back toward it, sideways)
+	static void tmHoldX(TBody m, double qx, double qy, double L)
+	{
+		L = Math.Max(0, L);
+		double dy = Math.Abs(m.y - qy), side = Math.Sign(m.x - qx), nx = dy >= L ? qx : qx + side * Math.Sqrt(L * L - dy * dy);
+		if (Math.Abs(nx - qx) < Math.Abs(m.x - qx)) { tmShove(m, nx - m.x, 0); if (Math.Sign(m.vx) == side) m.vx = 0; }
+	}
+	// the cable's length between the two: straight, or bent over one edge of rock (px, py; NaN when straight)
+	public static double tmRopePath(TBody a, TBody c, out double px, out double py)
+	{
+		px = py = double.NaN;
+		if (tmClear(a.x, a.y, c.x, c.y)) return hypot(c.x - a.x, c.y - a.y);
+		double best = double.MaxValue;
+		int i0 = (int)Math.Floor(Math.Min(a.x, c.x) / PT) - 1, i1 = (int)Math.Ceiling(Math.Max(a.x, c.x) / PT) + 1, j0 = (int)Math.Floor(Math.Min(a.y, c.y) / PT) - 1, j1 = (int)Math.Ceiling(Math.Max(a.y, c.y) / PT) + 1;
+		for (int i = i0; i <= i1; i++) for (int j = j0; j <= j1; j++)
+		{
+			bool s00 = tmTile(i - 1, j - 1), s10 = tmTile(i, j - 1), s01 = tmTile(i - 1, j), s11 = tmTile(i, j);
+			if ((s00 ? 1 : 0) + (s10 ? 1 : 0) + (s01 ? 1 : 0) + (s11 ? 1 : 0) != 1) continue;   // only an outer corner
+			double x = i * PT + (s00 || s01 ? 2 : -2), y = j * PT + (s00 || s10 ? 2 : -2);
+			double l = hypot(x - a.x, y - a.y) + hypot(c.x - x, c.y - y);
+			if (l < best && tmClear(a.x, a.y, x, y) && tmClear(x, y, c.x, c.y)) { best = l; px = x; py = y; }
+		}
+		return best < double.MaxValue ? best : hypot(c.x - a.x, c.y - a.y);
+	}
+	static bool tmClear(double x0, double y0, double x1, double y1)
+	{
+		int n = (int)Math.Ceiling(hypot(x1 - x0, y1 - y0) / 6);
+		for (int k = 1; k < n; k++) { double x = x0 + (x1 - x0) * k / n, y = y0 + (y1 - y0) * k / n; if (tmTile((int)Math.Floor(x / PT), (int)Math.Floor(y / PT))) return false; }
+		return true;
+	}
+	// moved by the cable, against the walls (in small steps so it never goes through one)
+	static void tmShove(TBody b, double dx, double dy)
+	{
+		int n = (int)Math.Ceiling(Math.Max(Math.Abs(dx), Math.Abs(dy)) / 12); if (n == 0) return;
+		for (int k = 0; k < n; k++)
+		{
+			double sx = dx / n, sy = dy / n;
+			b.x += sx;
+			int ty0 = (int)Math.Floor((b.y - P_HALF + 0.01) / PT), ty1 = (int)Math.Floor((b.y + P_HALF - 0.01) / PT);
+			if (sx > 0) { int tx = (int)Math.Floor((b.x + P_HALF) / PT); for (int ty = ty0; ty <= ty1; ty++) if (tmTile(tx, ty)) { b.x = tx * PT - P_HALF; b.vx = Math.Min(0, b.vx); break; } }
+			else if (sx < 0) { int tx = (int)Math.Floor((b.x - P_HALF) / PT); for (int ty = ty0; ty <= ty1; ty++) if (tmTile(tx, ty)) { b.x = (tx + 1) * PT + P_HALF; b.vx = Math.Max(0, b.vx); break; } }
+			b.y += sy;
+			int tx0 = (int)Math.Floor((b.x - P_HALF + 0.01) / PT), tx1 = (int)Math.Floor((b.x + P_HALF - 0.01) / PT);
+			if (sy > 0) { int ty = (int)Math.Floor((b.y + P_HALF) / PT); for (int tx = tx0; tx <= tx1; tx++) if (tmTile(tx, ty)) { b.y = ty * PT - P_HALF; b.vy = Math.Min(0, b.vy); b.ground = true; break; } }
+			else if (sy < 0) { int ty = (int)Math.Floor((b.y - P_HALF) / PT); for (int tx = tx0; tx <= tx1; tx++) if (tmTile(tx, ty)) { b.y = (ty + 1) * PT + P_HALF; b.vy = Math.Max(0, b.vy); break; } }
+		}
+	}
 }

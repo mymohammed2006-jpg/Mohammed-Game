@@ -15,7 +15,7 @@ public class TeamTest
 	string id, outDir; int page, fps = 60, every = 1, i; double T; bool done, shot, nodraw = System.Environment.GetEnvironmentVariable("NODRAW") == "1";
 	int hits0; string[] routes; (int room, double t, string k)[][] lines; System.Collections.Generic.Dictionary<int, double> entry = new(); G.TeamRun lastTm; string[] lastK = new string[G.TM_N]; StringBuilder log = new(); Main host;
 	double from = double.TryParse(System.Environment.GetEnvironmentVariable("FROM"), out var fr) ? fr : 0;   // env FROM: pictures only after this time
-	string view; int pass = -1; bool[] beatJ = new bool[G.TM_N]; double[] heldTo = new double[G.TM_N]; bool[] hop = new bool[G.TM_N]; string[] lastK2 = { "", "", "" };   // env VIEW: a player's screen (0-2), or "cycle" (each one's screen in turn in the dark rooms); else everyone's
+	string view; int pass = -1; bool[] beatJ = new bool[G.TM_N]; double[] heldTo = new double[G.TM_N]; bool[] hop = new bool[G.TM_N]; string[] lastK2 = { "", "", "" }; string[] qDone = { "", "", "" };   // env VIEW: a player's screen (0-2), or "cycle" (each one's screen in turn in the dark rooms); else everyone's
 	BinaryWriter wav = System.Environment.GetEnvironmentVariable("WAV") != null ? new BinaryWriter(new MemoryStream()) : null;
 
 	// the ride's part (0-3) this player should be on for the next strike: stay if it is safe, else the nearest safe part
@@ -104,6 +104,13 @@ public class TeamTest
 				foreach (var tok in kk.Split(' ', StringSplitOptions.RemoveEmptyEntries)) if (tok.StartsWith("@")) goal = double.Parse(tok[1..]);
 				if (kk.Contains('A')) goal = dodge(b, k);
 				if (goal != null) { double d = goal.Value - b.x; ins[k].x = Math.Abs(d) < 2 ? 0 : Math.Clamp(d / 25, -1, 1); }
+				// the cable: "P" pumps the swing (pushes the way it goes), "Q<deg>" lets go with a jump once the swing is that far up (moving right; "q" moving left)
+				if (kk.Contains('P') && b.hang) ins[k].x = Math.Abs(b.vx) < 30 ? 1 : Math.Sign(b.vx);
+				foreach (var tok in kk.Split(' ', StringSplitOptions.RemoveEmptyEntries)) if ((tok[0] == 'Q' || tok[0] == 'q') && tok.Length > 1 && (b.hang || b.ropeC > 0))
+				{
+					var o = G.tm.b[1 - k]; double th = Math.Atan2(b.x - o.x, b.y - o.y) * 180 / Math.PI; bool right = tok[0] == 'Q';
+					if ((right ? b.vx > 0 && th >= double.Parse(tok[1..]) : b.vx < 0 && -th >= double.Parse(tok[1..])) && t >= heldTo[k] && qDone[k] != kk) { qDone[k] = kk; ins[k].jump = true; ins[k].jumpHeld = true; heldTo[k] = t + 0.35; ins[k].x = right ? 1 : -1; }
+				}
 			}
 			AudioCtx.manualTime += 1.0 / fps; performance.manual += 1000.0 / fps;
 			if (!nodraw) G.gfx.BeginFrame();
@@ -111,7 +118,7 @@ public class TeamTest
 			if (wav != null) { int n = AudioCtx.SR / fps; var l = new float[n]; var r = new float[n]; AudioCtx.RenderAt(l, r, n, AudioCtx.manualTime.Value); for (int j = 0; j < n; j++) { wav.Write((short)(Math.Clamp(l[j], -1, 1) * 32767)); wav.Write((short)(Math.Clamp(r[j], -1, 1) * 32767)); } }
 			G.particlesStep(1.0 / fps);
 			log.Append(str(Math.Round(t, 3))).Append(" r").Append(rm).Append(' ').Append(str(Math.Round(rt, 2))).Append(' ').Append(str(Math.Round(G.tmBeatPub(), 2)));
-			foreach (var b in G.tm.b) log.Append(" | ").Append(str(Math.Round(b.x))).Append(',').Append(str(Math.Round(b.y))).Append(' ').Append(b.hp).Append(b.down ? "d" : "").Append(b.gate ? "g" : "").Append(b.onT != null ? " " + b.onT.k : "");
+			foreach (var b in G.tm.b) log.Append(" | ").Append(str(Math.Round(b.x))).Append(',').Append(str(Math.Round(b.y))).Append(' ').Append(b.hp).Append(b.down ? "d" : "").Append(b.gate ? "g" : "").Append(b.onT != null ? " " + b.onT.k : "").Append(b.hang ? " H" : "");
 			if (G.tm.restarts != n0) log.Append(" RESTART");
 			if (G.tm.hits != hits0) { log.Append(" HIT"); hits0 = G.tm.hits; }
 			log.Append(" got=").Append(G.tm.got.Count);
