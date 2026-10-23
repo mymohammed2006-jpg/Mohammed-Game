@@ -187,6 +187,7 @@ public class TeamTest
 			foreach (var s in G.tm.th) if (s.k == "cbtn" && s.on) log.Append(' ').Append(s.d.id);
 			if (G.tm.P.things.Any(d => d.k == "flip")) log.Append(" f=").Append(string.Join(",", G.tm.flips));
 			if (G.tm.chaseX > -900) log.Append(" wall=").Append(str(Math.Round(G.tm.chaseX)));
+			if (!double.IsNaN(G.tm.riseY)) log.Append(" rise=").Append(str(Math.Round(G.tm.riseY))).Append(G.tm.ropeLive ? " R" : "");
 			if (G.tm.swapA >= 0) log.Append($" swap{G.tm.swapA}{G.tm.swapB}@").Append(str(G.tm.swapAt));
 			foreach (var b in G.tm.b) if (b.carry != null) log.Append(" carry").Append(b.i);
 			if (G.tm.th.Any(s => s.k == "slot")) log.Append(" placed=").Append(G.tm.th.Count(s => s.k == "slot" && s.on));

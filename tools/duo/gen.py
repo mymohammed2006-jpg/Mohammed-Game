@@ -100,6 +100,49 @@ saws=[dict(x0=34,y0=16.5,x1=34,y1=21.4,beats=2,r=15),      # up and down over th
       dict(x0=69,y0=21.4,x1=72,y1=21.4,beats=2,r=15)]      # on the lower lane's floor, over sound 3
 p3=dict(name='الدرع',map=[''.join(r) for r in g],things=th,saws=saws,loop=[B[145],B[205]],beats=B[145:206],theme=3,zoom=1.6,murk=0.68,mstep=0.04)
 
-L=dict(id='P3',name='المرحلة الثالثة',song='زينة عماد - صوتك أقوى',stems=['PL_RADIO'],stemNames=['الأغنية'],on=[True],spb=0.6453,players=2,cols=[1,2],pages=[p1,p2,p3])
+# ---------------- page 4: the microphone (his yes 23:12 10-23, 100% harder than page 3) ----------------
+# A tower up to the microphone, and the pink static coming up from below all the way (it never stays far under the lower one).
+# The bottom: the cable ties the two again (only there): the well with the sound in its niche, then the swing pit.
+# The middle: two shafts, blue's and gold's: each one's keys run the other one's lift and clouds, so they climb in turns.
+# The top: a hall of ledges with speakers on both walls, the shield, and the microphone at the very top.
+W,Hh=40,74
+g=grid()
+fill(g,1,38,1,72)
+# --- the bottom: the cable (hall rows 52-58, floor row 59) ---
+fill(g,1,38,52,58,'.'); g[58][2]='S'
+fill(g,10,12,59,70,'.'); fill(g,10,12,71,71,'^'); fill(g,13,15,62,63,'.'); g[63][14]='1'    # the well and its niche
+fill(g,18,24,59,70,'.'); fill(g,18,24,71,71,'^')                                        # the swing pit
+fill(g,34,34,56,58,'#')                                                                  # steps up to the shafts
+fill(g,35,38,26,52,'.'); fill(g,35,38,53,58,'#')
+# --- the middle: the two shafts (rows 26-50, floor row 51); a curtain under the wall lets only blue through ---
+fill(g,1,18,26,50,'.'); fill(g,21,34,26,50,'.')
+fill(g,19,20,49,50,'.')
+fill(g,2,4,51,51,'.'); fill(g,35,37,53,53,'.')                  # the lifts' wells
+fill(g,5,12,43,43,'#'); fill(g,1,7,28,28,'#')                     # blue: the ledge half way, the top ledge
+fill(g,26,34,43,43,'#'); fill(g,33,38,28,28,'#')                  # gold: the same on its side
+g[37][17]='2'; g[37][22]='3'
+# --- the top: the hall of ledges (rows 4-24, floor row 25 with a hole over each top ledge) ---
+fill(g,1,38,4,24,'.'); fill(g,1,5,25,27,'.'); fill(g,34,38,25,27,'.')
+fill(g,14,25,22,22,'#'); fill(g,4,11,19,19,'#'); fill(g,28,35,19,19,'#')
+fill(g,14,25,16,16,'#'); fill(g,4,11,13,13,'#'); fill(g,28,35,13,13,'#')
+fill(g,15,24,10,10,'#'); g[9][19]='G'; g[16][3]='4'
+th=[dict(k='rise',y=72,a=10,b=420,c=3,y1=52,h=30),dict(k='rise',y=72,a=14,b=260,y1=0,h=52),
+    dict(k='ropez',x=0,y=53.5,w=40,h=21),
+    dict(k='cwall',a=BL,x=19,y=49,w=2,h=2),
+    # gold's key at the bottom runs blue's lift up to blue's ledge; blue's key there runs gold's lift up to gold's ledge
+    cb('g1',GD,24.2,51),dict(k='mover',need=['g1'],x=2.2,y=51,x1=2.2,y1=43,w=2.6,h=0.4,b=4),
+    cb('b1',BL,9.2,43),dict(k='mover',need=['b1'],x=35.2,y=53,x1=35.2,y1=43,w=2.6,h=0.4,b=4),
+    # gold's key on its ledge holds blue's clouds up to the top; blue's key up there holds gold's clouds
+    cb('g2',GD,29.2,43),dict(k='path',need=['g2'],x=13,y=40,w=3,h=0.4),dict(k='path',need=['g2'],x=8,y=37,w=3,h=0.4),
+    dict(k='path',need=['g2'],x=3,y=34,w=3,h=0.4),dict(k='path',need=['g2'],x=8,y=31,w=3,h=0.4),
+    cb('b2',BL,3.2,28),dict(k='path',need=['b2'],x=23,y=40,w=3,h=0.4),dict(k='path',need=['b2'],x=28,y=37,w=3,h=0.4),
+    dict(k='path',need=['b2'],x=33,y=34,w=3,h=0.4),dict(k='path',need=['b2'],x=28,y=31,w=3,h=0.4),
+    # the speakers on the two walls, by turns
+    spk(0,21,4,1,4,0,39),spk(39,15,4,-1,4,2,0),spk(0,9,4,1,4,1,39),spk(39,9,4,-1,4,3,0)]
+saws=[dict(x0=26,y0=42.4,x1=31.5,y1=42.4,beats=3,r=15),      # over gold's key on its ledge
+      dict(x0=6,y0=42.4,x1=11.5,y1=42.4,beats=3,r=15)]       # over blue's key on its ledge
+p4=dict(name='الميكروفون',map=[''.join(r) for r in g],things=th,saws=saws,loop=[B[205],B[-1]],beats=B[205:],theme=3,zoom=1.6,murk=0.52,mstep=0.13,rope=300,mic=True)
+
+L=dict(id='P3',name='المرحلة الثالثة',song='زينة عماد - صوتك أقوى',stems=['PL_RADIO'],stemNames=['الأغنية'],on=[True],spb=0.6453,players=2,cols=[1,2],pages=[p1,p2,p3,p4])
 json.dump(L,open(os.path.join(root,'data/team_P3.json'),'w',encoding='utf-8'),ensure_ascii=False,indent=1)
-for r in p3['map']: print(r)
+for r in p4['map']: print(r)

@@ -25,6 +25,11 @@ public class TWave { public double x, y, r, r0, R; public int who; public double
 public class TBar { public double x, x0; public int dir, r0; public bool[] on; public double v, x1, born; }
 public class TTower { public G.TS s; public int ph; public long callAt = -1; public int at; public bool[,] did = new bool[16, 2]; public double failT = -9, okT = -9, doneT = -9; public long lastBeat = -1; }
 
+// Page four's things:
+//   rise   the pink static coming up from below (row y): a px a second from c seconds in, and never more than b px under the
+//          lower of the two (it catches up fast), so waiting anywhere costs; touching it hurts. More of them: each one's a and
+//          b hold while the lower one is between rows y1 and y1 + h (the first one's y and c start it)
+//   ropez  a part of the page where the cable ties the two (only while one of them is in it; no dash while it does)
 public static partial class G
 {
 	public const double ECHO_T = 1.0;        // how long a lit cloud stands (about a beat and a half)
@@ -34,7 +39,8 @@ public static partial class G
 
 	static void tmDuoBuild()
 	{
-		tm.waves.Clear(); tm.bars.Clear(); tm.shield = 0; tm.shieldT = 0;
+		tm.waves.Clear(); tm.bars.Clear(); tm.shield = 0; tm.shieldT = 0; tm.ropeLive = false;
+		var rise = tm.P.things.FirstOrDefault(d => d.k == "rise"); tm.riseY = rise == null ? double.NaN : rise.y * PT;
 		int ns = tm.P.things.Count(d => d.k == "spk"); tm.spkN = ns > 0 ? Enumerable.Repeat(long.MinValue, ns).ToArray() : null;
 		if (tm.P.murk < 0) return;
 		tm.murk = tm.P.murk; tmMurkTo(0.05);   // back to the page's start (a restart puts its sounds back)
@@ -157,6 +163,7 @@ public static partial class G
 	static void tmRope()
 	{
 		var a = tm.b[0]; var c = tm.b[1]; a.hang = c.hang = false;
+		tm.ropeLive = tmRopeOn(); if (!tm.ropeLive) return;
 		if (a.down || c.down || a.gate || c.gate) return;
 		double L = tm.P.rope, len = tmRopePath(a, c, out double px, out double py); if (len <= L) return;
 		bool piv = !double.IsNaN(px);
@@ -177,6 +184,15 @@ public static partial class G
 			bool am = Math.Abs(a.mdx) >= Math.Abs(c.mdx); var m = am ? a : c; var o = am ? c : a;
 			double qx = am ? ax : cx, qy = am ? ay : cy; tmHoldX(m, qx, qy, L - (piv ? hypot(o.x - px, o.y - py) : 0));
 		}
+	}
+	// a page with cable zones (the last page): the cable ties them once both are in one, and holds while one of them still is
+	// (so the one out first pulls the other one out; one falling back in later is not tied to the other one far away)
+	static bool tmRopeOn()
+	{
+		if (!tm.P.things.Any(z => z.k == "ropez")) return true;
+		int n = 0;
+		foreach (var b in tm.b) if (!b.down && !b.gate && tm.P.things.Any(z => z.k == "ropez" && b.x > z.x * PT && b.x < (z.x + z.w) * PT && b.y > z.y * PT && b.y < (z.y + z.h) * PT)) n++;
+		return tm.ropeLive ? n > 0 : n == tm.b.Length;
 	}
 	// h hangs from the one on the ground, o (its part of the cable goes to q: o itself, or the edge it bends over)
 	static void tmHold(TBody o, TBody h, double qx, double qy, double e)
@@ -330,4 +346,12 @@ public static partial class G
 	}
 	// for the drawing: how near a speaker's next wave is (0 far, 1 now)
 	public static double tmSpkWarn(TS s) { double bt = tmBeat(), k = (bt - s.d.c) / s.d.b; double f = k - Math.Floor(k); return bt < s.d.c - 1 ? 0 : Math.Max(0, 1 - (1 - f) * s.d.b); }
+	static void tmRise(double dt)
+	{
+		var d = tm.P.things.First(q => q.k == "rise"); if (tm.pageAt < d.c) return;
+		double low = double.NaN; foreach (var b in tm.b) if (!b.down && !b.gate) low = double.IsNaN(low) ? b.y : Math.Max(low, b.y);
+		if (!double.IsNaN(low)) foreach (var q in tm.P.things) if (q.k == "rise" && low > q.y1 * PT && low < (q.y1 + q.h) * PT) { d = q; break; }   // its speed and reach where the lower one is
+		double v = d.a; if (!double.IsNaN(low) && tm.riseY > low + d.b) v = Math.Max(v, (tm.riseY - low - d.b) * 2.5);
+		tm.riseY -= v * dt;
+	}
 }

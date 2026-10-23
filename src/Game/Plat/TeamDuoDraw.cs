@@ -132,6 +132,7 @@ public static partial class G
 			else if (c == 'G')
 			{
 				bool open = tmOpen(); double gy = Y - 8;
+				if (tm.P.mic) { duoMic(X, Y, open, now); continue; }
 				g.save(); g.translate(X, gy);
 				if (open) { g.rotate(now / 600); g.strokeStyle = "#ffffff"; g.shadowColor = "#9fb4ff"; g.shadowBlur = 16 + 10 * pulse; g.lineWidth = 4; g.beginPath(); g.arc(0, 0, 26 + 3 * pulse, 0, TAU * 0.8); g.stroke(); g.shadowBlur = 0; }
 				else { g.strokeStyle = "rgba(255,255,255,0.3)"; g.lineWidth = 3; g.setLineDash(new double[] { 6, 6 }); g.beginPath(); g.arc(0, 0, 26, 0, TAU); g.stroke(); g.setLineDash(new double[0]); }
@@ -182,7 +183,8 @@ public static partial class G
 				double f = bp, r = 12 + 30 * (1 - f), a = 0.12 + 0.55 * f * f;
 				g.strokeStyle = tmCol(p.i); g.globalAlpha = a; g.lineWidth = 2; g.beginPath(); g.arc(p.x, p.y, r, 0, TAU); g.stroke(); g.globalAlpha = 1;
 			}
-		if (tm.P.rope > 0) duoCable(now);
+		if (!double.IsNaN(tm.riseY)) duoRise(now, vx0, vx1, vy1);
+		if (tm.P.rope > 0 && tm.ropeLive) duoCable(now);
 		foreach (var p in tm.b) tmDrawBody(p, now);
 		if (tm.spkN != null) duoShield(now);
 		if (tmMe >= 0) foreach (var p in tm.b) if (p.i != tmMe && !p.gate) { g.globalAlpha = 0.75; txt(tm.names[p.i], p.x, p.y - 30, 16, "#fff", 700); g.globalAlpha = 1; }
@@ -261,6 +263,36 @@ public static partial class G
 		g.restore();
 	}
 	// a sound to take: a small speaker with its waves, white
+	// the last page's static coming up from below (pink: it hurts): a torn bright edge, the noise under it
+	static void duoRise(double now, double vx0, double vx1, double vy1)
+	{
+		double y = tm.riseY; if (y > vy1) return; long fr = (long)(now / 60);
+		g.save(); g.fillStyle = PINK; g.globalAlpha = 0.5; g.fillRect(vx0, y, vx1 - vx0, vy1 - y);
+		g.globalAlpha = 0.85; g.fillRect(vx0, y + 26, vx1 - vx0, vy1 - y);
+		// the edge: jagged, jumping each frame like a bad signal
+		g.globalAlpha = 1; g.shadowColor = PINK; g.shadowBlur = 18; g.beginPath(); g.moveTo(vx0, y + 30);
+		for (double x = Math.Floor(vx0 / 16) * 16; x <= vx1 + 16; x += 16) g.lineTo(x, y + rnd(fr, (long)(x / 16)) * 14 - 4);
+		g.lineTo(vx1, y + 30); g.closePath(); g.fill(); g.shadowBlur = 0;
+		g.fillStyle = "#ffd1e6";
+		for (int i = 0; i < 90; i++) { double sx = vx0 + rnd(fr, i * 3) * (vx1 - vx0), sy = y + 4 + rnd(fr, i * 3 + 1) * Math.Min(220, vy1 - y); g.globalAlpha = 0.35 + 0.5 * rnd(fr, i * 3 + 2); g.fillRect(sx, sy, 3 + 9 * rnd(fr, i), 2); }
+		g.restore();
+	}
+	static double rnd(long a, long b) { ulong h = (ulong)(a * 73856093 ^ b * 19349663); h ^= h >> 13; h *= 0x5bd1e995; h ^= h >> 15; return (h % 10007) / 10007.0; }
+	// the last page's end: a microphone on a stand; lit once all four sounds are in, and the two squares under it
+	static void duoMic(double X, double Y, bool open, double now)
+	{
+		double by = Y + PT / 2, k = 0.5 + 0.5 * Math.Sin(now / 200);
+		g.save(); g.strokeStyle = open ? "#ffffff" : "rgba(255,255,255,0.35)"; g.lineWidth = 3;
+		g.beginPath(); g.moveTo(X - 14, by); g.lineTo(X + 14, by); g.moveTo(X, by); g.lineTo(X, by - 34); g.stroke();
+		if (open) { g.shadowColor = "#9fb4ff"; g.shadowBlur = 18 + 12 * k; }
+		g.fillStyle = open ? "#ffffff" : "rgba(255,255,255,0.25)"; rr(X - 9, by - 62, 18, 30, 9); g.fill(); g.shadowBlur = 0;
+		g.strokeStyle = open ? "#5a6ab0" : "rgba(10,14,30,0.6)"; g.lineWidth = 1.5;
+		for (int i = 0; i < 3; i++) { g.beginPath(); g.moveTo(X - 7, by - 54 + i * 7); g.lineTo(X + 7, by - 54 + i * 7); g.stroke(); }
+		if (open) { g.strokeStyle = "#ffffff"; g.lineWidth = 2.5; for (int i = 1; i <= 2; i++) { g.globalAlpha = 0.4 + 0.4 * ((k + i * 0.4) % 1); g.beginPath(); g.arc(X, by - 47, 14 + i * 9, -0.7, 0.7); g.stroke(); g.beginPath(); g.arc(X, by - 47, 14 + i * 9, Math.PI - 0.7, Math.PI + 0.7); g.stroke(); } }
+		g.restore();
+		for (int i = 0; i < tm.b.Length; i++) { g.fillStyle = tm.b[i].gate ? tmCol(i) : "rgba(255,255,255,0.18)"; g.fillRect(X - 13 + i * 16, by + 8, 10, 10); }
+		if (!open) txt($"{ar(tm.got.Count)}/{ar(tmPieces())}", X, by - 80, 16, "rgba(255,255,255,0.55)");
+	}
 	static void duoSound(double x, double y, double now)
 	{
 		g.save(); g.translate(x, y); double k = 0.5 + 0.5 * Math.Sin(now / 160);
