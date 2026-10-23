@@ -15,7 +15,7 @@ public class TeamTest
 	string id, outDir; int page, fps = 60, every = 1, i; double T; bool done, shot, nodraw = System.Environment.GetEnvironmentVariable("NODRAW") == "1";
 	int hits0; string[] routes; (int room, double t, string k)[][] lines; System.Collections.Generic.Dictionary<int, double> entry = new(); G.TeamRun lastTm; string[] lastK = new string[G.TM_N]; StringBuilder log = new(); Main host;
 	double from = double.TryParse(System.Environment.GetEnvironmentVariable("FROM"), out var fr) ? fr : 0;   // env FROM: pictures only after this time
-	string view; int pass = -1; bool[] beatJ = new bool[G.TM_N]; double[] heldTo = new double[G.TM_N]; bool[] hop = new bool[G.TM_N]; string[] lastK2 = { "", "", "" }; string[] qDone = { "", "", "" };   // env VIEW: a player's screen (0-2), or "cycle" (each one's screen in turn in the dark rooms); else everyone's
+	string view; int pass = -1; bool[] beatJ = new bool[G.TM_N]; double[] heldTo = new double[G.TM_N]; bool[] hop = new bool[G.TM_N]; string[] lastK2 = { "", "", "" }; string[] qDone = { "", "", "" }; int[] side = { -1, -1, -1 }; bool[] oWasGround = new bool[3];   // env VIEW: a player's screen (0-2), or "cycle" (each one's screen in turn in the dark rooms); else everyone's
 	BinaryWriter wav = System.Environment.GetEnvironmentVariable("WAV") != null ? new BinaryWriter(new MemoryStream()) : null;
 
 	// the ride's part (0-3) this player should be on for the next strike: stay if it is safe, else the nearest safe part
@@ -104,6 +104,50 @@ public class TeamTest
 				foreach (var tok in kk.Split(' ', StringSplitOptions.RemoveEmptyEntries)) if (tok.StartsWith("@")) goal = double.Parse(tok[1..]);
 				if (kk.Contains('A')) goal = dodge(b, k);
 				if (goal != null) { double d = goal.Value - b.x; ins[k].x = Math.Abs(d) < 2 ? 0 : Math.Clamp(d / 25, -1, 1); }
+				// the shield page: "F<px>" keeps that far from the other one; "B" keeps behind the shield (away from the nearest wave
+				// coming); "C" stops while a wave comes close (the one carrying the shield waits for the other); "K" jumps spikes and
+				// low rock ahead; "M" jumps when the other one jumps; "D" holds down (takes the shield when touching)
+				{
+					var o = G.tm.b[1 - k]; var tks = kk.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					foreach (var tok in tks) if (tok.Length > 1 && tok[0] == 'F' && double.TryParse(tok[1..], out var off)) goal = o.x + off;
+					if (tks.Contains("B"))
+					{
+						MG.TBar best = null; double bt = 99;
+						foreach (var w in G.tm.bars) { double d = (b.x - w.x) * w.dir; if (d > -10 && d / w.v < bt && w.on.Where((on, r) => on && Math.Abs((w.r0 + r) * G.PT + 20 - b.y) < 50).Any()) { bt = d / w.v; best = w; } }
+						if (best != null) side[k] = best.dir;
+						goal = o.x + side[k] * 15;
+					}
+					if (goal != null) { double d = goal.Value - b.x; ins[k].x = Math.Abs(d) < 2 ? 0 : Math.Clamp(d / 25, -1, 1); }
+					// "H": no shield, waves from ahead: run from cover to cover (low rock blocks), going on only when the next one is reached first
+					if (tks.Contains("H") && goal != null)
+					{
+						int row = (int)Math.Floor(b.y / G.PT), dir = Math.Sign(goal.Value - b.x);
+						var spots = new System.Collections.Generic.List<double>();
+						for (int tx = 0; tx < G.tm.w; tx++) if (G.tm.m[row][tx] == '#' && row >= 2 && G.tm.m[row - 2][tx] != '#') spots.Add(dir > 0 ? tx * G.PT - 11 : (tx + 1) * G.PT + 11);
+						MG.TBar w0 = null; double eta = 99;
+						foreach (var w in G.tm.bars) { double d = (w.x - b.x) * dir; if (w.dir == -dir && d > -5 && d / w.v < eta && w.on.Where((on, r) => on && Math.Abs((w.r0 + r) * G.PT + 20 - b.y) < 30).Any()) { eta = d / w.v; w0 = w; } }
+						double? tgt = null;
+						if (w0 != null)
+						{
+							double best = double.NaN;
+							foreach (var sp in spots) { double reach = Math.Abs(sp - b.x) / 370 + 0.25, arrive = (w0.x - sp) * dir / w0.v; if (arrive > reach && (sp - b.x) * dir >= -2 && (double.IsNaN(best) || (sp - best) * dir > 0) && (goal.Value - sp) * dir > -5) best = sp; }
+							if (double.IsNaN(best)) foreach (var sp in spots) if ((sp - b.x) * dir < 0 && (double.IsNaN(best) || (sp - best) * dir > 0)) best = sp;
+							if (!double.IsNaN(best) && (eta < 1.6 || Math.Abs(best - b.x) < 3)) tgt = best;
+						}
+						if (tgt != null) { double d = tgt.Value - b.x; ins[k].x = Math.Abs(d) < 2 ? 0 : Math.Clamp(d / 25, -1, 1); }
+					}
+					if (tks.Contains("C"))
+						foreach (var w in G.tm.bars) { double d = (b.x - w.x) * w.dir; if (d > 0 && d < 170 && Math.Abs(w.r0 * G.PT - b.y) < 200) ins[k].x = 0; }
+					if (tks.Contains("K") && b.ground && Math.Abs(ins[k].x) > 0.2)
+					{
+						int dir = Math.Sign(ins[k].x), fx = (int)Math.Floor((b.x + dir * 26) / G.PT), fy = (int)Math.Floor((b.y + 20) / G.PT), my = (int)Math.Floor(b.y / G.PT);
+						char cf = G.tm.m[fy][fx], cm = G.tm.m[my][fx];
+						if (cf == '^' || cm == '#') { ins[k].jump = true; ins[k].jumpHeld = true; heldTo[k] = t + 0.3; }
+					}
+					if (tks.Contains("M") && o.vy < -700 && oWasGround[k] && !o.ground && b.ground) { ins[k].jump = true; ins[k].jumpHeld = true; heldTo[k] = t + 0.3; }
+					oWasGround[k] = o.ground;
+					if (tks.Contains("D")) ins[k].y = 1;
+				}
 				// "Z": wait while a saw is near the way to the goal and not going away from it
 				if (kk.Split(' ').Contains("Z") && goal != null)
 					foreach (var sw in G.tm.P.saws)
@@ -148,6 +192,7 @@ public class TeamTest
 			if (G.tm.th.Any(s => s.k == "slot")) log.Append(" placed=").Append(G.tm.th.Count(s => s.k == "slot" && s.on));
 			foreach (var s in G.tm.th) if (s.k == "mover") log.Append(s.d.need != null ? " lift=" : " mv=").Append(str(Math.Round(s.d.need != null ? s.Y : s.X)));
 			log.Append(" songs=").Append(AudioCtx.SongsAt(AudioCtx.manualTime.Value));
+			if (G.tm.spkN != null) { log.Append(" sh=").Append(G.tm.shield); foreach (var w in G.tm.bars) log.Append(" w").Append(w.dir > 0 ? '>' : '<').Append(str(Math.Round(w.x))).Append('/').Append(w.r0); }
 			if (G.tm.tw != null) log.Append($" tw={G.tm.tw.ph},{G.tm.tw.at},{G.tm.tw.callAt}");
 			if (G.tm.won) log.Append(" WON");
 			if (G.tm.doneAt >= 0) log.Append(" DONE");

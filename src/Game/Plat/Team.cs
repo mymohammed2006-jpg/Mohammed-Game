@@ -56,6 +56,7 @@ public class TThing
 	public double b { get; set; }
 	public double c { get; set; }
 	public double x1 { get; set; }
+	public double v { get; set; }
 	public double y1 { get; set; }
 	public string[] alt { get; set; }
 }
@@ -130,7 +131,7 @@ public static partial class G
 		public int[] falls = new int[TM_N]; public string[] names = { "الأحمر", "الأزرق", "الأصفر" };   // the whole level's, for the win screen
 		// online (TeamNet): gen = how many times a page was built (events from an older one are dropped); the music clock's start and
 		// fixed steps; this player's buttons waiting for the next step; each one's XP from this finish (-1: not known yet)
-		public Voice[] stat; public List<TWave> waves = new(); public double murk; public TTower tw;   // the radio level: its static, the jumps' sound waves, how garbled the song is now
+		public Voice[] stat; public List<TWave> waves = new(); public double murk; public TTower tw; public List<TBar> bars = new(); public int shield; public double shieldT; public long[] spkN;   // the radio level: its static, the jumps' sound waves, how garbled the song is now
 		public int gen; public double startWhen, inX; public long n; public bool jumpQ, dashQ, jumpHeld, saved; public int[] tp = new int[TM_N]; public int[] xpGot = { -1, -1, -1 };
 	}
 	public static int tmView = -1;                                  // whose screen this is (-1: everyone's, for the tests)
@@ -377,6 +378,7 @@ public static partial class G
 		// everyone moves
 		for (int i = 0; i < tm.b.Length; i++) { var b = tm.b[i]; double px = b.x, py = b.y; if (tmMine(b)) tmBody(b, ins[i], dt); else tnBody(b); b.mdx = b.x - px; b.mdy = b.y - py; }
 		if (tm.P.rope > 0) tmRope();
+		if (tm.spkN != null) tmSpeakers(ins, dt);
 		// the chain: no one too far from the others
 		if (tm.P.tether > 0 && tm.snapAt < 0 && tmBoss)
 			for (int i = 0; i < tm.b.Length; i++) for (int j = i + 1; j < tm.b.Length; j++)
@@ -553,6 +555,7 @@ public static partial class G
 	{
 		const double r = 5;
 		if (tmHitAt(b.x, b.y) || (tm.P.mirror > 0 && tmHitAt(tmRx(b.x), b.y))) return true;
+		if (tm.bars.Count > 0 && tmBarHit(b)) return true;
 		foreach (var q in tm.hail) if (Math.Abs(q.x - b.x) < 5 + r && Math.Abs(q.y - b.y) < 9 + r) { q.dead = true; return true; }
 		if (tm.chaseX > -900 && b.x - r < tm.chaseX) return true;
 		double bf = tmBeat() - Math.Floor(tmBeat());

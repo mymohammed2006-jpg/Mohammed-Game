@@ -72,6 +72,34 @@ saws=[dict(x0=51,y0=12.4,x1=56,y1=12.4,beats=3,r=15),      # over gold's lift bu
       dict(x0=22,y0=31.4,x1=28.5,y1=31.4,beats=2,r=15)]     # over blue's middle buttons
 p2=dict(name='المفاتيح',map=[''.join(r) for r in g],things=th,saws=saws,loop=[B[64],B[145]],beats=B[64:146],theme=3,zoom=1.6,murk=0.84,mstep=0.04)
 
-L=dict(id='P3',name='المرحلة الثالثة',song='زينة عماد - صوتك أقوى',stems=['PL_RADIO'],stemNames=['الأغنية'],on=[True],spb=0.6453,players=2,cols=[1,2],pages=[p1,p2])
+# ---------------- page 3: the shield (his yes 22:11 10-23, 100% harder than page 2) ----------------
+# Speakers send pink sound waves along the floor; one of the two carries the shield (blue at the start): the rows of a wave
+# that reach it stop there, so the one behind it is safe too. The one without it takes it by holding down on the other.
+# A corridor with a speaker ahead, a hall with speakers on both sides by turns, then two lanes with cover blocks and the
+# speakers firing down them, and the gate right under those speakers.
+W,Hh=88,26
+g=grid()
+fill(g,1,86,1,24)
+fill(g,1,24,16,21,'.'); g[21][2]='S'
+fill(g,9,10,22,22,'^'); fill(g,15,17,22,22,'^'); g[18][13]='1'
+fill(g,25,27,16,18,'.')                              # over the first speaker's block
+fill(g,26,50,10,21,'.'); fill(g,33,35,22,22,'^'); fill(g,43,45,22,22,'^')
+g[18][44]='2'
+fill(g,51,53,11,18,'.')                              # over the second hall speaker
+fill(g,54,80,11,15,'.'); fill(g,54,80,18,21,'.')     # the two lanes
+for x in (60,66,72): fill(g,x,x,14,15,'#')
+for x in (62,68,74): fill(g,x,x,20,21,'#')
+g[12][63]='4'; g[21][71]='3'
+fill(g,81,84,11,21,'.'); g[21][82]='G'
+def spk(x,y,h,a,b,c,x1,v=420): return dict(k='spk',x=x,y=y,h=h,a=a,b=b,c=c,x1=x1,v=v)
+th=[spk(25,19,3,-1,2,1,0),
+    spk(25,19,3,1,4,0,51),spk(51,19,3,-1,4,2,25),
+    spk(85,12,4,-1,3,0,53),spk(85,18,4,-1,3,1.5,53)]
+saws=[dict(x0=34,y0=16.5,x1=34,y1=21.4,beats=2,r=15),      # up and down over the hall's first spike pit
+      dict(x0=61,y0=15.4,x1=65,y1=15.4,beats=2,r=15),      # on the upper lane's floor, under sound 4
+      dict(x0=69,y0=21.4,x1=72,y1=21.4,beats=2,r=15)]      # on the lower lane's floor, over sound 3
+p3=dict(name='الدرع',map=[''.join(r) for r in g],things=th,saws=saws,loop=[B[145],B[205]],beats=B[145:206],theme=3,zoom=1.6,murk=0.68,mstep=0.04)
+
+L=dict(id='P3',name='المرحلة الثالثة',song='زينة عماد - صوتك أقوى',stems=['PL_RADIO'],stemNames=['الأغنية'],on=[True],spb=0.6453,players=2,cols=[1,2],pages=[p1,p2,p3])
 json.dump(L,open(os.path.join(root,'data/team_P3.json'),'w',encoding='utf-8'),ensure_ascii=False,indent=1)
-for r in p2['map']: print(r)
+for r in p3['map']: print(r)

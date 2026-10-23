@@ -67,6 +67,7 @@ public static partial class G
 			if (s.X > vx1 || s.X + s.W < vx0 || s.Y > vy1 || s.Y + s.H + 20 < vy0) continue;
 			if (s.k == "tower") duoTower(s, b, now);
 			else if (s.k == "cloud") duoGrille(s.X, s.Y, s.W, "#c9d4ff", 1);
+			else if (s.k == "spk") duoSpeaker(s, now);
 			else if (s.k == "cwall")
 			{
 				// a curtain only its own one walks through: their colour, waving
@@ -150,6 +151,19 @@ public static partial class G
 			if (!w.miss && w.r > 30) { g.globalAlpha = a * 0.4; g.lineWidth = 1.5; g.beginPath(); g.arc(w.x, w.y, Math.Min(w.r, w.R) - 22, 0, TAU); g.stroke(); }
 			g.restore();
 		}
+		// the speakers' waves (pink: they hurt), row by row (rock and the shield stop rows)
+		foreach (var w in tm.bars)
+		{
+			g.save(); g.fillStyle = PINK; g.strokeStyle = PINK; g.shadowColor = PINK; g.shadowBlur = 16 + 8 * pulse;
+			for (int r = 0; r < w.on.Length; r++)
+			{
+				if (!w.on[r]) continue; double y0 = (w.r0 + r) * PT;
+				g.globalAlpha = 0.95; g.fillRect(w.x - BAR_W / 2, y0 + 1, BAR_W, PT - 2);
+				g.globalAlpha = 0.5; g.lineWidth = 3;   // the sound's rings behind it
+				for (int k = 1; k <= 2; k++) { double bx = w.x - w.dir * (BAR_W / 2 + 9 * k); g.beginPath(); g.moveTo(bx, y0 + 6); g.quadraticCurveTo(bx + w.dir * 7, y0 + PT / 2, bx, y0 + PT - 6); g.stroke(); }
+			}
+			g.restore();
+		}
 		// the saws (pink: they hurt)
 		foreach (var sw in tm.P.saws)
 		{
@@ -170,6 +184,7 @@ public static partial class G
 			}
 		if (tm.P.rope > 0) duoCable(now);
 		foreach (var p in tm.b) tmDrawBody(p, now);
+		if (tm.spkN != null) duoShield(now);
 		if (tmMe >= 0) foreach (var p in tm.b) if (p.i != tmMe && !p.gate) { g.globalAlpha = 0.75; txt(tm.names[p.i], p.x, p.y - 30, 16, "#fff", 700); g.globalAlpha = 1; }
 		g.restore();
 		// the song's noise on the screen too, as much as the song is garbled
@@ -319,5 +334,37 @@ public static partial class G
 	{
 		var id = d.need?.FirstOrDefault(); var k = id == null ? null : tm.th.FirstOrDefault(q => q.k == "cbtn" && q.d.id == id);
 		return k == null ? "#c9d4ff" : tmCol((int)k.d.a);
+	}
+	// a speaker: a dark box with a cone; a beat before it sends its wave the cone throbs and the wave's way shows (dashed pink)
+	static void duoSpeaker(TS s, double now)
+	{
+		double cx = s.X + PT / 2, cy = (s.d.y + s.d.h / 2) * PT, warn = tmSpkWarn(s), kick = Math.Max(0, 1 - (tm.t - s.timer) * 4);
+		double hh = Math.Max(PT, s.d.h * PT);
+		g.save();
+		g.fillStyle = "#0d1230"; g.strokeStyle = "#c9d4ff"; g.lineWidth = 2; g.shadowColor = "#9fb4ff"; g.shadowBlur = 8;
+		g.fillRect(s.X + 2, cy - hh / 2, PT - 4, hh); g.strokeRect(s.X + 2, cy - hh / 2, PT - 4, hh); g.shadowBlur = 0;
+		int n = Math.Max(1, (int)Math.Round(s.d.h));
+		for (int i = 0; i < n; i++)
+		{
+			double y = cy - hh / 2 + PT * (i + 0.5), r = 11 + 3 * kick + 2 * warn * Math.Abs(Math.Sin(now / 40));
+			g.strokeStyle = "#c9d4ff"; g.lineWidth = 2; g.beginPath(); g.arc(cx, y, r, 0, TAU); g.stroke();
+			g.fillStyle = "#c9d4ff"; g.beginPath(); g.arc(cx, y, 4 + 2 * kick, 0, TAU); g.fill();
+		}
+		if (warn > 0)
+		{
+			g.globalAlpha = 0.25 + 0.45 * warn; g.strokeStyle = PINK; g.lineWidth = 2; g.setLineDash(new double[] { 8, 8 });
+			double x0 = s.d.a > 0 ? s.X + PT : s.d.x1 * PT, x1 = s.d.a > 0 ? s.d.x1 * PT : s.X;
+			g.strokeRect(x0, s.d.y * PT + 2, x1 - x0, n * PT - 4); g.setLineDash(new double[0]);
+		}
+		g.restore();
+	}
+	// the shield: a white ring round the one carrying it
+	static void duoShield(double now)
+	{
+		var p = tm.b[tm.shield]; if (p.down || p.gate) return;
+		g.save(); g.strokeStyle = "#ffffff"; g.shadowColor = "#ffffff"; g.shadowBlur = 14 + 6 * pulse; g.lineWidth = 3; g.globalAlpha = 0.85;
+		g.beginPath(); g.arc(p.x, p.y, SHIELD_R, 0, TAU); g.stroke();
+		g.globalAlpha = 0.12; g.fillStyle = "#ffffff"; g.beginPath(); g.arc(p.x, p.y, SHIELD_R, 0, TAU); g.fill();
+		g.restore();
 	}
 }

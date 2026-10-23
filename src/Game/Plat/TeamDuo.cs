@@ -17,6 +17,12 @@ namespace MG;
 //          phrases: B blue jumps, G gold jumps, X both, . no one), then the two answer it with their jumps on the same beats.
 //          A jump that is not theirs, or a missed one, spoils it and the mast sings it again; all phrases answered = page done.
 public class TWave { public double x, y, r, r0, R; public int who; public double born; public bool miss; }
+// Page three's things:
+//   spk    a speaker at tile (x, y) that sends a pink sound wave every b beats (from beat c): a wall h tiles tall going a
+//          (1 right, -1 left) at v px a second until x1; rock stops each row of it, and so does the shield
+// The shield: one of the two carries it (blue at the start); a wave's rows that reach it stop there, so it keeps safe the
+// one carrying it and the one right behind it. The one without it takes it by holding down while touching the other.
+public class TBar { public double x, x0; public int dir, r0; public bool[] on; public double v, x1, born; }
 public class TTower { public G.TS s; public int ph; public long callAt = -1; public int at; public bool[,] did = new bool[16, 2]; public double failT = -9, okT = -9, doneT = -9; public long lastBeat = -1; }
 
 public static partial class G
@@ -28,7 +34,8 @@ public static partial class G
 
 	static void tmDuoBuild()
 	{
-		tm.waves.Clear();
+		tm.waves.Clear(); tm.bars.Clear(); tm.shield = 0; tm.shieldT = 0;
+		int ns = tm.P.things.Count(d => d.k == "spk"); tm.spkN = ns > 0 ? Enumerable.Repeat(long.MinValue, ns).ToArray() : null;
 		if (tm.P.murk < 0) return;
 		tm.murk = tm.P.murk; tmMurkTo(0.05);   // back to the page's start (a restart puts its sounds back)
 	}
@@ -267,4 +274,60 @@ public static partial class G
 		if (!tmDuo) return false;
 		s.timer -= dt; return s.timer > 0;
 	}
+
+	// ---------- the shield (page three) ----------
+	public const double BAR_W = 14, SHIELD_R = 24;
+	static void tmSpeakers(TIn[] ins, double dt)
+	{
+		double bt = tmBeat(); int i = 0;
+		foreach (var s in tm.th)
+		{
+			if (s.k != "spk") continue;
+			var d = s.d; long n = (long)Math.Floor((bt - d.c) / d.b);
+			if (tm.spkN[i] != long.MinValue && n > tm.spkN[i] && bt >= d.c)
+			{
+				int rows = Math.Max(1, (int)Math.Round(d.h)); var w = new TBar { x = (d.x + 0.5 + 0.5 * d.a) * PT, dir = (int)d.a, r0 = (int)d.y, on = Enumerable.Repeat(true, rows).ToArray(), v = d.v > 0 ? d.v : 420, x1 = d.x1 * PT, born = tm.t };
+				w.x0 = w.x; tm.bars.Add(w); s.timer = tm.t;
+				sfx(tt => { sTone(tt, 70, 0.35, "sawtooth", 0.07); sNoise(tt, 0.3, "lowpass", 400, 0.12); });
+			}
+			tm.spkN[i] = n; i++;
+		}
+		var sh = tm.b[tm.shield]; bool shOn = !sh.down && !sh.gate;
+		foreach (var w in tm.bars)
+		{
+			w.x += w.dir * w.v * dt;
+			for (int r = 0; r < w.on.Length; r++)
+			{
+				if (!w.on[r]) continue;
+				int row = w.r0 + r, tx = (int)Math.Floor((w.x + w.dir * BAR_W / 2) / PT);
+				if (tmTile(tx, row)) { w.on[r] = false; continue; }
+				// the shield takes the rows that reach it
+				double ry0 = row * PT, ry1 = ry0 + PT;
+				if (shOn && sh.y + SHIELD_R > ry0 && sh.y - SHIELD_R < ry1 && Math.Abs(w.x - sh.x) < SHIELD_R + BAR_W / 2)
+				{ w.on[r] = false; burst(sh.x + Math.Sign(w.x0 - sh.x) * SHIELD_R, (ry0 + ry1) / 2, "#ffffff", 4, 160); tm.shieldT = Math.Max(tm.shieldT, 0); }
+			}
+		}
+		tm.bars.RemoveAll(w => !w.on.Any(o => o) || (w.dir > 0 ? w.x > w.x1 : w.x < w.x1));
+		// passing the shield: the one without it holds down while touching the one with it
+		tm.shieldT -= dt;
+		var o2 = tm.b[1 - tm.shield];
+		if (tm.shieldT <= 0 && shOn && !o2.down && !o2.gate && ins != null && ins.Length > o2.i && ins[o2.i].y > 0.5 && Math.Abs(o2.x - sh.x) < 24 && Math.Abs(o2.y - sh.y) < 24)
+		{
+			tm.shield = o2.i; tm.shieldT = 0.4; burst(o2.x, o2.y, "#ffffff", 16, 260);
+			sfx(tt => { sTone(tt, 880, 0.08, "triangle", 0.08); sTone(tt + 0.06, 1320, 0.12, "triangle", 0.07); });
+		}
+		// the one carrying it goes down: it stays with them (the other can take it from them once they are back)
+	}
+	static bool tmBarHit(TBody b)
+	{
+		if (b.i == tm.shield) return false;
+		foreach (var w in tm.bars)
+		{
+			if (Math.Abs(w.x - b.x) > BAR_W / 2 + 7) continue;
+			for (int r = 0; r < w.on.Length; r++) if (w.on[r]) { double ry0 = (w.r0 + r) * PT; if (b.y + 7 > ry0 && b.y - 7 < ry0 + PT) return true; }
+		}
+		return false;
+	}
+	// for the drawing: how near a speaker's next wave is (0 far, 1 now)
+	public static double tmSpkWarn(TS s) { double bt = tmBeat(), k = (bt - s.d.c) / s.d.b; double f = k - Math.Floor(k); return bt < s.d.c - 1 ? 0 : Math.Max(0, 1 - (1 - f) * s.d.b); }
 }
