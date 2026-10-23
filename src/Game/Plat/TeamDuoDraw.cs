@@ -65,7 +65,8 @@ public static partial class G
 		foreach (var s in tm.th)
 		{
 			if (s.X > vx1 || s.X + s.W < vx0 || s.Y > vy1 || s.Y + s.H + 20 < vy0) continue;
-			if (s.k == "cloud") duoGrille(s.X, s.Y, s.W, "#c9d4ff", 1);
+			if (s.k == "tower") duoTower(s, b, now);
+			else if (s.k == "cloud") duoGrille(s.X, s.Y, s.W, "#c9d4ff", 1);
 			else if (s.k == "echo" && s.timer > 0)
 			{
 				double k = Math.Min(1, s.timer / 0.3), blink = s.timer < 0.3 && Math.Floor(s.timer * 20) % 2 == 0 ? 0.35 : 1;
@@ -106,7 +107,7 @@ public static partial class G
 		foreach (var w in tm.waves)
 		{
 			double f = Math.Min(1, w.r / Math.Max(1, w.R)), a = w.miss ? 0.35 * (1 - f) : 0.9 * (1 - f * f);
-			if (a <= 0.01) continue; string c = w.miss ? "#8a90a8" : tmCol(w.who);
+			if (a <= 0.01) continue; string c = w.miss ? "#8a90a8" : w.who < 0 ? "#ffffff" : tmCol(w.who);
 			g.save(); g.globalAlpha = a; g.strokeStyle = c; g.shadowColor = c; g.shadowBlur = w.miss ? 0 : 14; g.lineWidth = w.miss ? 2 : 3;
 			if (w.miss) g.setLineDash(new double[] { 4, 6 });
 			g.beginPath(); g.arc(w.x, w.y, Math.Min(w.r, w.R), 0, TAU); g.stroke();
@@ -145,6 +146,52 @@ public static partial class G
 		else if (tm.fromClouds && tm.pageAt < TM_SWAP) tmCloudSwap(-clamp(tm.pageAt / TM_SWAP, 0, 1), now, 3);
 	}
 
+	// the radio mast: a lattice with four lamps (the page's sounds), and over the pads the phrase it sings and how it is answered
+	static void duoTower(TS s, double b, double now)
+	{
+		var w = tm.tw; double mx = s.X + s.W / 2, top = s.Y, bot = s.Y + s.H; int got = tm.got.Count, need = Math.Max(1, tmPieces());
+		bool ready = twReady;
+		g.save(); g.strokeStyle = "#8fa6e8"; g.lineWidth = 2; g.globalAlpha = 0.85; g.beginPath();
+		g.moveTo(mx - 22, bot); g.lineTo(mx - 4, top + 20); g.moveTo(mx + 22, bot); g.lineTo(mx + 4, top + 20);
+		for (double y = bot; y > top + 30; y -= 34) { double k = (y - top) / (bot - top), hw = 4 + 18 * k, hw2 = 4 + 18 * ((y - 34 - top) / (bot - top)); g.moveTo(mx - hw, y); g.lineTo(mx + hw2, y - 34); g.moveTo(mx + hw, y); g.lineTo(mx - hw2, y - 34); }
+		g.moveTo(mx, top + 20); g.lineTo(mx, top - 10); g.stroke(); g.restore();
+		for (int i = 0; i < need; i++)
+		{
+			double ly = bot - 40 - i * (s.H - 70) / need; bool on = i < got;
+			g.fillStyle = on ? "#ffffff" : "rgba(255,255,255,0.15)"; g.shadowColor = "#bcd0ff"; g.shadowBlur = on ? 14 : 0; g.beginPath(); g.arc(mx, ly, 6, 0, TAU); g.fill(); g.shadowBlur = 0;
+		}
+		// the top: dark until all the sounds are in, then it beats
+		double tp = ready ? 0.6 + 0.4 * pulse : 0.15; g.fillStyle = $"rgba(255,255,255,{str(tp)})"; g.shadowColor = "#9fb4ff"; g.shadowBlur = ready ? 24 : 0; g.beginPath(); g.arc(mx, top - 12, 7, 0, TAU); g.fill(); g.shadowBlur = 0;
+		if (!ready || w == null) return;
+		if (ready && w.doneT < 0) for (int k = 1; k <= 2; k++) { double r = 20 + ((now / 900 + k * 0.5) % 1) * 60; g.strokeStyle = $"rgba(220,230,255,{str(0.4 * (1 - (r - 20) / 60))})"; g.lineWidth = 2; g.beginPath(); g.arc(mx, top - 12, r, -2.4, -0.7); g.stroke(); }
+		if (w.doneT >= 0 || w.ph >= twPh.Length) return;
+		// the phrase: slots in a row over the pads
+		string ph = twPh[w.ph]; int n = ph.Length; double sw = 30, gap = 8, x0 = s.X + s.W + 80 - (n * sw + (n - 1) * gap) / 2, y0 = top - 44;
+		long a0 = w.callAt + n; bool call = w.callAt >= 0 && b >= w.callAt && b < a0 + 0 - 0.0, ans = w.callAt >= 0 && b >= a0 - ECHO_WIN;
+		double fail = clamp(1 - (tm.t - w.failT) / 0.8, 0, 1);
+		for (int i = 0; i < n; i++)
+		{
+			double x = x0 + i * (sw + gap); char c = ph[i]; bool shown = ans || (call && b >= w.callAt + i), cur = (call && Math.Floor(b) == w.callAt + i) || (ans && i == w.at && b < a0 + n);
+			double a = shown ? (cur ? 1 : 0.75) : 0.2, grow = cur ? 4 * pulse : 0;
+			g.save(); g.globalAlpha = a * (1 - 0.6 * fail);
+			if (!shown) { g.strokeStyle = "rgba(255,255,255,0.5)"; g.lineWidth = 2; g.strokeRect(x, y0, sw, sw); }
+			else if (c == '.') { g.strokeStyle = "rgba(255,255,255,0.45)"; g.lineWidth = 2; g.setLineDash(new double[] { 3, 4 }); g.strokeRect(x, y0, sw, sw); g.setLineDash(new double[0]); }
+			else
+			{
+				string c0 = c == 'G' ? tmCol(1) : tmCol(0), c1 = c == 'B' ? tmCol(0) : tmCol(1);
+				g.shadowColor = c0; g.shadowBlur = cur ? 18 : 6; g.fillStyle = c0; g.fillRect(x - grow, y0 - grow, c == 'X' ? sw / 2 + grow : sw + 2 * grow, sw + 2 * grow);
+				if (c == 'X') { g.fillStyle = c1; g.fillRect(x + sw / 2, y0 - grow, sw / 2 + grow, sw + 2 * grow); }
+				g.shadowBlur = 0;
+			}
+			// answered: a white tick on it
+			if (ans && i < w.at) { g.globalAlpha = 1; g.strokeStyle = "#ffffff"; g.lineWidth = 3; g.beginPath(); g.moveTo(x + 7, y0 + 16); g.lineTo(x + 13, y0 + 22); g.lineTo(x + 24, y0 + 8); g.stroke(); }
+			if (cur && ans) { g.globalAlpha = 0.9; g.strokeStyle = "#ffffff"; g.lineWidth = 2; g.strokeRect(x - 6, y0 - 6, sw + 12, sw + 12); }
+			g.restore();
+		}
+		// which phrase of how many, and listen / answer
+		for (int i = 0; i < twPh.Length; i++) { g.fillStyle = i < w.ph ? "#ffffff" : "rgba(255,255,255,0.2)"; g.beginPath(); g.arc(x0 + (n * sw + (n - 1) * gap) / 2 + (i - (twPh.Length - 1) / 2.0) * 16, y0 + sw + 16, 4, 0, TAU); g.fill(); }
+		if (fail > 0) { g.save(); g.globalAlpha = fail; g.strokeStyle = "#c8cede"; g.lineWidth = 4; double cx = x0 + (n * sw + (n - 1) * gap) / 2, cy = y0 + sw / 2; g.beginPath(); g.moveTo(cx - 14, cy - 14); g.lineTo(cx + 14, cy + 14); g.moveTo(cx + 14, cy - 14); g.lineTo(cx - 14, cy + 14); g.stroke(); g.restore(); }
+	}
 	// a speaker grille to stand on
 	static void duoGrille(double x, double y, double w, string col, double a)
 	{

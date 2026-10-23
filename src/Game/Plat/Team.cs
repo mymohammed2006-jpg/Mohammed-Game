@@ -128,7 +128,7 @@ public static partial class G
 		public int[] falls = new int[TM_N]; public string[] names = { "الأحمر", "الأزرق", "الأصفر" };   // the whole level's, for the win screen
 		// online (TeamNet): gen = how many times a page was built (events from an older one are dropped); the music clock's start and
 		// fixed steps; this player's buttons waiting for the next step; each one's XP from this finish (-1: not known yet)
-		public Voice[] stat; public List<TWave> waves = new(); public double murk;   // the radio level: its static, the jumps' sound waves, how garbled the song is now
+		public Voice[] stat; public List<TWave> waves = new(); public double murk; public TTower tw;   // the radio level: its static, the jumps' sound waves, how garbled the song is now
 		public int gen; public double startWhen, inX; public long n; public bool jumpQ, dashQ, jumpHeld, saved; public int[] tp = new int[TM_N]; public int[] xpGot = { -1, -1, -1 };
 	}
 	public static int tmView = -1;                                  // whose screen this is (-1: everyone's, for the tests)
@@ -208,6 +208,7 @@ public static partial class G
 		foreach (var s in tm.th) s.fy = s.Y;
 		tm.prevBt = tm.L != null && tm.P.beats != null ? tmBeat() : 0;
 		foreach (var s in tm.th) if (s.k == "mover") tmMover(s, 0);
+		{ var tw = tm.th.FirstOrDefault(q => q.k == "tower"); tm.tw = tw == null ? null : new TTower { s = tw }; }   // the radio's mast
 		// the start: the S tile, the three side by side
 		for (int y = 0; y < tm.h; y++) for (int x = 0; x < tm.w; x++) if (tm.m[y][x] == 'S')
 			for (int i = 0; i < tm.b.Length; i++) { tm.sx[i] = x * PT + PT / 2 + i * 30; tm.sy[i] = (y + 1) * PT - P_HALF; }
@@ -419,6 +420,7 @@ public static partial class G
 		}
 		// pieces and the gate (a piece in the mirror is taken by a reflection)
 		foreach (var b in tm.b) if (!b.down && !b.gate && tmMine(b)) { tmTiles(b, b.x, false); if (tm.P.mirror > 0) tmTiles(b, tmRx(b.x), true); }
+		if (tm.tw != null && tm.doneAt < 0) tmTowerStep();
 		if (tmBoss && tm.b.All(b => b.gate)) { tmPageDone(tm.t); tnTell("pd", new() { ["t"] = tm.t }); }
 		foreach (var b in tm.b) { b.trail.Add((b.x, b.y, tm.t)); b.trail.RemoveAll(q => tm.t - q.t > 0.18); }
 		tm.steps.RemoveAll(q => tm.t - q.t > 2.5);

@@ -15,7 +15,7 @@ public class TeamTest
 	string id, outDir; int page, fps = 60, every = 1, i; double T; bool done, shot, nodraw = System.Environment.GetEnvironmentVariable("NODRAW") == "1";
 	int hits0; string[] routes; (int room, double t, string k)[][] lines; System.Collections.Generic.Dictionary<int, double> entry = new(); G.TeamRun lastTm; string[] lastK = new string[G.TM_N]; StringBuilder log = new(); Main host;
 	double from = double.TryParse(System.Environment.GetEnvironmentVariable("FROM"), out var fr) ? fr : 0;   // env FROM: pictures only after this time
-	string view; int pass = -1; bool[] beatJ = new bool[G.TM_N]; double[] heldTo = new double[G.TM_N];   // env VIEW: a player's screen (0-2), or "cycle" (each one's screen in turn in the dark rooms); else everyone's
+	string view; int pass = -1; bool[] beatJ = new bool[G.TM_N]; double[] heldTo = new double[G.TM_N]; bool[] hop = new bool[G.TM_N]; string[] lastK2 = { "", "", "" };   // env VIEW: a player's screen (0-2), or "cycle" (each one's screen in turn in the dark rooms); else everyone's
 	BinaryWriter wav = System.Environment.GetEnvironmentVariable("WAV") != null ? new BinaryWriter(new MemoryStream()) : null;
 
 	// the ride's part (0-3) this player should be on for the next strike: stay if it is safe, else the nearest safe part
@@ -93,8 +93,11 @@ public class TeamTest
 				string kk = ""; foreach (var l in lines[k]) if (l.room == rm && l.t <= rt + 1e-9) kk = l.k;
 				bool dashNow = kk.Contains('X') && !lastK[k].Contains('X'), jumpNow = kk.Contains('J') && !lastK[k].Contains('J'); lastK[k] = kk;
 				// "J!": the jump waits for the next beat (the radio's waves need a jump on the beat)
-				if (jumpNow && kk.Contains("J!")) { beatJ[k] = true; jumpNow = false; }
-				if (beatJ[k]) { double bt = G.tmBeatPub(), nb = bt + 1.0 / fps / G.tm.L.spb; if (Math.Floor(nb) != Math.Floor(bt)) { jumpNow = true; beatJ[k] = false; heldTo[k] = t + 0.3; } }
+				// "j!": the same, a short hop (the jump let go early, so it lands before the next beat)
+				if (kk.Contains("j!") && !lastK2[k].Contains("j!")) { beatJ[k] = true; hop[k] = true; }
+				if (jumpNow && kk.Contains("J!")) { beatJ[k] = true; hop[k] = false; jumpNow = false; }
+				if (beatJ[k]) { double bt = G.tmBeatPub(), nb = bt + 1.0 / fps / G.tm.L.spb; if (Math.Floor(nb) != Math.Floor(bt)) { jumpNow = true; beatJ[k] = false; heldTo[k] = t + (hop[k] ? 0.18 : 0.3); } }
+				lastK2[k] = kk;
 				ins[k] = new G.TIn { x = (kk.Contains('R') ? 1 : 0) - (kk.Contains('L') ? 1 : 0), y = (kk.Contains('D') ? 1 : 0) - (kk.Contains('U') ? 1 : 0), jump = jumpNow, jumpHeld = kk.Contains('J') || t < heldTo[k], dash = dashNow };
 				// "@<x>": walk to x and stop there; "A": on the ride, step to a part the next lightning misses
 				var b = G.tm.b[k]; double? goal = null;
@@ -123,6 +126,7 @@ public class TeamTest
 			if (G.tm.th.Any(s => s.k == "slot")) log.Append(" placed=").Append(G.tm.th.Count(s => s.k == "slot" && s.on));
 			foreach (var s in G.tm.th) if (s.k == "mover") log.Append(s.d.need != null ? " lift=" : " mv=").Append(str(Math.Round(s.d.need != null ? s.Y : s.X)));
 			log.Append(" songs=").Append(AudioCtx.SongsAt(AudioCtx.manualTime.Value));
+			if (G.tm.tw != null) log.Append($" tw={G.tm.tw.ph},{G.tm.tw.at},{G.tm.tw.callAt}");
 			if (G.tm.won) log.Append(" WON");
 			if (G.tm.doneAt >= 0) log.Append(" DONE");
 			log.Append('\n');

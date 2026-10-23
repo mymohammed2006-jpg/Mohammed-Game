@@ -31,8 +31,8 @@ fill(g,30,58,8,13,'.'); fill(g,30,58,14,14,'^')
 fill(g,23,58,2,5,'.'); fill(g,18,22,2,7,'.')
 fill(g,34,37,6,7,'.'); fill(g,46,49,6,7,'.')        # holes in its floor: through them you fall to the lane below
 # the chute on the right, down to the landing; the bottom room going back left
-fill(g,59,62,2,26,'.'); fill(g,31,58,16,26,'.'); fill(g,33,49,27,27,'^'); fill(g,31,34,25,26,'#')
-g[26][61]='G'; g[2][52]='3'; g[24][33]='4'; g[9][37]='2'
+fill(g,59,62,2,26,'.'); fill(g,31,58,16,26,'.'); fill(g,31,49,27,27,'^')
+g[2][52]='3'; g[21][44]='4'; g[9][37]='2'
 th=[echo(BL,7.2,26,2.8),echo(BL,11.6,26,3.4),        # the pit: blue's clouds, then gold's a little higher
     echo(GD,7.0,24.4,3.0),echo(GD,11.4,24.4,3.0)]
 # the shaft: two stairs side by side, gold's on the left and blue's on the right; each step lights from the other's jump
@@ -44,6 +44,10 @@ for x0 in [30,35,39.5,44,48.5,53]: th.append(echo(BL,x0,11,3.5 if x0!=30 else 4)
 # the bottom room: blue's clouds low, gold's high, staggered, out to the last sound and back
 for x0 in [46.5,42.5,38.5]: th.append(echo(BL,x0,25,2))
 for x0 in [47.5,43.5,39.5]: th.append(echo(GD,x0,24,2))
+# the end (his words 20:06 10-23, no gate): the radio mast. The four sounds light it; on their pads (lit 2 s by the other's
+# jumps, over spikes) it sings a phrase and the two answer it with their jumps: B blue, G gold, X both, . no one
+th+=[dict(k='echo',id='pB',a=BL,x=35.5,y=25,w=2,h=0.4,c=2.2),dict(k='echo',id='pG',a=GD,x=34,y=23,w=2,h=0.4,c=2.2),
+     dict(k='tower',x=31,y=20,w=2,h=7,need=['pB','pG'],alt=['XBGX','BGB.XG','GBX.BG.X'])]
 p1=dict(name='الصدى',map=[''.join(r) for r in g],things=th,saws=[],loop=[B[0],B[64]],beats=B[:65],theme=3,zoom=1.6,murk=1.0,mstep=0.04)
 
 L=dict(id='P3',name='المرحلة الثالثة',song='زينة عماد - صوتك أقوى',stems=['PL_RADIO'],stemNames=['الأغنية'],on=[True],spb=0.6453,players=2,cols=[1,2],pages=[p1])
