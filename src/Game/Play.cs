@@ -17,6 +17,7 @@ public class Level
 	public Func<List<Ev>> build;
 	public string buildName;      // first buildLevelN / buildFriendN name in the JS build function (the AFK tables use it)
 	public string best, bestE;
+	public double bestT = -1;     // the platformer: the fastest finish with the best letter (seconds, -1 = none)
 	public object buf;            // the decoded song (null until loaded)
 	public bool err;
 	public bool hc;               // a Hardcore level (UI/Hard.cs): 3 hearts, no Easy
@@ -26,7 +27,7 @@ public class Level
 }
 
 // the recording of a run for the replay (sampled at RP_HZ)
-public class RecSeg { public double cp; public int seed; public double? t0; public List<int> b = new(); public int n; }
+public class RecSeg { public double cp; public int seed; public double? t0; public List<int> b = new(); public int n; public double fr = -1; }   // fr: a practice run's start second (v46, saved on the PC only)
 public class RecState { public List<RecSeg> segs = new(); public RecSeg cur; }
 
 public static partial class G
@@ -38,12 +39,16 @@ public static partial class G
 	public static double lastGain = 0, winSlam = 0;
 	public static bool winHit = false;
 	public const int RP_HZ = 50;
+	static bool prHitRec;
 	public static void recSample(double t)
 	{
 		if (rec == null || rec.cur == null) return; var c = rec.cur; var p = player; if (c.t0 == null) c.t0 = t;
 		while (c.t0.Value + (double)c.n / RP_HZ <= t && c.n < 60000)
 		{
-			c.b.Add((int)round(clamp(p.x, 0, 1300) * 50)); c.b.Add((int)round(clamp(p.y, 0, 1300) * 50)); c.b.Add((p.dash > 0 ? 1 : 0) | ((int)clamp(p.hp, 0, 7) << 1)); c.n++;
+			c.b.Add((int)round(clamp(p.x, 0, 1300) * 50)); c.b.Add((int)round(clamp(p.y, 0, 1300) * 50));
+			if (c.fr < 0) c.b.Add((p.dash > 0 ? 1 : 0) | ((int)clamp(p.hp, 0, 7) << 1));
+			else { int hp = (int)clamp(p.hp, 0, 15); c.b.Add((p.dash > 0 ? 1 : 0) | ((hp & 7) << 1) | (prHitRec ? 16 : 0) | (hp >= 8 ? 32 : 0)); prHitRec = false; }   // practice: 16 = hit here (lives that never end don't go down), 32 = 8 lives or more
+			c.n++;
 		}
 	}
 	public static bool introOn = false, audioHint = false;
@@ -180,7 +185,7 @@ public static partial class G
 
 	public static void damage()
 	{
-		var p = player;
+		var p = player; if (pr.on) prHitRec = true;
 		if (pr.on && pr.inf) { hitsTotal++; p.inv = 1.0; p.hurt = 1.0; flash = 0.2; burst(p.x, p.y, CYAN, 12, 300); sfx(t => sNoise(t, 0.2, "lowpass", 900, 0.22)); return; }
 		p.hp--; hitsTotal++; p.inv = 2.0; p.hurt = 2.0; shake = 16; flash = 0.3;
 		burst(p.x, p.y, CYAN, 22, 380); rumble(220, 0.8, 0.6);

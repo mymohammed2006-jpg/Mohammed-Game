@@ -9,7 +9,7 @@ using static MG.JS;
 // Pictures of the new screens (XP, challenges, looks) for Mohammed before they go in: -- --preview <outDir>
 public class PvRun
 {
-	string outDir; int i; Main host; string pending;
+	string outDir; int i; Main host; string pending; readonly List<string> rel = new();   // keys let go on the next frame
 	readonly Dictionary<int, Action> at = new(); readonly Dictionary<int, string> shots = new();
 	BinaryWriter wav = System.Environment.GetEnvironmentVariable("WAV") != null ? new BinaryWriter(new MemoryStream()) : null;
 	public static PvRun FromArgs(string[] a, int k) => new PvRun { outDir = a[k] };
@@ -28,6 +28,10 @@ public class PvRun
 		var now = () => performance.manual.Value;
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "mouse") { MouseScene(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "hc") { HcScene(now); G.last = now(); return; }
+		if (System.Environment.GetEnvironmentVariable("MG_PV") == "rp") { RpScene(now); G.last = now(); return; }
+		if (System.Environment.GetEnvironmentVariable("MG_PV") == "all46") { All46(now); G.last = now(); return; }
+		if (System.Environment.GetEnvironmentVariable("MG_PV") == "rpt") { RptScene(now); G.last = now(); return; }
+		if (System.Environment.GetEnvironmentVariable("MG_PV") == "rpp") { RppScene(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "hc2") { HcOrder(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "hcsk") { HcSkins(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "news")
@@ -154,6 +158,129 @@ public class PvRun
 	}
 
 	// Hardcore (v45): the menu item (open, Easy on, pressed with Easy), the list, 3 hearts, and the unlock card on the win screen
+	// v46: replays saved on the PC (win / lose / pause), the "ريبلاياتي" list (main menu and pause), watching and deleting one
+	void RpScene(Func<double> now)
+	{
+		endF = 1900; void tap(string k) { G.OnKeyDown(k, false); rel.Add(k); }
+		G.MYRP_DIR = "user://pv_replays"; var dd = DirAccess.Open(G.MYRP_DIR); if (dd != null) foreach (var f in dd.GetFiles()) dd.Remove(f);
+		foreach (var L in G.LEVELS.Concat(G.FRIENDS)) if (L.name != null) L.best = "S";
+		at[1] = () => { G.gatePassed = true; G.state = "main"; G.mainAt = now() - 3000; G.menuSel = 12; };
+		shots[40] = "r01-main";
+		at[41] = () => { G.easy = false; G.startLevel(G.LEVELS[0], "levels"); };
+		at[800] = () => tap("Escape");
+		for (int j = 0; j < 4; j++) at[802 + j * 2] = () => tap("ArrowDown");
+		shots[811] = "r02-pause";
+		at[812] = () => tap("Enter");
+		shots[830] = "r03-pause-saved";
+		at[831] = () => { tap("ArrowDown"); }; at[833] = () => tap("Enter");
+		shots[850] = "r04-list-from-pause";
+		at[851] = () => tap("Enter");
+		shots[860] = "r05-list-pause-ask";
+		at[861] = () => tap("Backspace");
+		at[864] = () => GD.Print($"RP back from list -> {G.state} sel {G.pauseSel}");
+		for (int j = 0; j < 5; j++) at[865 + j * 2] = () => tap("ArrowUp"); at[879] = () => tap("Enter");   // resume
+		at[882] = () => GD.Print($"RP resumed -> {G.state}");
+		at[1000] = () => { G.player.hp = 1; G.player.inv = 0; G.damage(); };
+		at[1060] = () => tap("KeyT");
+		shots[1080] = "r06-dead-saved";
+		at[1081] = () => { G.requestStart(G.checkpoint); };
+		at[1160] = () =>
+		{
+			G.lastRec = G.rec; G.rec = null; G.stopMusic(); G.lastRank = "A"; G.lastEz = false; G.lastGain = 0; G.state = "win"; G.winAt = now(); G.winSlam = now() + 300; G.winHit = false;
+		};
+		shots[1230] = "r07-win";
+		at[1231] = () => tap("KeyT");
+		shots[1250] = "r08-win-saved";
+		at[1251] = () => { G.stopMusic(); G.player = null; G.state = "main"; G.mainAt = now() - 3000; G.menuSel = 12; };
+		at[1280] = () => tap("Enter");
+		shots[1320] = "r09-list-main";
+		at[1321] = () => { tap("ArrowDown"); };   // the lost one
+		at[1325] = () => tap("Enter");
+		shots[1410] = "r10-watching";
+		for (int j = 0; j < 20; j++) at[1411 + j * 2] = () => tap("ArrowRight");
+		shots[1460] = "r11-replay-end-lost";
+		at[1461] = () => tap("Backspace");
+		at[1463] = () => GD.Print($"RP back from replay -> {G.state}");
+		shots[1500] = "r12-list-after";
+		at[1501] = () => tap("KeyR");
+		shots[1510] = "r13-delete-ask";
+		at[1511] = () => tap("KeyR");
+		shots[1540] = "r14-deleted";
+		at[1541] = () => { tap("Backspace"); };
+		at[1550] = () => { G.easy = false; G.startLevel(G.HCLV[0], "hcList"); };
+		at[1850] = () => tap("Escape");
+		shots[1860] = "r15-pause-hardcore";
+	}
+	// v46: the platformer's replay on the PC
+	// v46 pictures for him (20:11 10-22 "وريني كل شي بالصور"): practice, "بدون الموتات", the co-op room and its replay
+	void All46(Func<double> now)
+	{
+		void tap(string k) { G.OnKeyDown(k, false); rel.Add(k); }
+		G.MYRP_DIR = "user://pv_replays"; var dd = DirAccess.Open(G.MYRP_DIR); if (dd != null) foreach (var f in dd.GetFiles()) dd.Remove(f);
+		DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath(G.MYRP_DIR));
+		var L = G.LEVELS.First(x => x.id == "L1");
+		void die() { G.player.hp = 1; G.player.inv = 0; G.damage(); }
+		at[1] = () => { G.gatePassed = true; G.pr.L = L; G.pr.lastL = L; G.pr.from = "levels"; G.pr.doc = G.botDoc(L, "n"); G.cur = L; G.fromList = "levels"; G.levelTiming(L); G.pr.t = 40; G.pr.spd = 0.75; G.pr.inf = false; G.pr.lv = 3; G.prGo(); };
+		at[90] = () => tap("Escape"); shots[96] = "01-practice-pause"; at[97] = () => tap("Escape");
+		at[110] = die; shots[160] = "02-practice-lose"; at[161] = () => tap("KeyT"); shots[170] = "03-practice-lose-saved";
+		at[171] = () => tap("Enter"); at[540] = () => G.prFinish(); shots[590] = "04-practice-end"; at[591] = () => tap("KeyT"); shots[600] = "05-practice-end-saved";
+		at[601] = () => { G.prToMenu(); G.openMyRp("main"); }; shots[780] = "06-list-practice";
+		at[781] = () => tap("Enter"); shots[900] = "07-practice-replay"; at[901] = () => tap("Backspace"); at[904] = () => tap("Backspace");
+		// the main mode: a death, then saved from the pause; watched with the box off, then ticked
+		at[1615] = () => { G.state = "main"; var c = System.Environment.GetEnvironmentVariable("MG_CUT_FILE"); if (c != null) File.Copy(c, ProjectSettings.GlobalizePath(G.MYRP_DIR + "/1761170000000_L1.json"), true); G.openMyRp("main"); }; at[1700] = () => tap("ArrowDown"); at[1702] = () => tap("ArrowDown"); at[1800] = () => tap("Enter");
+		at[1850] = () => G.rpSeekTo(G.rp.tot - 8); shots[1880] = "08-replay-box-off"; at[1890] = () => tap("KeyT"); shots[1896] = "09-replay-box-on"; at[1900] = () => tap("Backspace"); at[1903] = () => tap("Backspace");
+		// the co-op level in a room (this PC alone, the maker), on its last page
+		var P = G.PLATS.First(p => p.team != null);
+		at[1920] = () => { G.tnPage0 = P.team.pages.Count - 1; G.net = new G.NetRun { team = true, host = true, seat = 0, L = P }; G.net.nm[0] = "Mohammed"; G.net.nm[1] = "azm511"; G.net.nm[2] = "Link"; for (int i = 0; i < G.TM_N; i++) G.net.hi[i] = true;
+			typeof(G).GetMethod("tnStart", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).Invoke(null, new object[] { now() + 200 }); };
+		at[1980] = () => tap("Escape"); shots[1986] = "10-coop-pause"; at[1987] = () => tap("Escape");
+		at[1990] = () => { G.tm.won = true; G.tm.wonAt = G.tm.t - 8; }; shots[2000] = "11-coop-win"; at[2001] = () => tap("KeyT"); shots[2010] = "12-coop-win-saved"; at[2011] = () => tap("Backspace");
+		at[2020] = () => { G.tnPage0 = 0; File.Copy(System.Environment.GetEnvironmentVariable("MG_RPT_FILE"), ProjectSettings.GlobalizePath(G.MYRP_DIR + "/1761160000000_P2.json"), true); };
+		at[2180] = () => G.openMyRp("main"); shots[2195] = "13-list-all";
+		for (int j = 0; j < 4; j++) at[2196 + j * 2] = () => tap("ArrowDown"); at[2206] = () => tap("Enter");
+		at[2260] = () => tap("KeyT"); at[2263] = () => G.rpSeekTo(double.Parse(System.Environment.GetEnvironmentVariable("MG_TM_AT") ?? "60")); shots[2275] = "14-coop-replay-box-on"; at[2276] = () => tap("KeyT"); shots[2282] = "15-coop-replay-box-off";
+		endF = 2290;
+	}
+	// v46: the co-op level's replay (a file made by test/TeamBot.cs RPT=1): the list, watching, jumps to MG_RPT_TICKS, the end
+	void RptScene(Func<double> now)
+	{
+		void tap(string k) { G.OnKeyDown(k, false); rel.Add(k); }
+		G.MYRP_DIR = "user://pv_replays"; var dd = DirAccess.Open(G.MYRP_DIR); if (dd != null) foreach (var f in dd.GetFiles()) dd.Remove(f);
+		DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath(G.MYRP_DIR));
+		File.Copy(System.Environment.GetEnvironmentVariable("MG_RPT_FILE"), ProjectSettings.GlobalizePath(G.MYRP_DIR + "/1761160000000_P2.json"), true);
+		var ticks = (System.Environment.GetEnvironmentVariable("MG_RPT_TICKS") ?? "600").Split(',').Select(int.Parse).ToArray();
+		at[1] = () => { G.gatePassed = true; G.state = "main"; G.openMyRp("main"); };
+		shots[20] = "t1-list";
+		at[21] = () => tap("Enter");
+		shots[70] = "t2-start";
+		int f0 = 80;
+		foreach (var k in ticks) { int kk = k; at[f0] = () => G.rpSeekTo(kk / 30.0 - 3 / 60.0); shots[f0 + 3] = $"t3-tick{k}"; f0 += 10; }
+		at[f0] = () => G.rpSeekTo(G.rp.tot - 0.5); shots[f0 + 80] = "t4-end"; at[f0 + 81] = () => GD.Print($"RPT end state {G.state}");
+		at[f0 + 82] = () => tap("Backspace"); at[f0 + 86] = () => GD.Print($"RPT back {G.state} tm {(G.tm == null ? "null" : "set")} me {G.tmMe} view {G.tmView}");
+		endF = f0 + 90;
+	}
+	void RppScene(Func<double> now)
+	{
+		endF = 1500; void tap(string k) { G.OnKeyDown(k, false); rel.Add(k); }
+		G.MYRP_DIR = "user://pv_replays"; var dd = DirAccess.Open(G.MYRP_DIR); if (dd != null) foreach (var f in dd.GetFiles()) dd.Remove(f);
+		at[1] = () => { G.gatePassed = true; G.plStart(G.PLATS[0]); };
+		for (int f = 2; f < 400; f++) { int ff = f; at[f] = () => { if (G.player != null) G.player.inv = 1e9; if (ff % 120 == 2) { G.OnKeyUp("ArrowLeft"); G.OnKeyDown("ArrowRight", false); } if (ff % 120 == 80) { G.OnKeyUp("ArrowRight"); G.OnKeyDown("ArrowLeft", false); } if (ff % 30 == 5) tap("Space"); }; }
+		at[400] = () => { G.OnKeyUp("ArrowRight"); G.OnKeyUp("ArrowLeft"); G.player.inv = 0; typeof(G).GetMethod("plDamage", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).Invoke(null, null); };
+		shots[460] = "p1-dead";
+		at[461] = () => tap("Enter");
+		for (int f = 470; f < 640; f++) { int ff = f; at[f] = () => { if (G.player != null) G.player.inv = 1e9; if (ff == 470) G.OnKeyDown("ArrowRight", false); if (ff % 30 == 5) tap("Space"); }; }
+		at[640] = () => { G.OnKeyUp("ArrowRight"); tap("Escape"); };
+		for (int j = 0; j < 4; j++) at[643 + j * 2] = () => tap("ArrowDown");
+		shots[652] = "p2-pause";
+		at[653] = () => tap("Enter");
+		shots[670] = "p3-saved";
+		at[671] = () => tap("ArrowDown"); at[673] = () => tap("Enter");
+		at[680] = () => tap("Enter"); at[683] = () => tap("Enter");
+		shots[760] = "p4-watching";
+		shots[900] = "p5-watching2";
+		at[901] = () => { for (int j = 0; j < 1; j++) tap("ArrowRight"); };
+		shots[1100] = "p6-end";
+	}
 	void HcScene(Func<double> now)
 	{
 		endF = 1300; Directory.CreateDirectory(Path.Combine(outDir, "w")); bool fake = System.Environment.GetEnvironmentVariable("MG_HC_FAKE") == "1";
@@ -295,6 +422,7 @@ public class PvRun
 			GD.Print("preview done"); host.GetTree().Quit(); return;
 		}
 		if (wav != null) { int n = AudioCtx.SR / 60; var l = new float[n]; var r = new float[n]; AudioCtx.RenderAt(l, r, n, AudioCtx.manualTime.Value); for (int j = 0; j < n; j++) { wav.Write((short)(Math.Clamp(l[j], -1, 1) * 32767)); wav.Write((short)(Math.Clamp(r[j], -1, 1) * 32767)); } }
+		foreach (var r in rel.ToList()) { rel.Remove(r); G.OnKeyUp(r); }
 		if (at.TryGetValue(f, out var a)) a();
 		int k = int.TryParse(System.Environment.GetEnvironmentVariable("MG_PV_HZ"), out var hz) ? hz / 60 : 1;   // 240 Hz like Mohammed's screen: 4 steps per picture frame
 		for (int j = 0; j < k; j++) { AudioCtx.manualTime += 1.0 / 60 / k; performance.manual += 1000.0 / 60 / k; G.gfx.BeginFrame(); G.step(performance.manual.Value); if (showZones && j == k - 1) drawZones(); if (over != null && j == k - 1) over(); G.gfx.EndFrame(); }

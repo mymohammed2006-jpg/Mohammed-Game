@@ -14,7 +14,7 @@ public static partial class G
 	public static readonly Dictionary<string, double> XP_MULT = new()
 	{
 		["L1"] = 1.0, ["F6"] = 1.1, ["F1"] = 1.1, ["F2"] = 1.1, ["L2"] = 1.3, ["L11"] = 1.4, ["L3"] = 1.5, ["L9"] = 1.5, ["L4"] = 1.7, ["L10"] = 1.7,
-		["L8"] = 1.8, ["L5"] = 1.8, ["F5"] = 2.4, ["F3"] = 2.5, ["F4"] = 2.5, ["L6"] = 2.7, ["L7"] = 3.1, ["F7"] = 3.2, ["F8"] = 3.3,
+		["L8"] = 1.8, ["L5"] = 1.8, ["F5"] = 2.4, ["F3"] = 2.5, ["F4"] = 2.5, ["L6"] = 2.7, ["L7"] = 3.1, ["F7"] = 3.2, ["F8"] = 3.3, ["F9"] = 1.8,
 		["L12"] = 1.8,   // Hard Spike: the same as L5 (Mohammed, 10-20)
 		["L13"] = 1.8,   // A beat further: the same difficulty as L5
 		["L14"] = 1.8,   // Jump again: the same difficulty as L5 (Mohammed, 10-20)

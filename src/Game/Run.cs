@@ -53,6 +53,10 @@ public static partial class G
 	public static void resume() { state = "play"; actx.resume(); }
 	public static void toMenu() { stopMusic(); state = "main"; menuSel = 0; player = null; hazards = new List<Hz>(); actx.resume(); }
 	public static readonly string[] PAUSE = { "أكمل اللعب", "إعادة من آخر حفظ", "إعادة من البداية", "الإعدادات", "الخروج من المرحلة" };
+	static readonly string[] PAUSE46 = { "أكمل اللعب", "إعادة من آخر حفظ", "إعادة من البداية", "الإعدادات", "احفظ الريبلاي", "ريبلاياتي", "الخروج من المرحلة" };   // v46: the replay items
+	public static string[] pauseList() => classicUi ? PAUSE : PAUSE46;
+	static readonly string[] PR_PAUSE46 = { "أكمل اللعب", "إعادة من نقطة التدريب", "غيّر نقطة التدريب", "الإعدادات", "احفظ الريبلاي", "ريبلاياتي", "الخروج من المرحلة" };   // v46: practice too (his يالله 19:07 10-22)
+	public static string[] prPauseList() => classicUi ? PR_PAUSE : PR_PAUSE46;
 	public static readonly string[] PR_PAUSE = { "أكمل اللعب", "إعادة من نقطة التدريب", "غيّر نقطة التدريب", "الإعدادات", "الخروج من المرحلة" };
 
 	// ---------- drawing helpers ----------
@@ -151,7 +155,9 @@ public static partial class G
 	public static void drawHUD()
 	{
 		var p = player; if (p == null) return;
-		for (int i = 0, hn = pr.on && !pr.inf ? pr.lv : maxHp(cur); i < hn; i++)
+		bool rpPr = rp.pr && state is "replay" or "rpGap" or "rpEnd";   // v46: a practice replay shows the practice's lives
+		if (rpPr && rp.prLv == 0) ltxt("∞", 34 + 5 * 28 + 6, 34, 26, CYAN, "left");
+		for (int i = 0, hn = pr.on && !pr.inf ? pr.lv : rpPr && rp.prLv > 0 ? rp.prLv : maxHp(cur); i < hn; i++)
 		{
 			double x = 34 + i * 28, y0 = 34;
 			if (i < p.hp) { g.fillStyle = CYAN; g.fillRect(x - 9, y0 - 9, 18, 18); }
@@ -221,6 +227,6 @@ public static partial class G
 		txt(deaths != 0 ? $"انضربت {ar(hitsTotal)} مرة    خسرت {ar(deaths)} مرة" : $"انضربت {ar(hitsTotal)} مرة", W / 2, H / 2 - 30, 32, hitsTotal != 0 ? "#e9e6f5" : CYAN, 800);
 		if (hitsTotal == 0) txt("ولا ضربة! جاهز للـ S", W / 2, H / 2 + 20, 26, CYAN, 500);
 		txt("التدريب ما ينحسب له تقييم ولا نقاط", W / 2, H / 2 + 62, 20, "rgba(255,255,255,0.5)", 500);
-		if (now - winAt > 600) { var K = BTN[kind]; row(new[] { (K.confirm, "مرة ثانية من نفس النقطة") }, W / 2, H / 2 + 130); row(new[] { (K.back, "التدريب") }, W / 2, H / 2 + 185); }
+		if (now - winAt > 600) { var K = BTN[kind]; row(new[] { (K.confirm, "مرة ثانية من نفس النقطة") }, W / 2, H / 2 + 130); row(myRpCan() ? new[] { myRpHint(winAt), (K.back, "التدريب") } : new[] { (K.back, "التدريب") }, W / 2, H / 2 + 185); }
 	}
 }

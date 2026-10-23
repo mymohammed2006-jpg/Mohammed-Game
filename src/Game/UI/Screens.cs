@@ -218,7 +218,8 @@ public static partial class G
 				string pc = x.pos == 1 ? "#ffd54a" : x.pos == 2 ? "#d8dde6" : x.pos == 3 ? "#e0a46a" : "rgba(255,255,255,0.6)";
 				txt(ar(x.pos), lx + rw - 30, y + 1, 24, pc, 800);
 				txt(x.p.name, lx + rw - 80, y + 1, 24, x.me ? "#fff" : "#e9e6f5", x.me ? 800 : 500, "right");
-				if (L != null) { g.font = $"26px {TFONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillStyle = board.mode == "e" ? "#7cc8ff" : "#ff2436"; g.fillText(x.r, lx + 40, y + 1); }
+				if (L != null) { g.font = $"26px {TFONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillStyle = board.mode == "e" ? "#7cc8ff" : "#ff2436"; g.fillText(x.r, lx + 40, y + 1);
+					if (x.ft >= 0) txt(tFmt(x.ft), lx + 76, y + 1, 21, "rgba(255,255,255,0.72)", 600, "left"); }   // the platformer: the time with that letter
 				else if (boardXp)
 				{
 					txt($"مستوى {ar(xpProg((int)x.v).lv)}", lx + 120, y + 1, 22, GOLD, 800, "left");
@@ -282,6 +283,17 @@ public static partial class G
 	}
 	static string rpClock(double x) { x = Math.Max(0, Math.Floor(x)); return str(Math.Floor(x / 60)) + ":" + str(x % 60).PadLeft(2, '0'); }
 	public static bool rpOverlayOff;   // the level check (test/BotRun.cs) leaves the replay bar out, like its browser driver
+	// v46: the "بدون الموتات" box (a replay on the PC with deaths in it), top right; □ / T ticks it
+	static void rpCutBox()
+	{
+		double w = 236, h = 46, x = W - w - 16, y = 14, on = rp.cutOn ? 1 : 0;
+		rr(x, y, w, h, 23); g.fillStyle = "rgba(8,8,14,0.82)"; g.fill(); g.strokeStyle = rp.cutOn ? "rgba(95,224,143,0.7)" : "rgba(255,255,255,0.22)"; g.lineWidth = 1.5; g.stroke();
+		double bx = x + w - 36, by = y + h / 2;
+		rr(bx - 11, by - 11, 22, 22, 5); g.fillStyle = rp.cutOn ? "#5fe08f" : "rgba(255,255,255,0.06)"; g.fill(); g.strokeStyle = rp.cutOn ? "#5fe08f" : "rgba(255,255,255,0.7)"; g.lineWidth = 2; g.stroke();
+		if (on > 0) { g.strokeStyle = "#0b1a10"; g.lineWidth = 3.5; g.beginPath(); g.moveTo(bx - 6, by); g.lineTo(bx - 1.5, by + 5); g.lineTo(bx + 7, by - 5); g.stroke(); }
+		txt("بدون الموتات", bx - 22, by + 1, 19, rp.cutOn ? "#fff" : "rgba(255,255,255,0.8)", 800, "right");
+		row(new[] { (BTN[kind].sq, "") }, x + 30, by, 20, "rgba(255,255,255,0.7)", 6);
+	}
 	public static void drawRpOverlay(double now)
 	{
 		if (rpOverlayOff) return;
@@ -292,16 +304,19 @@ public static partial class G
 			rr(x, y, w, 46, 23); g.fillStyle = "rgba(8,8,14,0.82)"; g.fill(); g.strokeStyle = "rgba(255,255,255,0.22)"; g.lineWidth = 1.5; g.stroke();
 			g.fillStyle = c; g.beginPath(); g.moveTo(x + 24, y + 13); g.lineTo(x + 24, y + 33); g.lineTo(x + 40, y + 23); g.closePath(); g.fill();
 			g.font = $"16px {TFONT}"; g.textAlign = "left"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillStyle = "#fff"; g.fillText(rp.bot ? "BOT" : "REPLAY", x + 50, y + 24);
-			txt($"{rp.p.name}  ·  {rp.L.name}", W / 2 + 30, y + 24, 21, "#fff", 800);
-			g.font = $"26px {TFONT}"; g.textAlign = "center"; g.direction = "ltr"; g.fillStyle = c; g.fillText(rp.doc.r, x + w - 30, y + 24);
-			ezBadge(x + w - 82, y + 23, 0.8, rp.m == "e" ? "EASY" : "NORMAL", c, rp.m == "e" ? "#0b1426" : "#fff");
+			{ string nm = $"{rp.p.name}  ·  {rp.L.name}"; double fs = 21; g.font = $"800 {str(fs)}px {FONT}"; while (fs > 13 && g.measureText(nm).width > (rp.doc.r == null ? 300 : 360)) { fs--; g.font = $"800 {str(fs)}px {FONT}"; } txt(nm, W / 2 + (rp.doc.r == null ? 10 : 30), y + 24, fs, "#fff", 800); }   // v46: long names (the platformer's) get smaller
+			if (rp.doc.r != null) { g.font = $"26px {TFONT}"; g.textAlign = "center"; g.direction = "ltr"; g.fillStyle = c; g.fillText(rp.doc.r, x + w - 30, y + 24); }
+			else { g.direction = "rtl"; txt(rp.pr ? (rp.doc.res == "pdone" ? "تدريب" : "تدريب · " + rpResText(rp.doc.res)) : rpResText(rp.doc.res), x + w - 20, y + 24, 15, rpResCol(rp.doc.res), 800, "right"); }   // v46: a lost or unfinished replay on the PC
+			if (!rp.plat) ezBadge(x + w - (rp.doc.r == null ? 122 : 82), y + 23, 0.8, rp.m == "e" ? "EASY" : "NORMAL", c, rp.m == "e" ? "#0b1426" : "#fff");
 			g.direction = "rtl";
 		}
+		if (rp.cutOk && !rp.hide) rpCutBox();
 		if (state == "rpGap") { overlay(0.45); txt(rp.gapDead ? "خسر! يرجع لآخر حفظ" : "رجع لآخر حفظ", W / 2, H / 2, 48, PINK); }
 		if (state == "rpEnd")
 		{
 			overlay(0.65); txt("خلص الـ Replay", W / 2, H / 2 - 90, 52, "#fff");
-			g.font = $"130px {TFONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillStyle = c; g.shadowColor = c; g.shadowBlur = 26; g.fillText(rp.doc.r, W / 2, H / 2 + 30); g.shadowBlur = 0; g.direction = "rtl";
+			if (rp.doc.r == null) txt(rpResText(rp.doc.res), W / 2, H / 2 + 30, 80, rp.doc.res == "mid" ? "#fff" : rpResCol(rp.doc.res), 800);
+			else { g.font = $"130px {TFONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillStyle = c; g.shadowColor = c; g.shadowBlur = 26; g.fillText(rp.doc.r, W / 2, H / 2 + 30); g.shadowBlur = 0; g.direction = "rtl"; }
 			row(new[] { (K.confirm, "شغّله من البداية"), (K.back, "رجوع") }, W / 2, H / 2 + 150, 30, "#fff", 24);
 		}
 		// the control bar at the bottom (like a video): shows at the start, while paused and after a button, then hides
@@ -322,7 +337,7 @@ public static partial class G
 		for (int i = 1; i < rp.doc.segs.Count; i++) { var ps = rp.doc.segs[i - 1]; bool dead = ((ps.b[(ps.n - 1) * 3 + 2] >> 1) & 7) == 0; double cx = x0 + (x1 - x0) * rp.off[i] / tot; g.fillStyle = dead ? PINK : "rgba(255,255,255,0.75)"; g.fillRect(cx - 1.5, ry - 9, 3, 18); }
 		g.fillStyle = "#fff"; circle(x0 + (x1 - x0) * pos / tot, ry, 8);
 		string rs = str(rp.rate) + "x"; g.font = $"17px {TFONT}"; g.textAlign = "right"; g.direction = "ltr"; g.fillStyle = rp.rate == 1 ? "rgba(255,255,255,0.8)" : "#ffd25c"; g.fillText(rs, px + pw - 24, ry + 1);
-		g.direction = "rtl"; txt($"المحاولة {ar(rp.seg + 1)} من {ar(rp.doc.segs.Count)}", px + pw - 78, ry + 1, 17, "rgba(255,255,255,0.7)", 500, "right");
+		g.direction = "rtl"; if (!rp.team) txt($"المحاولة {ar(rp.seg + 1)} من {ar(rp.doc.segs.Count)}", px + pw - 78, ry + 1, 17, "rgba(255,255,255,0.7)", 500, "right");
 		row(new[] { (K.confirm, rp.paused ? "تشغيل" : "إيقاف"), (K.move, "يمين ويسار: ٥ ثواني"), (K.small, rp.paused ? "عُشر ثانية" : "ثانية"), (K.move, "فوق وتحت: السرعة"), (K.restart, rp.hide ? "إظهار الكلام" : "إخفاء الكلام"), (K.back, "رجوع") }, W / 2, py + 68, 23, "rgba(255,255,255,0.75)", 16);
 		g.globalAlpha = 1;
 	}
@@ -331,7 +346,7 @@ public static partial class G
 		double k = clamp((now - mainAt) / 650, 0, 1), e = k < 0.5 ? 2 * k * k : 1 - JS.pow(-2 * k + 2, 2) / 2, oa = clamp((now - mainAt - 250) / 450, 0, 1);
 		g.globalAlpha = oa; bgShapes(now); g.globalAlpha = 1; drawTitle(W / 2, H / 2 - 20 + (180 - (H / 2 - 20)) * e, 110 + (78 - 110) * e);
 		g.globalAlpha = oa;
-		var items = mainItems(); bool tight = items.Length > MAIN.Length; double y0 = items.Length > 7 ? 270 : 288, dy = items.Length > 7 ? 52 : 58;
+		var items = mainItems(); bool tight = items.Length > MAIN.Length; double y0 = items.Length > 8 ? 262 : items.Length > 7 ? 270 : 288, dy = items.Length > 8 ? 49 : items.Length > 7 ? 52 : 58;   // v46: 9 items with Hardcore
 		for (int i = 0; i < items.Length; i++)
 		{
 			var (s, id) = items[i]; double y = tight ? y0 + i * dy : APP ? 300 + i * 66 : 310 + i * 72, bh = tight ? dy - 4 : 64; bool sel = id == menuSel, hc = id == HC;

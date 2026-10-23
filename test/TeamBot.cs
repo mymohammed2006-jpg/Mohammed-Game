@@ -23,6 +23,16 @@ using static MG.JS;
 public class TeamBot
 {
 	public static TeamBot FromArgs(string[] a, int k) => new TeamBot { id = a[k], outDir = a[k + 1], cfg = a[k + 2] };
+	// v46 RPT=1: records the co-op replay while the bots play, then checks that watching it shows the same picture at every tick
+	bool rpt = Env("RPT") == "1"; List<string> live = new();
+	static string TSnapStr()
+	{
+		var tm = G.tm; var o = new StringBuilder(); o.Append('p').Append(tm.page).Append(" t").Append(Math.Round(tm.t, 2)).Append(" got").Append(tm.got.Count).Append(tm.won ? " W" : "").Append(" st").Append(string.Join("", tm.stemOn.Select(x => x ? 1 : 0)));
+		foreach (var b in tm.b) o.Append(" |").Append(Math.Round(b.x)).Append(',').Append(Math.Round(b.y)).Append(b.down ? "d" : "").Append(b.gate ? "g" : "").Append(" h").Append(b.hp).Append(b.carry != null ? "c" : "");
+		foreach (var s in tm.th) o.Append(" ").Append(s.k[0]).Append(Math.Round(s.X)).Append(',').Append(Math.Round(s.Y)).Append(s.on ? "+" : "").Append(s.gone ? "g" : "").Append(s.melt ? "m" : "").Append(s.solid ? "" : "~").Append(' ').Append(Math.Round(s.s, 1));
+		o.Append(" hail").Append(tm.hail.Count).Append(" falls").Append(string.Join(",", tm.falls));
+		return o.ToString();
+	}
 	string id, outDir, cfg; Main host; int i, fps; double T; bool done, shot, nodraw = Env("NODRAW") == "1";
 	public Crew crew; StringBuilder log = new(); BinaryWriter wav = Env("WAV") != null ? new BinaryWriter(new MemoryStream()) : null;
 	double from = double.TryParse(Env("FROM"), out var fr) ? fr : 0; string view = Env("VIEW");
@@ -44,6 +54,7 @@ public class TeamBot
 		T = double.TryParse(Env("T"), out var tt) ? tt : 900;
 		G.ensureAudio(); G.stopMenu();
 		G.tmStart(L, crew.page0); G.state = "team";
+		if (rpt) G.tmRecStartPub();
 		if (Env("SCEN") == "touch") { Touch(L); h.GetTree().Quit(); }
 	}
 	// his friends' report (02:03 10-20): standing touching, one jumps and the other jumps too without pressing.
@@ -85,6 +96,7 @@ public class TeamBot
 			bool pic = !nodraw && Pic(i) && t >= from;
 			if (pic) G.gfx.BeginFrame();
 			G.tmStep(1.0 / fps, ins);
+			if (rpt) { int n0 = G.tmRec.n; G.tmRecTickPub(1.0 / fps); for (int k = n0; k < G.tmRec.n; k++) live.Add(TSnapStr()); }
 			crew.After(1.0 / fps);
 			if (wav != null) { int n = AudioCtx.SR / fps; var l = new float[n]; var r = new float[n]; AudioCtx.RenderAt(l, r, n, AudioCtx.manualTime.Value); for (int j = 0; j < n; j++) { wav.Write((short)(Math.Clamp(l[j], -1, 1) * 32767)); wav.Write((short)(Math.Clamp(r[j], -1, 1) * 32767)); } }
 			G.particlesStep(1.0 / fps);
@@ -137,8 +149,38 @@ public class TeamBot
 		if (Env("TP") is string tp) { var v = tp.Split(':'); if (int.Parse(v[0]) == i) { var b = G.tm.b[int.Parse(v[1])]; if (v[2] != "same") b.x = double.Parse(v[2]); b.vx = b.vy = 0; if (v[3] == "under") { b.y = G.tm.h * G.PT + 80; b.vy = -60; } else b.y = double.Parse(v[3]); } }
 		if (Env("HOLD") is string hd) { var v = hd.Split(':'); if (i >= int.Parse(v[1]) && i <= int.Parse(v[2])) ins[int.Parse(v[0])] = new G.TIn(); }
 	}
+	// the same, a pixel apart at most (positions are kept as 4-byte numbers)
+	static bool Near(string a, string b)
+	{
+		var x = System.Text.RegularExpressions.Regex.Split(a, "(-?[0-9.]+)"); var y = System.Text.RegularExpressions.Regex.Split(b, "(-?[0-9.]+)"); if (x.Length != y.Length) return false;
+		for (int i = 0; i < x.Length; i++) { if (x[i] == y[i]) continue; if (i % 2 == 1 && double.TryParse(x[i], out var p) && double.TryParse(y[i], out var q) && Math.Abs(p - q) <= 1.01) continue; return false; }
+		return true;
+	}
+	void RpCheck()
+	{
+		var o = new StringBuilder();
+		G.MYRP_DIR = "user://rpt"; var dd = DirAccess.Open(G.MYRP_DIR); if (dd != null) foreach (var f in dd.GetFiles()) dd.Remove(f);
+		bool ok = G.tmRpSavePub(G.tm.won ? "win" : "mid"); G.myRpLoadPub(); var its = G.myRpsPub();
+		o.Append($"saved {ok}, files {its.Count}, ticks {G.tmRec.n}, live {live.Count}\n");
+		if (its.Count == 1)
+		{
+			var it = its[0]; o.Append($"kind {it.kind} res {it.res} r {it.r} hz {it.hz} len {it.len:F1}s size {it.segs[0].d.Length / 1024} KB\n");
+			var saveTm = G.tm; G.myRpPlayPub(it); o.Append($"state {G.state} team {G.rp.team}\n");
+			int bad = 0, n = live.Count;
+			for (int k = 0; k < n; k++)
+			{
+				G.tmRpApplyPub(k / (double)G.TM_HZ); string r = TSnapStr();
+				if (!Near(r, live[k])) { if (bad++ < 5) o.Append($"tick {k}:\n  live   {live[k]}\n  replay {r}\n"); }
+			}
+			o.Append($"ticks that differ: {bad} of {n}\n");
+			File.Copy(ProjectSettings.GlobalizePath(G.MYRP_DIR + "/" + it.file), Path.Combine(outDir, "replay.json"), true);
+			G.tm = saveTm;
+		}
+		File.WriteAllText(Path.Combine(outDir, "rpt.log"), o.ToString());
+	}
 	void Finish()
 	{
+		if (rpt) RpCheck();
 		File.WriteAllText(Path.Combine(outDir, "state.log"), log.ToString());
 		crew.Save();
 		if (wav != null)

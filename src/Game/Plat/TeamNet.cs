@@ -30,7 +30,7 @@ public static partial class G
 		public List<(string k, JsonNode j)> later = new();
 		public byte[] world; public bool worldNew;   // guests: the maker's last word on the things the three move by standing on them (type 3)   // events from a page build this PC hasn't reached yet (it is a little behind)
 		public double goAt;
-		public List<Peer> all() => team ? tp.Where(p => p != null).ToList() : peer != null ? new List<Peer> { peer } : new List<Peer>();
+		public List<Peer> all() => team ? tp.Where(p => p != null).ToList() : vs ? vp.Where(p => p != null).ToList() : peer != null ? new List<Peer> { peer } : new List<Peer>();
 	}
 	const double TN_DELAY = 100;                // ms: the others are drawn this far in the past
 	public static int tnPage0 = 0;              // the tests: start on another page
@@ -322,25 +322,28 @@ public static partial class G
 		var n = net; tmMe = tmView = n.seat; tmStopMusic(); tm = null;
 		tmStart(n.L.team, Math.Clamp(tnPage0, 0, n.L.team.pages.Count - 1));
 		for (int i = 0; i < TM_N; i++) tm.names[i] = tnName(i);
-		state = "tmPlay";
+		state = "tmPlay"; tmRecStart();   // v46: what this screen shows, for "احفظ الريبلاي" (Plat/TeamRp.cs)
 	}
 
 	// ---------- the level on this PC ----------
 	static readonly string[] TM_PAUSE = { "أكمل اللعب", "الإعدادات", "اطلع من الغرفة" };
+	static readonly string[] TM_PAUSE46 = { "أكمل اللعب", "الإعدادات", "احفظ الريبلاي", "اطلع من الغرفة" };   // v46: save only (watching would leave the others, his words 19:09 10-22)
+	public static string[] tmPauseList() => classicUi ? TM_PAUSE : TM_PAUSE46;
 	static bool tnStep(Inp inp, double now)
 	{
 		var n = net; if (n == null || !n.team) { tmStopMusic(); tm = null; tmMe = tmView = -1; state = "pltList"; return true; }
 		if (state == "tmIntro") { if (now >= n.goAt) tnBegin(); return true; }
 		if (tm == null) return true;
 		bool play = state == "tmPlay", opened = false;
-		if (play && tm.won) { if (inp.back || (inp.confirm && tm.t - tm.wonAt > 7.3)) { netEnd(null, true); return true; } }
+		if (play && tm.won) { tmRpKey(inp); if (inp.back || (inp.confirm && tm.t - tm.wonAt > 7.3)) { netEnd(null, true); return true; } }
 		else if (play && inp.pz) { state = "tmPause"; pauseSel = 0; play = false; }   // online: the others keep going (so does this square, standing)
 		else if (play) { if (inp.jump) tm.jumpQ = true; if (inp.pdash) tm.dashQ = true; tm.jumpHeld = inp.jumpHeld; }
 		else if (state == "tmPause")
 		{
-			int pn = TM_PAUSE.Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
+			int pn = tmPauseList().Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
 			if (inp.pz || inp.back || (inp.confirm && pauseSel == 0)) state = "tmPlay";
 			else if (inp.confirm && pauseSel == 1) { state = "tmSet"; setSel = 0; opened = true; }
+			else if (inp.confirm && pn > 3 && pauseSel == 2) tmRpSave("mid");
 			else if (inp.confirm) { netEnd(null, true); return true; }
 		}
 		if (!play) { tm.jumpQ = tm.dashQ = tm.jumpHeld = false; }
@@ -363,7 +366,7 @@ public static partial class G
 			if (nw) tm.jumpQ = tm.dashQ = false;
 			if (tnBot != null) ins[tmMe] = tnBot();
 			tm.t = -0.12 + (tm.n - 1) * dt;
-			tmStep(dt, ins);
+			tmStep(dt, ins); tmRecTick(dt);
 			if (net != null && tm != null) { var b = tm.b[tmMe]; net.hist.Add((now, b.x, b.y)); if (net.hist.Count > 600) net.hist.RemoveRange(0, 300); }
 		}
 		if (tm != null) tm.inX = inp?.x ?? 0;
@@ -375,9 +378,7 @@ public static partial class G
 		var n = net; if (n == null || tm.saved) return; tm.saved = true;
 		lastRank = tmRank(tmMe); lastEz = false;
 		var lv = n.L.lv; double p0 = ptsOf(false); xpMark();
-		int rb = lv.best != null ? Array.IndexOf(RANKS, lv.best) : 99;
-		if (Array.IndexOf(RANKS, lastRank) < rb) { lv.best = lastRank; localStorage.setItem("mg_best_" + lv.name, lastRank); markDirty(); }
-		else if (acc != null && !acc.dirty) sync();
+		plSaveBest(lv, lastRank, tm.playT);   // the team's time
 		lastGain = ptsOf(false) - p0; awardXp();
 		tm.xpGot[tmMe] = lastXp; tnTell("xp", new() { ["x"] = lastXp });
 	}

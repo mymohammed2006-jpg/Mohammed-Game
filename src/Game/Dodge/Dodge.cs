@@ -6,8 +6,8 @@ using Godot;
 
 namespace MG;
 
-// A new dodge level (after L11) is a data file: data/dodge_<id>.json. The 19 old levels stay as code.
-//   id, name, song (shown on the card), file (songs/<file>.mp3), bpm + off (or beats), end (beat of the win), cps (checkpoint beats),
+// A new dodge level (after L11, and the friends' levels after F8) is a data file: data/dodge_<id>.json. The 19 old levels stay as code.
+//   id, name, song (shown on the card), by and ver (a friends' level: who picked it, who verified it), file (songs/<file>.mp3), bpm + off (or beats), end (beat of the win), cps (checkpoint beats),
 //   ez: the easy settings by name (ezg, ezc, ez, ezlong, ezsp, ezwn, ezgw), energy: one number per bar (0-1, the pulse),
 //   events: [{ "b": beat, "k": kind, "keep": true|false, ...the kind's own fields }], sorted by b.
 //   (or no events: the level's own code makes them, registered with DodgeBuild(id, ...))
@@ -31,6 +31,8 @@ public static partial class G
 {
 	// the new dodge levels, in the order they come after L11
 	public static readonly string[] DODGE_IDS = { "L12", "L13", "L14", "L15" };
+	// the new friends' levels, in the order they come after F8
+	public static readonly string[] DODGE_FRIENDS = { "F9" };
 
 	static Dictionary<string, Func<DodgeEv, Action>> _dk;
 	static Dictionary<string, Func<DodgeEv, Action>> DK => _dk ??= new();
@@ -45,6 +47,8 @@ public static partial class G
 		public string id { get; set; }
 		public string name { get; set; }
 		public string song { get; set; }
+		public string by { get; set; }
+		public string ver { get; set; }
 		public string file { get; set; }
 		public double bpm { get; set; }
 		public double off { get; set; }
@@ -66,7 +70,7 @@ public static partial class G
 		SONG_FILE[D.id] = D.file;
 		return new Level
 		{
-			id = D.id, name = D.name, song = D.song, bpm = D.bpm, off = D.off, beats = D.beats, end = D.end, cps = D.cps, energy = D.energy,
+			id = D.id, name = D.name, song = D.song, by = D.by, ver = D.ver, bpm = D.bpm, off = D.off, beats = D.beats, end = D.end, cps = D.cps, energy = D.energy,
 			ezg = ez("ezg"), ezc = ez("ezc"), ez = ez("ez"), ezlong = ez("ezlong"), ezsp = ez("ezsp"), ezwn = ez("ezwn"), ezgw = ez("ezgw"),
 			buildName = "dodge" + D.id,
 			build = () =>
@@ -87,6 +91,11 @@ public static partial class G
 		foreach (var id in DODGE_IDS)
 		{
 			try { var L = LoadDodge(id); if (L != null) LEVELS.Add(L); }
+			catch (Exception e) { GD.PushWarning("dodge " + id + ": " + e.Message); }
+		}
+		foreach (var id in DODGE_FRIENDS)
+		{
+			try { var L = LoadDodge(id); if (L != null) FRIENDS.Add(L); }
 			catch (Exception e) { GD.PushWarning("dodge " + id + ": " + e.Message); }
 		}
 	}

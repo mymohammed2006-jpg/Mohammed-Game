@@ -43,7 +43,11 @@ public static partial class G
 			txt("تلعبون مع بعض: أي قطعة يجيبها واحد تنحسب للاثنين، واللي يطيح يرجّعه صاحبه إذا لمسه", W / 2, 520, 23, "rgba(255,255,255,0.65)", 500);
 			txt("ولازم توصلون البوابة الاثنين عشان تخلصون المرحلة", W / 2, 556, 23, "rgba(255,255,255,0.65)", 500);
 		}
-		else txt("تلعب أنت وصاحبك نفس المرحلة بنفس الوقت، وأول واحد يوصل البوابة يفوز", W / 2, 530, 24, "rgba(255,255,255,0.65)", 500);
+		else
+		{
+			txt("تلعبون من ٢ إلى ٤ نفس المرحلة بنفس الوقت: واحد يسوي الغرفة، والباقين يدخلون بالكود", W / 2, 520, 23, "rgba(255,255,255,0.65)", 500);
+			txt("المباراة تخلص لما يبقى واحد بس ما وصل البوابة، وهو الخسران", W / 2, 556, 23, "rgba(255,255,255,0.65)", 500);
+		}
 		row(new[] { (BTN[kind].confirm, "اختيار"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
 	}
 
@@ -66,6 +70,7 @@ public static partial class G
 	{
 		bgShapes(now); var n = net; if (n == null) return;
 		if (n.team) { drawTeamRoom(now); return; }
+		if (n.vs) { drawVsRoom(now); return; }
 		string ph = n.phase; string dots = new string('.', 1 + (int)Math.Floor(now / 400) % 3);
 		if (ph is "make" or "wait")
 		{
@@ -106,6 +111,7 @@ public static partial class G
 	// the other player's square and name (see-through)
 	static void drawNetGhost(double now)
 	{
+		if (net.vs) { drawVsGhosts(now); return; }
 		var gp = netGhost(now); if (gp == null) return;
 		if (gp.dash == -1) { drawDown(gp.x, gp.y, now, true); return; }
 		drawPlayer(gp, net.otherSk ?? "", 0.55);
@@ -124,6 +130,7 @@ public static partial class G
 	static void drawVsEnd(double now)
 	{
 		var n = net; if (n == null) return;
+		if (n.vs) { drawVsEndN(now); return; }
 		overlay(0.72); double ts = now - n.endAt, e = clamp(ts / 220, 0, 1), sc = 1 + 0.6 * JS.pow(1 - e, 3);
 		g.save(); g.translate(W / 2, H / 2 - 120); g.scale(sc, sc); g.globalAlpha = e;
 		if (n.coopDone) txt("خلّصتوا المرحلة!", 0, 0, 80, NGOLD); else if (n.iWon) txt("فزت!", 0, 0, 100, NGOLD); else txt($"{n.other} فاز", 0, 0, 80, PINK);
@@ -135,7 +142,7 @@ public static partial class G
 		{
 			if (n.host) row(new[] { (BTN[kind].confirm, "العب مرة ثانية") }, W / 2, H / 2 + 135);
 			else txt($"أستنى {n.other} يبدأ مرة ثانية", W / 2, H / 2 + 135, 28, "rgba(255,255,255,0.75)", 700);
-			row(new[] { (BTN[kind].back, "اطلع من الغرفة") }, W / 2, H / 2 + 190);
+			row(n.coopDone || pl == null ? new[] { (BTN[kind].back, "اطلع من الغرفة") } : new[] { myRpHint(n.endAt), (BTN[kind].back, "اطلع من الغرفة") }, W / 2, H / 2 + 190);
 		}
 	}
 
@@ -192,11 +199,12 @@ public static partial class G
 		{
 			txt("اللعبة متوقفة عندك", W / 2, 165, 56, "#fff");
 			txt("الباقين يكملون، ومربعك واقف مكانه", W / 2, 222, 22, "rgba(255,255,255,0.55)", 500);
-			for (int i = 0; i < TM_PAUSE.Length; i++)
+			var tl = tmPauseList();
+			for (int i = 0; i < tl.Length; i++)
 			{
 				double y = 310 + i * 80; bool sel = i == pauseSel; int ii = i; zone(W / 2 - 260, y - 34, 520, 68, () => pauseSel = ii);
 				if (sel) { rr(W / 2 - 260, y - 34, 520, 68, 16); g.fillStyle = $"rgba({RGB},0.12)"; g.fill(); g.strokeStyle = RED; g.lineWidth = 2; g.stroke(); }
-				txt(TM_PAUSE[i], W / 2, y, sel ? 38 : 32, sel ? "#fff" : "rgba(255,255,255,0.5)", 800);
+				txt(tl[i], W / 2, y, sel ? 38 : 32, sel ? "#fff" : "rgba(255,255,255,0.5)", 800);
 			}
 		}
 		if (state == "tmSet") drawSettings();

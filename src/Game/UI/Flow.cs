@@ -42,7 +42,7 @@ public static partial class G
 	}
 
 	// ---------- screen transitions: the old picture fades into the new screen's background, then the new screen fades in ----------
-	static readonly string[] TR_ST = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "news", "chal", "skins", "hcList" };
+	static readonly string[] TR_ST = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "news", "chal", "skins", "hcList", "myRp" };
 	const double TR_OUT = 110, TR_IN = 170;
 	static ImageTexture trSnap; static string trLast = ""; static bool trOn = false; static double trAt = -1e9;
 	public static void trCheck(double now)
@@ -85,6 +85,7 @@ public static partial class G
 		else if (state == "skins") drawSkins(now);
 		else if (state == "profile") drawProfile(now);
 		else if (state == "rpLoad") drawRpLoad(now);
+		else if (state == "myRp") drawMyRp(now);
 		else if (state == "practice") drawPractice(now);
 		else if (drawPlatScreens(now)) { }
 		else return false;
@@ -111,6 +112,7 @@ public static partial class G
 				else if (menuSel == ACC) { state = "account"; accSel = 0; authMsg = ""; logoutArm = 0; }
 				else if (menuSel == CHAL) { state = "chal"; chalView = 0; }
 				else if (menuSel == HC) hcPress();
+				else if (menuSel == MYRP) openMyRp("main");
 				else if (menuSel == SKINSM) { state = "skins"; skinInfo = false; chalSel = Math.Max(0, Array.IndexOf(SKINS, skin)); }
 				else if (menuSel == BOARD) { if (!classicUi) board.idx = 0; state = "board"; board.mode = easy ? "e" : "n"; board.sel = -1; _ = loadBoard(false); }
 				else state = new[] { classicUi ? "levels" : "modes", "friends", "howto", "settings" }[menuSel];
@@ -133,6 +135,7 @@ public static partial class G
 			else if (inp.back || inp.pz) state = "main";
 		}
 		else if (state == "chal") stepChal(inp, dt);
+		else if (state == "myRp") stepMyRp(inp, dt);
 		else if (state == "hcList") stepHcList(inp);
 		else if (stepPlat(inp, now, dt)) { }
 		else if (state == "skins") stepSkins(inp, dt);
@@ -229,7 +232,7 @@ public static partial class G
 	public static void prBegin()
 	{
 		var d = pr.doc; double T = pr.t;
-		noMus = true; beginRun(0, d != null ? d.segs[0].seed : 777); noMus = false;
+		int seed = d != null ? d.segs[0].seed : 777; noMus = true; beginRun(0, seed); noMus = false;
 		var p = player; double end = T > 0 ? T - 0.12 * spd : -1; dry = true;
 		// the same fixed steps as real play (v41), so the attacks are exactly where they'd be
 		while (sim0 + (simN + 1) * STEP <= end + 1e-9) { simN++; double t = sim0 + simN * STEP; songT = t; var q = botPos(d, t); if (q != null) { p.x = q.x; p.y = q.y; } fireEvents(t); stepHazards(t, STEP); hazards = hazards.Where(h => !h.dead).ToList(); }
@@ -237,15 +240,22 @@ public static partial class G
 		if (T > 0) { var q = botPos(d, T); if (q != null) { p.x = q.x; p.y = q.y; } }
 		p.inv = 1.0; p.trail = new List<TrailPt>(); if (!pr.inf) p.hp = pr.lv; checkpoint = 0; double bt = BT(T); foreach (var c in cur.cps) if (bt >= c) checkpoint = c;
 		playMusic(T); songT = sim0 + simN * STEP; state = "play";
+		rec = new RecState(); rec.cur = new RecSeg { cp = 0, seed = seed, t0 = null, n = 0, fr = T }; rec.segs.Add(rec.cur); prHitRec = false;   // v46: for "احفظ الريبلاي" (on the PC only)
 	}
 	public static void prFinish() { stopMusic(); state = "prEnd"; winAt = performance.now(); }
 	static void prStop() { stopMusic(); pr.on = false; spd = 1; player = null; hazards = new List<Hz>(); particles = new List<Particle>(); gloom = gloomT = 0; actx.resume(); }
 	public static void prToMenu() { prStop(); pr.sel = 0; state = "practice"; }
 	public static void prPauseInput(Inp inp)
 	{
-		int pn = PR_PAUSE.Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
+		int pn = prPauseList().Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
 		if (inp.pz || inp.back) resume();
-		else if (inp.confirm) { if (pauseSel == 0) resume(); else if (pauseSel == 1) prGo(); else if (pauseSel == 2) prToMenu(); else if (pauseSel == 3) { state = "pauseSet"; setSel = 0; } else { prStop(); state = pr.from; } }
+		else if (inp.confirm)
+		{
+			if (pauseSel == 0) resume(); else if (pauseSel == 1) prGo(); else if (pauseSel == 2) prToMenu(); else if (pauseSel == 3) { state = "pauseSet"; setSel = 0; }
+			else if (pn > 5 && pauseSel == 4) myRpSave(rec, "mid", null);   // v46: the practice so far, on the PC
+			else if (pn > 5 && pauseSel == 5) openMyRp("paused");
+			else { prStop(); state = pr.from; }
+		}
 	}
 	static string mmss(double t) { t = Math.Max(0, t); double m = Math.Floor(t / 60), s = Math.Floor(t % 60); return str(m) + ":" + (s < 10 ? "0" : "") + str(s); }
 	static void drawPractice(double now)

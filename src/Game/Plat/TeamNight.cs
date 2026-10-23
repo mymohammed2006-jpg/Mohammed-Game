@@ -215,10 +215,10 @@ public static partial class G
 		double fe = f - 1.4;
 		if (fe > 0)
 		{
-			int sec = (int)tm.playT; g.globalAlpha = clamp(fe / 0.4, 0, 1);
-			string tt = $"{ar(sec / 60)}:{(sec % 60 < 10 ? "٠" : "")}{ar(sec % 60)}";
+			g.globalAlpha = clamp(fe / 0.4, 0, 1);
+			string tt = tFmt(tm.playT);
 			txt($"وقت الفريق {tt}   •   رجعتوا لبداية صفحة {ar(tm.restarts)} مرات", W / 2, top + ch + 40, 24, "#cfc8ff", 600);
-			if (fe > 0.6) row(new[] { (BTN[kind].back, "المراحل") }, W / 2, top + ch + 88);
+			if (fe > 0.6 && !tmRpOn) row(myRpCan() && tmMe >= 0 ? new[] { myRpHint(tm.wonAt), (BTN[kind].back, "المراحل") } : new[] { (BTN[kind].back, "المراحل") }, W / 2, top + ch + 88);
 			g.globalAlpha = 1;
 		}
 	}

@@ -10,7 +10,7 @@ namespace MG;
 public static partial class G
 {
 	const int CHAL = 9, SKINSM = 10;
-	static (string s, int id)[] mainItems() => classicUi ? MAIN : withHc(MAIN.Take(2).Append(("الأشكال", SKINSM)).Append(("التحديات", CHAL)).Concat(MAIN.Skip(2).Where(m => m.id != 2)).ToArray());   // v41: no "how to play"
+	static (string s, int id)[] mainItems() => classicUi ? MAIN : withHc(MAIN.Take(2).Append(("الأشكال", SKINSM)).Append(("التحديات", CHAL)).Concat(MAIN.Skip(2).Where(m => m.id != 2)).SelectMany(m => m.Item2 == BOARD ? new[] { m, ("ريبلاياتي", MYRP) } : new[] { m }).ToArray());   // v41: no "how to play"; v46: "ريبلاياتي" after the board
 	public static int chalSel = 0;
 	public static double chalShake = 0;
 	const string GOLD = "#ffd25c";

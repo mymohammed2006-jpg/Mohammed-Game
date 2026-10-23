@@ -17,7 +17,7 @@ public static partial class G
 		if (state == "modes") drawModes(now);
 		else if (state == "pltList") drawPltList(now);
 		else if (state == "pltIntro") drawPltIntro(now);
-		else if (state is "pltPlay" or "pltPause" or "pltSet" or "pltDead" or "pltWin" or "pltVsEnd") drawPlat(now);
+		else if (state is "pltPlay" or "pltPause" or "pltSet" or "pltDead" or "pltWin" or "pltVsEnd" or "pltVsWait") drawPlat(now);
 		else if (state == "pltOn") drawPltOn(now);
 		else if (state == "pltJoin") drawPltJoin(now);
 		else if (state == "pltRoom") drawPltRoom(now);
@@ -197,12 +197,12 @@ public static partial class G
 		g.restore();
 		if (state == "pltPause")
 		{
-			overlay(0.75); txt("اللعبة متوقفة", W / 2, 150, 56, "#fff");
-			var PP = online ? PL_PAUSE_ON : PL_PAUSE;
+			var PP = online ? PL_PAUSE_ON46 : PL_PAUSE46; bool p7 = PP.Length > 5;   // v46: 7 items (the replay ones) sit closer
+			overlay(0.75); txt("اللعبة متوقفة", W / 2, p7 ? 128 : 150, 56, "#fff");
 			for (int i = 0; i < PP.Length; i++)
 			{
-				double y = 270 + i * 80; bool sel = i == pauseSel; int ii = i; zone(W / 2 - 260, y - 34, 520, 68, () => pauseSel = ii);
-				if (sel) { rr(W / 2 - 260, y - 34, 520, 68, 16); g.fillStyle = $"rgba({RGB},0.12)"; g.fill(); g.strokeStyle = RED; g.lineWidth = 2; g.stroke(); }
+				double y = p7 ? 228 + i * 66 : 270 + i * 80, bh = p7 ? 58 : 68; bool sel = i == pauseSel; int ii = i; zone(W / 2 - 260, y - bh / 2, 520, bh, () => pauseSel = ii);
+				if (sel) { rr(W / 2 - 260, y - bh / 2, 520, bh, 16); g.fillStyle = $"rgba({RGB},0.12)"; g.fill(); g.strokeStyle = RED; g.lineWidth = 2; g.stroke(); }
 				txt(PP[i], W / 2, y, sel ? 38 : 32, sel ? "#fff" : "rgba(255,255,255,0.5)", 800);
 			}
 		}
@@ -211,15 +211,16 @@ public static partial class G
 		{
 			overlay(); double e = clamp((now - pl.deadAt) / 220, 0, 1), sc = 1 + 0.6 * JS.pow(1 - e, 3);
 			g.save(); g.translate(W / 2, H / 2 - 80); g.scale(sc, sc); g.globalAlpha = e; txt("خسرت!", 0, 0, 90, PINK); g.restore(); g.globalAlpha = 1;
-			if (now - pl.deadAt > 700 && online) { var K = BTN[kind]; row(new[] { (K.confirm, "كمّل من آخر حفظ") }, W / 2, H / 2 + 60, 38, "#fff", 30); row(new[] { (K.back, "اطلع من الغرفة") }, W / 2, H / 2 + 120); }
+			if (now - pl.deadAt > 700 && online) { var K = BTN[kind]; row(new[] { (K.confirm, "كمّل من آخر حفظ") }, W / 2, H / 2 + 60, 38, "#fff", 30); row(new[] { myRpHint(pl.deadAt), (K.back, "اطلع من الغرفة") }, W / 2, H / 2 + 120); }
 			else if (now - pl.deadAt > 700)
 			{
 				var K = BTN[kind];
 				row(new[] { (K.confirm, "كمّل من آخر حفظ") }, W / 2, H / 2 + 60, 38, "#fff", 30);
-				row(new[] { (K.restart, "من بداية المرحلة"), (K.back, "المراحل") }, W / 2, H / 2 + 120);
+				row(new[] { (K.restart, "من بداية المرحلة"), myRpHint(pl.deadAt), (K.back, "المراحل") }, W / 2, H / 2 + 120);
 			}
 		}
 		if (state == "pltVsEnd") drawVsEnd(now);
+		if (state == "pltVsWait") drawVsWait(now);
 		if (state == "pltWin")
 		{
 			overlay(0.7); txt("خلّصت المرحلة!", W / 2, H / 2 - 160, 64, "#fff");
@@ -241,8 +242,8 @@ public static partial class G
 				txt($"+{ar(cv)} نقطة", W / 2 - 190, H / 2 - 40, 34, "#ff2436", 800, "right"); g.globalAlpha = 1;
 			}
 			drawWinXp(now);
-			txt(deaths == 0 ? "بدون ولا موتة" : $"متّ {ar(deaths)} مرة", W / 2, H / 2 + 70, 28, "#e9e6f5", 500);
-			if (ts > 800) { row(new[] { (BTN[kind].confirm, "العب مرة ثانية") }, W / 2, H / 2 + 135); row(new[] { (BTN[kind].back, "المراحل") }, W / 2, H / 2 + 190); }
+			txt((deaths == 0 ? "بدون ولا موتة" : $"متّ {ar(deaths)} مرة") + "   •   الوقت " + tFmt(lastT) + (lastNewT ? "  (أحسن وقت لك)" : ""), W / 2, H / 2 + 70, 28, "#e9e6f5", 500);
+			if (ts > 800) { row(new[] { (BTN[kind].confirm, "العب مرة ثانية") }, W / 2, H / 2 + 135); row(new[] { myRpHint(pl.winAt), (BTN[kind].back, "المراحل") }, W / 2, H / 2 + 190); }
 		}
 	}
 
@@ -262,7 +263,7 @@ public static partial class G
 		txt(pl.L.name, W / 2, H / 2 - 30 + 30 * sl * sl - up, 72, "#fff", 800);
 		string song = pl.L.best != null ? pl.L.song : "؟؟؟";
 		g.font = $"36px {TFONT}"; g.fillStyle = PINK; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText(song, W / 2, H / 2 + 40 + 30 * sl * sl - up); g.direction = "rtl";
-		if (online) txt((net.coop ? "مع " : "ضد ") + net.other, W / 2, H / 2 + 110 + 30 * sl * sl - up, 30, CYAN, 800);
+		if (online) txt((net.coop ? "مع " : "ضد ") + (net.vs ? string.Join("، ", vsOthers(net).Select(vsName)) : net.other), W / 2, H / 2 + 110 + 30 * sl * sl - up, 30, CYAN, 800);
 		g.restore();
 	}
 

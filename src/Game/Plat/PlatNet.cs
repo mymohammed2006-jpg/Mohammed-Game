@@ -14,7 +14,8 @@ namespace MG;
 // Co-op (a level with "coop": true, exactly two players): the song pieces and the checkpoint count for both; a square that loses its
 // lives falls down where it is until the other one touches it (back with full lives); both down = both back at the checkpoint;
 // the level ends when both are in the open gate.
-// An online match gives no letter, points or XP.
+// An online match gives no letter, points or XP. Versus is now for 2 to 4 players (Plat/VsNet.cs); what is left here for it is the
+// screens before the room, and the old two-player co-op.
 // States: pltOn (make a room / type a code), pltJoin (the code), pltRoom (waiting / connecting / together), pltVsEnd (who won).
 // The co-op level for three has its own room and play (TeamNet.cs); the screens before it are the same.
 public static partial class G
@@ -44,6 +45,7 @@ public static partial class G
 	static async void netHost(PlatLevel L)
 	{
 		if (L.team != null) { tnHost(L); return; }
+		if (!L.coop) { vsHost(L); return; }   // versus: 2 to 4 players
 		var n = net = new NetRun { host = true, L = L, peer = new Peer() }; netSetPhase("make"); state = "pltRoom";
 		try
 		{
@@ -70,7 +72,9 @@ public static partial class G
 		{
 			var d = await roomGet(code); if (net != n) return;
 			if (d == null || d.o == null) { netEnd("ما لقيت غرفة بهذا الكود"); return; }
-			if (d.o2 != null) { tnJoin(n, d); return; }   // a room for three
+			var RL = PLATS.FirstOrDefault(p => p.id == d.lv);
+			if (RL?.team != null || (RL == null && d.o2 != null && d.o3 == null)) { tnJoin(n, d); return; }   // a room for three
+			if (RL != null && !RL.coop) { vsJoin(n, d); return; }   // versus: 2 to 4 players
 			if (d.a != null) { netEnd("الغرفة فيها لاعبين"); return; }
 			if (d.h == acc.uid) { netEnd("هذي غرفتك أنت"); return; }
 			n.L = PLATS.FirstOrDefault(p => p.id == d.lv); n.other = d.hn ?? "";
@@ -89,7 +93,7 @@ public static partial class G
 		var ps = n.all();
 		if (tell) foreach (var q in ps) q.Send(new JsonObject { ["k"] = "bye", ["n"] = byeName ?? acc?.name ?? "" }.ToJsonString());
 		_ = Task.Run(async () => { await Task.Delay(300); foreach (var q in ps) q.Close(); });
-		if (n.host && n.code != "" && n.phase is "make" or "wait") _ = roomDel(n.code);   // a failed connection keeps its room (both sides' addresses, to see why; the code is free again after 10 minutes)
+		if (n.host && n.code != "" && (n.phase is "make" or "wait" || n.roomOpen)) _ = roomDel(n.code);   // a failed connection keeps its room (both sides' addresses, to see why; the code is free again after 10 minutes)
 		if (why != null) netNote(why);
 		if (why == null || !why.StartsWith("ما قدرنا")) netDiag = null;
 		if (state.StartsWith("plt") && state != "pltList") { plStopMusic(); player = null; particles = new List<Particle>(); actx.resume(); state = "pltList"; }
@@ -101,6 +105,7 @@ public static partial class G
 	{
 		var n = net; if (n == null) return;
 		if (n.team) { tnTick(now); return; }
+		if (n.vs) { vsTick(now); return; }
 		if (n.peer.closed && n.phase != "make" && n.phase != "wait" && n.phase != "join") { if (!n.hello) netDiag = n.peer.Diag(); netEnd(n.hello ? n.other + " طلع من الغرفة" : "ما قدرنا نتصل، جرب مرة ثانية"); return; }
 		if (n.phase == "conn")
 		{
@@ -207,6 +212,7 @@ public static partial class G
 	}
 	static void netWin()
 	{
+		if (net.vs) { vsMeFin(); return; }
 		var n = net; n.myFin = pl.t; n.peer.Send(new JsonObject { ["k"] = "win", ["t"] = pl.t }.ToJsonString());
 		n.iWon = n.otherFin < 0 || n.myFin < n.otherFin || (n.myFin == n.otherFin && n.host);
 		netFinish();
@@ -228,7 +234,8 @@ public static partial class G
 	// the other square, a little in the past so it moves smoothly between the messages
 	static Player netGhost(double now)
 	{
-		var n = net; if (n == null || n.snaps.Count == 0) return null;
+		var n = net; if (n?.vs == true) { int o = vsOthers(n).DefaultIfEmpty(-1).First(); return o >= 0 && !n.vleft[o] ? vsGhost(o, now) : null; }   // versus: the first other one (the PC replay keeps one)
+		if (n == null || n.snaps.Count == 0) return null;
 		double t = now - 100; Snap a = n.snaps[0], b = a;
 		for (int i = 0; i < n.snaps.Count; i++) { if (n.snaps[i].at <= t) a = n.snaps[i]; else { b = n.snaps[i]; break; } if (i == n.snaps.Count - 1) b = a; }
 		double f = b.at > a.at ? clamp((t - a.at) / (b.at - a.at), 0, 1) : 1;
@@ -242,6 +249,7 @@ public static partial class G
 	// ---------- menus ----------
 	static readonly string[] ON_OPTS = { "سوّي غرفة", "ادخل بكود" };
 	static readonly string[] PL_PAUSE_ON = { "أكمل اللعب", "إعادة من آخر حفظ", "الإعدادات", "اطلع من الغرفة" };
+	static readonly string[] PL_PAUSE_ON46 = { "أكمل اللعب", "إعادة من آخر حفظ", "الإعدادات", "احفظ الريبلاي", "اطلع من الغرفة" };   // v46: save the replay on the PC (watching would leave the room)
 	// the code's digits from the keyboard (true = used)
 	static bool netKey(string code)
 	{
@@ -254,6 +262,7 @@ public static partial class G
 	static bool stepNet(Inp inp, double now, double dt)
 	{
 		if (state is "tmIntro" or "tmPlay" or "tmPause" or "tmSet") return tnStep(inp, now);
+		if (net?.vs == true && stepVs(inp, now, dt)) return true;
 		if (state == "pltOn")
 		{
 			if (inp.up || inp.down) onSel = 1 - onSel;
@@ -281,6 +290,7 @@ public static partial class G
 		}
 		else if (state == "pltVsEnd")
 		{
+			if (pl != null) plRpKey(inp, net.endAt, net.coopDone || net.iWon ? "vsWin" : "vsLose", null);
 			if (inp.confirm && net.host && net.hello && performance.now() - net.endAt > 800) netGo();
 			else if (inp.back) netEnd(null, true);
 		}

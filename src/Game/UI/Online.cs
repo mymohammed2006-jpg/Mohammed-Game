@@ -101,12 +101,19 @@ public static partial class G
 		var o = new Dictionary<string, string>(); if (v?["mapValue"]?["fields"] is JsonObject f) foreach (var (k, x) in f) { var s = S(x?["stringValue"]); o[k] = !string.IsNullOrEmpty(s) ? s : S(x?["timestampValue"]); }
 		return o;
 	}
-	public class PlayerDoc { public string uid, name; public int xp; public Dictionary<string, string> n, e, nt, et; public Dictionary<string, string> F(string f) => f == "n" ? n : f == "e" ? e : f == "nt" ? nt : et; }
+	// pt: the platformer's best times (seconds, with the best letter; the board goes by the letter, then the time)
+	static Dictionary<string, double> unNum(JsonNode v)
+	{
+		var o = new Dictionary<string, double>(); if (v?["mapValue"]?["fields"] is JsonObject f) foreach (var (k, x) in f) { if (x?["doubleValue"] is JsonNode d) o[k] = d.GetValue<double>(); else if (double.TryParse(S(x?["integerValue"]), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double iv)) o[k] = iv; }
+		return o;
+	}
+	static JsonObject fsNum(Dictionary<string, double> m) { var f = new JsonObject(); foreach (var (k, v) in m) f[k] = new JsonObject { ["doubleValue"] = v }; return new JsonObject { ["mapValue"] = new JsonObject { ["fields"] = f } }; }
+	public class PlayerDoc { public string uid, name; public int xp; public Dictionary<string, double> pt = new(); public Dictionary<string, string> n, e, nt, et; public Dictionary<string, string> F(string f) => f == "n" ? n : f == "e" ? e : f == "nt" ? nt : et; }
 	static PlayerDoc parsePlayer(JsonNode d)
 	{
 		var f = d["fields"] as JsonObject ?? new JsonObject(); string nm = S(f["name"]?["stringValue"]);
 		int.TryParse(S(f["xp"]?["integerValue"]), out int xv);
-		return new PlayerDoc { uid = S(d["name"]).Split('/').Last(), name = !string.IsNullOrEmpty(nm) ? nm : "?", xp = Math.Max(0, xv), n = unMap(f["n"]), e = unMap(f["e"]), nt = unMap(f["nt"]), et = unMap(f["et"]) };
+		return new PlayerDoc { uid = S(d["name"]).Split('/').Last(), name = !string.IsNullOrEmpty(nm) ? nm : "?", xp = Math.Max(0, xv), n = unMap(f["n"]), e = unMap(f["e"]), nt = unMap(f["nt"]), et = unMap(f["et"]), pt = unNum(f["pt"]) };
 	}
 	static string gv(Dictionary<string, string> d, string k) => d.TryGetValue(k, out var v) && !string.IsNullOrEmpty(v) ? v : null;
 	static bool better(string a, string b) => a != null && (b == null || Array.IndexOf(RANKS, a) < Array.IndexOf(RANKS, b));
@@ -115,11 +122,14 @@ public static partial class G
 		var n = new Dictionary<string, string>(); var e = new Dictionary<string, string>(); foreach (var L in ALL_LV()) { if (L.best != null) n[L.id] = L.best; if (L.bestE != null) e[L.id] = L.bestE; }
 		return (n, e);
 	}
-	static void setLocal(Level L, bool ez, string r)
+	static void setLocal(Level L, bool ez, string r, double t = -1)
 	{
 		if (ez) L.bestE = r; else L.best = r;
 		string k = (ez ? "mg_beste_" : "mg_best_") + L.name; if (r != null) localStorage.setItem(k, r); else localStorage.removeItem(k);
+		if (L.plat && !ez) setBestT(L, r != null ? t : -1);
 	}
+	static double ptOf(PlayerDoc p, string id) => p.pt.TryGetValue(id, out var t) && t >= 0 ? t : -1;
+	static Dictionary<string, double> localTimes() { var o = new Dictionary<string, double>(); foreach (var L in ALL_LV()) if (L.plat && L.best != null && L.bestT >= 0) o[L.id] = L.bestT; return o; }
 	// writing the player file: only the fields that changed, plus the time of each new letter and of the last save (server clock)
 	static JsonObject playerWrite(JsonObject fields, List<string> mask, List<string> tsPaths, bool create)
 	{
@@ -135,11 +145,12 @@ public static partial class G
 	static async Task<JsonNode> commit(params JsonObject[] writes) { var body = new JsonObject { ["writes"] = new JsonArray(writes) }; return await jpost($"{FS_URL}:commit", body, await idToken()); }
 	// the player's XP goes in their file too (not in the comparison runs, which copy v39)
 	static JsonObject xpField(JsonObject f) { if (!classicUi) f["xp"] = new JsonObject { ["integerValue"] = str(xp) }; return f; }
+	static JsonObject ptField(JsonObject f) { var t = localTimes(); if (!classicUi && t.Count > 0) f["pt"] = fsNum(t); return f; }
 	static async Task createPlayer()
 	{
 		var (n, e) = localBests(); var ts = n.Keys.Select(k => "nt." + k).Concat(e.Keys.Select(k => "et." + k)).ToList();
 		await commit(new JsonObject { ["update"] = new JsonObject { ["name"] = $"{FS_DOC}/names/{nameKey(acc.name)}", ["fields"] = new JsonObject { ["uid"] = new JsonObject { ["stringValue"] = acc.uid } } }, ["currentDocument"] = new JsonObject { ["exists"] = false } },
-			playerWrite(xpField(new JsonObject { ["name"] = new JsonObject { ["stringValue"] = acc.name }, ["n"] = fsMap(n), ["e"] = fsMap(e), ["nt"] = fsMap(new(), true), ["et"] = fsMap(new(), true) }), null, ts, true));
+			playerWrite(ptField(xpField(new JsonObject { ["name"] = new JsonObject { ["stringValue"] = acc.name }, ["n"] = fsMap(n), ["e"] = fsMap(e), ["nt"] = fsMap(new(), true), ["et"] = fsMap(new(), true) })), null, ts, true));
 		board.at = 0;
 	}
 	// sync: the better letter of the device and the account becomes both
@@ -166,14 +177,22 @@ public static partial class G
 			if (doc == null) await createPlayer();
 			else
 			{
-				var on = parsePlayer(doc); var up = new Dictionary<string, Dictionary<string, string>>(); var mask = new List<string>(); var ts = new List<string>();
+				var on = parsePlayer(doc); var up = new Dictionary<string, Dictionary<string, string>>(); var upT = new Dictionary<string, double>(); var mask = new List<string>(); var ts = new List<string>();
 				foreach (var L in ALL_LV()) foreach (bool ez in new[] { false, true })
 					{
 						string f = ez ? "e" : "n", o = gv(on.F(f), L.id), l = ez ? L.bestE : L.best;
-						if (better(o, l)) setLocal(L, ez, o); else if (better(l, o)) { if (!up.ContainsKey(f)) up[f] = new(); up[f][L.id] = l; mask.Add($"{f}.{L.id}"); ts.Add($"{f}t.{L.id}"); }
+						bool pt = L.plat && !ez && !classicUi; double ot = ptOf(on, L.id), lt = L.bestT;
+						if (better(o, l)) setLocal(L, ez, o, ot);
+						else if (better(l, o))
+						{
+							if (!up.ContainsKey(f)) up[f] = new(); up[f][L.id] = l; mask.Add($"{f}.{L.id}"); ts.Add($"{f}t.{L.id}");
+							if (pt && (lt >= 0 || ot >= 0)) { if (lt >= 0) upT[L.id] = lt; mask.Add($"pt.{L.id}"); }   // the new letter's own time (none: the old letter's time goes)
+						}
+						else if (pt && l != null && ot >= 0 && (lt < 0 || ot < lt)) setBestT(L, ot);   // same letter: the faster time
+						else if (pt && l != null && lt >= 0 && (ot < 0 || lt < ot)) { upT[L.id] = lt; mask.Add($"pt.{L.id}"); }
 					}
 				bool xpUp = !classicUi && xp > on.xp; if (xpUp) mask.Add("xp");
-				if (mask.Count > 0) { var fields = new JsonObject(); foreach (var (f, m) in up) fields[f] = fsMap(m); if (xpUp) xpField(fields); await commit(playerWrite(fields, mask, ts, false)); board.at = 0; }
+				if (mask.Count > 0) { var fields = new JsonObject(); foreach (var (f, m) in up) fields[f] = fsMap(m); if (upT.Count > 0) fields["pt"] = fsNum(upT); if (xpUp) xpField(fields); await commit(playerWrite(fields, mask, ts, false)); board.at = 0; }
 			}
 			acc.dirty = false; saveAcc(); await flushRpq(); netState = "ok"; if (upShow) { upShow = false; upFailShown = false; showCorner("انحفظ أونلاين ✓", "#5fe08f", 2800); }
 		}
@@ -206,7 +225,7 @@ public static partial class G
 		finally { authBusy = false; }
 	}
 	// the board: everyone's player files (there are few) sorted on the device
-	public class BoardRow { public PlayerDoc p; public string r; public double v; public string t; public int pos; public bool me; }
+	public class BoardRow { public PlayerDoc p; public string r; public double v; public string t; public double ft = -1; public int pos; public bool me; }
 	public class BoardState { public double at; public bool busy, err; public List<PlayerDoc> list = new(); public int idx; public string mode = "n"; public int sel = -1; }
 	public static readonly BoardState board = new();
 	static async Task loadBoard(bool force)
@@ -237,8 +256,9 @@ public static partial class G
 		if (L != null)
 		{
 			string f = m, t = f + "t";
-			rows = board.list.Where(p => gv(p.F(f), L.id) != null).Select(p => new BoardRow { p = p, r = gv(p.F(f), L.id), v = -Array.IndexOf(RANKS, gv(p.F(f), L.id)), t = gv(p.F(t), L.id) ?? "" }).ToList();
-			sort(rows, (a, b) => { double d = b.v - a.v; return d != 0 ? d : string.CompareOrdinal(a.t, b.t) < 0 ? -1 : string.CompareOrdinal(a.t, b.t) > 0 ? 1 : 0; });
+			rows = board.list.Where(p => gv(p.F(f), L.id) != null).Select(p => new BoardRow { p = p, r = gv(p.F(f), L.id), v = -Array.IndexOf(RANKS, gv(p.F(f), L.id)), t = gv(p.F(t), L.id) ?? "", ft = L.plat && f == "n" ? ptOf(p, L.id) : -1 }).ToList();
+			// the platformer: the letter first, then the faster time (no time yet = after the times); then who got there first
+			sort(rows, (a, b) => { double d = b.v - a.v; if (d != 0) return d; if (a.ft != b.ft) return a.ft < 0 ? 1 : b.ft < 0 ? -1 : a.ft - b.ft; return string.CompareOrdinal(a.t, b.t) < 0 ? -1 : string.CompareOrdinal(a.t, b.t) > 0 ? 1 : 0; });
 		}
 		else if (boardXp)
 		{
@@ -287,7 +307,7 @@ public static partial class G
 
 	// ---------- replays: saving and uploading ----------
 	// v1 = recorded before the AFK fix (plays on the old level shape), v2 = from that update on
-	public class RpqSeg { public double cp { get; set; } public int seed { get; set; } public double t0 { get; set; } public int n { get; set; } public string d { get; set; } }
+	public class RpqSeg { public double cp { get; set; } public int seed { get; set; } public double t0 { get; set; } public int n { get; set; } public string d { get; set; } public int c { get; set; } }   // c 1 = cut before its death (v46)
 	public class RpqItem { public string lvl { get; set; } public string m { get; set; } public string r { get; set; } public int v { get; set; } public int hz { get; set; } public List<RpqSeg> segs { get; set; } public string sk { get; set; } }
 	static Dictionary<string, RpqItem> rpq = new();
 	static void saveRpq() => localStorage.setItem("mg_rpq", JsonSerializer.Serialize(rpq, JOPT));
@@ -300,12 +320,33 @@ public static partial class G
 	// after a win: the replay waits in a queue (it goes online with the sync)
 	public static void rpWin(string r)
 	{
+		lastRec = rec;   // the win screen can still save it on the PC (v46)
 		if (rec == null || rec.segs.Count == 0) return; var L = cur; string m = easy ? "e" : "n", best = easy ? L.bestE : L.best; rec.cur = null;
 		if (best != null && Array.IndexOf(RANKS, r) > Array.IndexOf(RANKS, best)) { rec = null; return; }
-		var segs = rec.segs.Where(s => s.n > 1).Select(s => new RpqSeg { cp = s.cp, seed = s.seed, t0 = s.t0 is double t && t != 0 && !double.IsNaN(t) ? t : 0, n = s.n, d = packRp(s.b) }).ToList(); rec = null;
+		var segs = rpSegs(rec.segs); var all = rec.segs; rec = null;
 		// no limit on deaths: the limit is the file size (Firebase takes about 1 MB per file) = about 45 minutes of play
-		if (segs.Count == 0 || segs.Count > RP_MAX_SEGS || segs.Sum(s => s.d.Length + 80) > RP_MAX_BYTES) return;
+		// v46, Hardcore only (his idea 16:02 10-22): too long = only the run that won, start to end, without the deaths
+		if (L.hc && rpTooBig(segs)) segs = rpWinPath(all);
+		if (segs.Count == 0 || rpTooBig(segs)) return;
 		rpq[L.id + "_" + m] = new RpqItem { lvl = L.id, m = m, r = r, v = RP_V, hz = RP_HZ, segs = segs, sk = classicUi ? "" : skin }; saveRpq();
+	}
+	static bool rpTooBig(List<RpqSeg> segs) => segs.Count > RP_MAX_SEGS || segs.Sum(s => s.d.Length + 80) > RP_MAX_BYTES;
+	public static List<RpqSeg> rpSegs(List<RecSeg> all) => all.Where(s => s.n > 1).Select(s => new RpqSeg { cp = s.cp, seed = s.seed, t0 = s.t0 is double t && t != 0 && !double.IsNaN(t) ? t : 0, n = s.n, d = packRp(s.b) }).ToList();
+	// the attempts that made the win: the last one, before it the last one that started from an earlier save (it reached the save the
+	// next one starts from), and so on back to the start. Each is cut where the next one starts (2 beats before its save), before its death.
+	public static List<RpqSeg> rpWinPath(List<RecSeg> all)
+	{
+		var ss = all.Where(s => s.n > 1).ToList(); if (ss.Count == 0) return new();
+		var path = new List<RecSeg> { ss[^1] };
+		for (int i = ss.Count - 2; i >= 0 && path[0].cp > 0; i--) if (ss[i].cp < path[0].cp) path.Insert(0, ss[i]);
+		var o = new List<RpqSeg>();
+		for (int k = 0; k < path.Count; k++)
+		{
+			var s = path[k]; double t0 = s.t0 is double t && t != 0 && !double.IsNaN(t) ? t : 0; int n = s.n;
+			if (k < path.Count - 1) n = (int)clamp(Math.Floor((B(path[k + 1].cp - 2) - t0) * RP_HZ + 1e-9) + 1, 2, s.n);
+			o.Add(new RpqSeg { cp = s.cp, seed = s.seed, t0 = t0, n = n, d = packRp(s.b.Take(n * 3).ToList()), c = k < path.Count - 1 ? 1 : 0 });
+		}
+		return o;
 	}
 	static JsonObject IV(double v) => new() { ["integerValue"] = str(v) };
 	// the square's look goes with the replay (only when it is not the original square)
@@ -314,8 +355,13 @@ public static partial class G
 	{
 		["uid"] = new JsonObject { ["stringValue"] = acc.uid }, ["lvl"] = new JsonObject { ["stringValue"] = q.lvl }, ["m"] = new JsonObject { ["stringValue"] = q.m }, ["r"] = new JsonObject { ["stringValue"] = q.r },
 		["v"] = IV(q.v != 0 ? q.v : 1), ["hz"] = IV(q.hz),
-		["segs"] = new JsonObject { ["arrayValue"] = new JsonObject { ["values"] = new JsonArray(q.segs.Select(s => (JsonNode)new JsonObject { ["mapValue"] = new JsonObject { ["fields"] = new JsonObject { ["cp"] = IV(s.cp), ["seed"] = IV(s.seed), ["t0"] = new JsonObject { ["doubleValue"] = s.t0 }, ["n"] = IV(s.n), ["d"] = new JsonObject { ["stringValue"] = s.d } } } }).ToArray()) } },
+		["segs"] = new JsonObject { ["arrayValue"] = new JsonObject { ["values"] = new JsonArray(q.segs.Select(s => (JsonNode)new JsonObject { ["mapValue"] = new JsonObject { ["fields"] = segField(s) } }).ToArray()) } },
 	};
+	static JsonObject segField(RpqSeg s)
+	{
+		var f = new JsonObject { ["cp"] = IV(s.cp), ["seed"] = IV(s.seed), ["t0"] = new JsonObject { ["doubleValue"] = s.t0 }, ["n"] = IV(s.n), ["d"] = new JsonObject { ["stringValue"] = s.d } };
+		if (s.c != 0) f["c"] = IV(s.c); return f;
+	}
 	static async Task flushRpq()
 	{
 		foreach (var k in rpq.Keys.ToList())
@@ -380,7 +426,7 @@ public static partial class G
 			segs = (f["segs"]["arrayValue"]["values"] as JsonArray).Select(x =>
 			{
 				var s = x["mapValue"]["fields"];
-				return new RpSeg { cp = num(S(s["cp"]["integerValue"])), seed = i32(num(S(s["seed"]["integerValue"]))), t0 = s["t0"]["doubleValue"] != null ? (double)s["t0"]["doubleValue"] : num(S(s["t0"]["integerValue"])), n = (int)num(S(s["n"]["integerValue"])), b = unpackRp(S(s["d"]["stringValue"])) };
+				return new RpSeg { cp = num(S(s["cp"]["integerValue"])), seed = i32(num(S(s["seed"]["integerValue"]))), t0 = s["t0"]["doubleValue"] != null ? (double)s["t0"]["doubleValue"] : num(S(s["t0"]["integerValue"])), n = (int)num(S(s["n"]["integerValue"])), b = unpackRp(S(s["d"]["stringValue"])), c = S(s["c"]?["integerValue"]) == "1" };
 			}).ToList(),
 		};
 	}

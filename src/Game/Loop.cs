@@ -24,7 +24,7 @@ public static partial class G
 	}
 
 	static readonly string[] IN_GAME = { "play", "paused", "pauseSet", "dead", "win", "starting", "replay", "rpGap", "rpEnd", "prEnd" };
-	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins", "hcList" };
+	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins", "hcList", "myRp" };
 	static readonly string[] FS_HINT = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "pltPause", "pltSet", "tmPause", "tmSet", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "chal", "skins", "hcList" };
 
 	public static void draw(double now)
@@ -35,7 +35,7 @@ public static partial class G
 		double sx = (random() * 2 - 1) * shake, sy = (random() * 2 - 1) * shake;
 		g.setTransform(scale, 0, 0, scale, offX + sx * scale, offY + sy * scale);
 		g.save(); g.beginPath(); g.rect(0, 0, W, H); g.clip();
-		bool inGame = player != null && IN_GAME.Contains(state);
+		bool inGame = player != null && IN_GAME.Contains(state) && !(rp.plat && pl != null);   // v46: a platformer replay draws as the platformer
 		bool menuish = MENUISH.Contains(state);
 		if (inGame)
 		{
@@ -53,7 +53,8 @@ public static partial class G
 			g.stroke();
 		}
 		var K = BTN[kind];
-		if (drawMenus(now, inGame)) { }
+		if (plRpDraw(now)) { }
+		else if (drawMenus(now, inGame)) { }
 		else if (!inGame) { drawSpawn(); if (state == "levelIntro") drawLevelInfo(now); }
 		else
 		{
@@ -71,13 +72,13 @@ public static partial class G
 		}
 		if (state == "paused")
 		{
-			overlay(0.75); txt("اللعبة متوقفة", W / 2, 150, 56, "#fff");
-			var list = pr.on ? PR_PAUSE : PAUSE;
+			var list = pr.on ? prPauseList() : pauseList(); bool p7 = list.Length > 5;   // v46: 7 items (the replay ones) sit closer
+			overlay(0.75); txt("اللعبة متوقفة", W / 2, p7 ? 128 : 150, 56, "#fff");
 			for (int i = 0; i < list.Length; i++)
 			{
-				string s = list[i]; double y = 262 + i * 80; bool sel = i == pauseSel; int ii = i;
-				zone(W / 2 - 260, y - 34, 520, 68, () => pauseSel = ii);
-				if (sel) { rr(W / 2 - 260, y - 34, 520, 68, 16); g.fillStyle = $"rgba({RGB},0.12)"; g.fill(); g.strokeStyle = RED; g.lineWidth = 2; g.stroke(); g.save(); g.translate(W / 2 + 225, y); g.rotate(now / 420); g.fillStyle = RED; g.fillRect(-8, -8, 16, 16); g.restore(); }
+				string s = list[i]; double y = p7 ? 228 + i * 66 : 262 + i * 80, bh = p7 ? 58 : 68; bool sel = i == pauseSel; int ii = i;
+				zone(W / 2 - 260, y - bh / 2, 520, bh, () => pauseSel = ii);
+				if (sel) { rr(W / 2 - 260, y - bh / 2, 520, bh, 16); g.fillStyle = $"rgba({RGB},0.12)"; g.fill(); g.strokeStyle = RED; g.lineWidth = 2; g.stroke(); g.save(); g.translate(W / 2 + 225, y); g.rotate(now / 420); g.fillStyle = RED; g.fillRect(-8, -8, 16, 16); g.restore(); }
 				txt(s, W / 2, y, sel ? 38 : 32, sel ? "#fff" : "rgba(255,255,255,0.5)", 800);
 			}
 		}
@@ -94,7 +95,7 @@ public static partial class G
 			if (now - deadAt > 700)
 			{
 				row(new[] { (K.confirm, pr.on ? "من نقطة التدريب" : "كمّل من آخر حفظ") }, W / 2, H / 2 + 110, 38, "#fff", 30);
-				row(pr.on ? new[] { (K.back, "التدريب") } : new[] { (K.restart, "من بداية المرحلة"), (K.back, "القائمة") }, W / 2, H / 2 + 170);
+				row(pr.on ? (myRpCan() ? new[] { myRpHint(deadAt), (K.back, "التدريب") } : new[] { (K.back, "التدريب") }) : myRpCan() ? new[] { (K.restart, "من بداية المرحلة"), myRpHint(deadAt), (K.back, "القائمة") } : new[] { (K.restart, "من بداية المرحلة"), (K.back, "القائمة") }, W / 2, H / 2 + 170);
 			}
 		}
 		if (state == "win")
@@ -123,7 +124,7 @@ public static partial class G
 				txt($"+{ar(cv)} نقطة", W / 2 - 190, H / 2 - 40, 34, gc, 800, "right"); g.globalAlpha = 1;
 			}
 			drawWinXp(now);
-			if (now - Math.Max(winAt + 800, winSlam + 300) > 0) { row(new[] { (K.confirm, "العب مرة ثانية") }, W / 2, H / 2 + 135); row(new[] { (K.back, "المراحل") }, W / 2, H / 2 + 190); }
+			if (now - Math.Max(winAt + 800, winSlam + 300) > 0) { row(new[] { (K.confirm, "العب مرة ثانية") }, W / 2, H / 2 + 135); row(myRpCan() ? new[] { myRpHint(winAt), (K.back, "المراحل") } : new[] { (K.back, "المراحل") }, W / 2, H / 2 + 190); }
 		}
 		if (state == "win") drawHcNote(now);
 		if (state == "prEnd") drawPrEnd(now);
@@ -143,7 +144,7 @@ public static partial class G
 		zonesFlip();
 	}
 
-	static readonly string[] MENU_MUSIC = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "practice", "news", "chal", "skins", "hcList" };
+	static readonly string[] MENU_MUSIC = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "practice", "news", "chal", "skins", "hcList", "myRp" };
 	public static void step(double now, bool nd = false)
 	{
 		double dt = Math.Min(0.05, Math.Max(0, now - last) / 1000); last = now; fdt = dt;
@@ -153,7 +154,12 @@ public static partial class G
 		else if (state == "gateWait") { if (actx.state == "running") { playMenu(0); state = "splash"; } else if (now - gatePressAt > 600) { gateHint = true; if (inp.any) ensureAudio(); } }
 		else if (state == "splash") { if (menuPos() >= MENU_DROP) { goMain(now); } else if (inp.any && menuPos() > 1.2) { stopMenu(); playMenu(MENU_DROP); goMain(now); } }
 		else if (stepMenus(inp, now, dt)) { }
-		else if (state == "rpLoad") { if (inp.back || inp.pz) state = rp.bot ? rp.back : "profile"; else if (rp.doc != null && rp.L.buf != null && actx.state == "running") rpStart(); else ensureAudio(); }
+		else if (state == "rpLoad")
+		{
+			if (inp.back || inp.pz) { state = rp.bot || rp.local ? rp.back : "profile"; if (rp.plat) plRpExit(); rp.bot = rp.local = rp.plat = rp.team = false; }
+			else if (rp.plat) { if (plRpReady()) plRpStart(); else ensureAudio(); }
+			else if (rp.doc != null && rp.L.buf != null && actx.state == "running") rpStart(); else ensureAudio();
+		}
 		else if (state is "replay" or "rpGap" or "rpEnd")
 		{
 			if (inp.back || inp.pz) exitReplay();
@@ -166,7 +172,7 @@ public static partial class G
 		}
 		else if (state == "practice") prMenuInput(inp);
 		else if (state == "prStarting") { if (actx.state == "running" && cur.buf != null) prBegin(); else ensureAudio(); }
-		else if (state == "prEnd") { if (performance.now() - winAt > 600 && inp.confirm) prGo(); else if (inp.back || inp.pz) prToMenu(); }
+		else if (state == "prEnd") { myRpPrEndKey(inp); if (performance.now() - winAt > 600 && inp.confirm) prGo(); else if (inp.back || inp.pz) prToMenu(); }
 		else if (state == "starting")
 		{
 			if (actx.state == "running" && cur.buf != null) { if (startBeat == 0 && introOn) { introOn = false; state = "levelIntro"; introAt = now; player = null; hazards = new List<Hz>(); particles = new List<Particle>(); } else beginRun(startBeat); }
@@ -177,17 +183,20 @@ public static partial class G
 		else if (state == "paused" && pr.on) prPauseInput(inp);
 		else if (state == "paused")
 		{
-			int pn = PAUSE.Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
+			int pn = pauseList().Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
 			if (inp.pz || inp.back) resume();
 			else if (inp.confirm)
 			{
 				if (pauseSel == 0) resume(); else if (pauseSel == 1) { stopMusic(); if (checkpoint > 0) deaths++; requestStart(checkpoint); } else if (pauseSel == 2) { stopMusic(); requestStart(0); }   // 1: back to the last save = a death (his words 10:27 10-21); no save yet = a fresh start
-				else if (pauseSel == 3) { state = "pauseSet"; setSel = 0; } else { stopMusic(); player = null; hazards = new List<Hz>(); state = fromList; actx.resume(); }
+				else if (pauseSel == 3) { state = "pauseSet"; setSel = 0; }
+				else if (pn > 5 && pauseSel == 4) myRpSave(rec, "mid", null);   // v46: save the run so far on the PC
+				else if (pn > 5 && pauseSel == 5) openMyRp("paused");
+				else { stopMusic(); player = null; hazards = new List<Hz>(); state = fromList; actx.resume(); }
 			}
 		}
-		else if (state == "dead" && pr.on) { if (now - deadAt > 700 && inp.confirm) prGo(); else if (inp.back) prToMenu(); }
-		else if (state == "dead") { if (now - deadAt > 700 && inp.confirm) requestStart(checkpoint); else if (now - deadAt > 700 && inp.restart) requestStart(0); else if (inp.back) toMenu(); }
-		else if (state == "win") { if (now - winAt > 800 && inp.confirm) { stopMusic(); requestStart(0); } else if (inp.back) { stopMusic(); player = null; hazards = new List<Hz>(); state = fromList; } }
+		else if (state == "dead" && pr.on) { myRpDeadKey(inp); if (now - deadAt > 700 && inp.confirm) prGo(); else if (inp.back) prToMenu(); }
+		else if (state == "dead") { myRpDeadKey(inp); if (now - deadAt > 700 && inp.confirm) requestStart(checkpoint); else if (now - deadAt > 700 && inp.restart) requestStart(0); else if (inp.back) toMenu(); }
+		else if (state == "win") { myRpWinKey(inp); if (now - winAt > 800 && inp.confirm) { stopMusic(); requestStart(0); } else if (inp.back) { stopMusic(); player = null; hazards = new List<Hz>(); state = fromList; } }
 		pvUpdate(now);
 		if (pv.src != null || pv.had) { if (menuSrc != null) stopMenu(); }
 		else if (MENU_MUSIC.Contains(state)) { if (menuSrc == null && menuBuf != null && actx.state == "running") playMenu(MENU_DROP); }

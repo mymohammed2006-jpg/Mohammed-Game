@@ -47,7 +47,7 @@ public static partial class G
 		hitsTotal = 0; deaths = 0;
 		for (int y = 0; y < pl.h; y++) for (int x = 0; x < pl.w; x++) if (pl.m[y][x] == 'S') { pl.cx = x * PT + PT / 2; pl.cy = (y + 1) * PT - P_HALF; }
 		player = new Player { x = pl.cx, y = pl.cy, r = 5, hp = P_HP, inv = 1.0, fx = 1, fy = 0, ddx = 1, ddy = 0, ang = 0 };
-		particles = new List<Particle>(); hazards = new List<Hz>();
+		particles = new List<Particle>(); hazards = new List<Hz>(); plRecStart();
 		stopMenu(); ensureAudio();
 		if (intro) { state = "pltIntro"; pl.introAt = performance.now(); pl.t = -0.12; songT = pl.t; return; }
 		plGo();
@@ -73,6 +73,7 @@ public static partial class G
 		pl.down = pl.atGate = false;
 		player = new Player { x = pl.cx, y = pl.cy, r = 5, hp = P_HP, inv = 1.5, fx = 1, fy = 0, ddx = 1, ddy = 0, ang = 0 };
 		pl.vx = pl.vy = 0; pl.canDash = true; pl.dashQ = pl.jumpQ = false; state = "pltPlay";
+		plRecSeg();   // v46: the replay's next part
 	}
 
 	// ---------- one fixed step ----------
@@ -145,7 +146,7 @@ public static partial class G
 			if (c >= '1' && c <= '9' && !pl.got.Contains(k)) plTake(k, c, tx, ty);
 			else if (c == 'C' && (pl.cx != tx * PT + PT / 2 || pl.cy != (ty + 1) * PT - P_HALF))
 			{
-				pl.cx = tx * PT + PT / 2; pl.cy = (ty + 1) * PT - P_HALF; pl.hasCp = true; cpMsg = 1.8;
+				pl.cx = tx * PT + PT / 2; pl.cy = (ty + 1) * PT - P_HALF; pl.hasCp = true; cpMsg = 1.8; plRecEv(1, tx, ty);
 				if (online && net.coop) netTell(new System.Text.Json.Nodes.JsonObject { ["k"] = "cp", ["x"] = tx, ["y"] = ty });
 				sfx(tt => { sTone(tt, 659, 0.25, "square", 0.06); sTone(tt + 0.08, 880, 0.3, "square", 0.06); });
 			}
@@ -164,7 +165,7 @@ public static partial class G
 	static bool plOpen() => pl.got.Count >= plPieces();
 	static void plTake(string k, char c, int tx, int ty, bool fromOther = false)
 	{
-		pl.got.Add(k);
+		pl.got.Add(k); plRecEv(0, tx, ty);
 		if (!fromOther && online && net.coop) netTell(new System.Text.Json.Nodes.JsonObject { ["k"] = "pc", ["x"] = tx, ["y"] = ty }); double x = tx * PT + PT / 2, y = ty * PT + PT / 2;
 		burst(x, y, GOLD, 30, 380); flash = 0.15; shake = 6; rumble(120, 0.4, 0.5);
 		sfx(tt => { sTone(tt, 784, 0.12, "triangle", 0.12); sTone(tt + 0.07, 1047, 0.12, "triangle", 0.12); sTone(tt + 0.14, 1568, 0.25, "triangle", 0.1); });
@@ -214,12 +215,25 @@ public static partial class G
 		lastRank = deaths >= 3 ? "C" : deaths == 2 ? "B" : deaths == 1 ? "A" : "S"; lastEz = false;
 		// the letter counts like the main mode's: points, XP and the online board (a better letter only)
 		var lv = pl.L.lv; double p0 = ptsOf(false); xpMark();
-		int rb = lv.best != null ? Array.IndexOf(RANKS, lv.best) : 99;
-		if (Array.IndexOf(RANKS, lastRank) < rb) { lv.best = lastRank; localStorage.setItem("mg_best_" + lv.name, lastRank); markDirty(); }
-		else if (acc != null && !acc.dirty) sync();
+		plSaveBest(lv, lastRank, pl.t);
 		lastGain = ptsOf(false) - p0; awardXp();
 		state = "pltWin"; pl.winAt = performance.now(); winSlam = pl.winAt + 300; winHit = false;
 		burst(player.x, player.y, CYAN, 40, 450);
+	}
+
+	// the finish time (his ask 20:36 10-22): the board goes by the letter first, then the time. The time kept is the fastest one with
+	// the best letter: a better letter takes its own time, the same letter faster takes the new time, a worse letter changes nothing.
+	public static double lastT = -1; public static bool lastNewT;   // this finish's time, and whether it is a new best time
+	public static double tRound(double t) => Math.Floor(Math.Max(0, t) * 100 + 1e-6) / 100;   // to the hundredth, like it shows
+	public static string tFmt(double t) { long cs = (long)Math.Round(tRound(t) * 100); long m = cs / 6000, s = cs / 100 % 60, c = cs % 100; return $"{ar(m)}:{(s < 10 ? "٠" : "")}{ar(s)}٫{(c < 10 ? "٠" : "")}{ar(c)}"; }   // the Arabic decimal mark: a dot looks like the Arabic zero
+	public static void setBestT(Level lv, double t) { lv.bestT = t; if (t >= 0) localStorage.setItem("mg_bestt_" + lv.name, t.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)); else localStorage.removeItem("mg_bestt_" + lv.name); }
+	static void plSaveBest(Level lv, string rank, double t)
+	{
+		t = tRound(t); lastT = t; lastNewT = false;
+		int rb = lv.best != null ? Array.IndexOf(RANKS, lv.best) : 99, r = Array.IndexOf(RANKS, rank);
+		if (r < rb) { lv.best = rank; localStorage.setItem("mg_best_" + lv.name, rank); setBestT(lv, t); lastNewT = true; markDirty(); }
+		else if (r == rb && (lv.bestT < 0 || t < lv.bestT)) { setBestT(lv, t); lastNewT = true; markDirty(); }
+		else if (acc != null && !acc.dirty) sync();
 	}
 
 	// ---------- step ----------
@@ -238,6 +252,7 @@ public static partial class G
 			if (inp.left && plSel < n - 1) plSel++; if (inp.right && plSel > 0) plSel--;
 			if (inp.confirm && n > 0 && PLATS[plSel].coop) { if (acc == null) netNote("سجّل دخول من الحساب بالقائمة عشان تلعب أونلاين"); else { state = "pltOn"; onSel = 0; } }   // co-op: two players only
 			else if (inp.confirm && n > 0) plStart(PLATS[plSel], true);
+			else if (inp.restart && n > 0 && !PLATS[plSel].coop && PLATS[plSel].lv.best == null) netNote(VS_LOCK);   // versus opens after finishing the level alone (his words 20:40 10-22)
 			else if (inp.restart && n > 0) { if (acc == null) netNote("سجّل دخول من الحساب بالقائمة عشان تلعب أونلاين"); else { state = "pltOn"; onSel = 0; } }
 			else if (inp.back || inp.pz) state = "modes";
 		}
@@ -258,24 +273,27 @@ public static partial class G
 			while (state == "pltPlay" && -0.12 + (pl.n + 1) * STEP <= target + 1e-9)
 			{
 				pl.n++; k++; bool nw = -0.12 + (pl.n + 1) * STEP > target + 1e-9;
-				pl.t = -0.12 + (pl.n - 1) * STEP; plStep(STEP, nw ? inp.x : pl.inX, nw ? inp.y : 0, nw);
+				pl.t = -0.12 + (pl.n - 1) * STEP; plStep(STEP, nw ? inp.x : pl.inX, nw ? inp.y : 0, nw); plRecSample();
 			}
 			if (k > 0) pl.inX = inp.x;
 			pl.msgT -= dt;
 		}
 		else if (state == "pltPause" && online)
 		{
-			int pn = PL_PAUSE_ON.Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
+			int pn = PL_PAUSE_ON46.Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
 			if (inp.pz || inp.back || (inp.confirm && pauseSel == 0)) state = "pltPlay";
 			else if (inp.confirm && pauseSel == 1) { if (!pl.down) deaths++; plRespawn(); }   // a death (his words 10:27 10-21); co-op down already counted it
 			else if (inp.confirm && pauseSel == 2) { state = "pltSet"; setSel = 0; }
+			else if (inp.confirm && pauseSel == 3) plRpSave("mid", null);   // v46
 			else if (inp.confirm) netEnd(null, true);
 		}
 		else if (state == "pltPause")
 		{
-			int pn = PL_PAUSE.Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
+			int pn = PL_PAUSE46.Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
 			if (inp.pz || inp.back || (inp.confirm && pauseSel == 0)) { state = "pltPlay"; actx.resume(); }
 			else if (inp.confirm && pauseSel == 3) { state = "pltSet"; setSel = 0; }
+			else if (inp.confirm && pauseSel == 4) plRpSave("mid", null);   // v46: the replay on the PC
+			else if (inp.confirm && pauseSel == 5) openMyRp("pltPause");
 			else if (inp.confirm)
 			{
 				actx.resume();
@@ -284,17 +302,20 @@ public static partial class G
 		}
 		else if (state == "pltDead" && online)
 		{
+			plRpKey(inp, pl.deadAt, "dead", null);
 			if (now - pl.deadAt > 700 && inp.confirm) plRespawn();
 			else if (inp.back) netEnd(null, true);
 		}
 		else if (state == "pltDead")
 		{
+			plRpKey(inp, pl.deadAt, "dead", null);
 			if (now - pl.deadAt > 700 && inp.confirm) plRespawn();
 			else if (now - pl.deadAt > 700 && inp.restart) { plStopMusic(); plStart(pl.L); }
 			else if (inp.back) plExit();
 		}
 		else if (state == "pltWin")
 		{
+			plRpKey(inp, pl.winAt, "win", lastRank);
 			if (now - pl.winAt > 800 && inp.confirm) { plStopMusic(); plStart(pl.L); }
 			else if (inp.back) plExit();
 		}
@@ -302,4 +323,5 @@ public static partial class G
 		return true;
 	}
 	static readonly string[] PL_PAUSE = { "أكمل اللعب", "إعادة من آخر حفظ", "إعادة من البداية", "الإعدادات", "الخروج من المرحلة" };
+	static readonly string[] PL_PAUSE46 = { "أكمل اللعب", "إعادة من آخر حفظ", "إعادة من البداية", "الإعدادات", "احفظ الريبلاي", "ريبلاياتي", "الخروج من المرحلة" };   // v46: the replay items
 }

@@ -71,6 +71,7 @@ public static partial class G
 					L.lv = new Level { id = L.id, name = "البلاتفورم - " + L.name, song = L.song, plat = true };
 					var b = localStorage.getItem("mg_best_" + L.lv.name) ?? localStorage.getItem("mg_plbest_" + L.id);   // mg_plbest_ = the first test builds
 					if (RANKS.Contains(b)) { L.lv.best = b; localStorage.setItem("mg_best_" + L.lv.name, b); }
+					if (L.lv.best != null && double.TryParse(localStorage.getItem("mg_bestt_" + L.lv.name), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double bt) && bt >= 0) L.lv.bestT = bt;
 					_plats.Add(L);
 				}
 				catch (Exception e) { GD.PushWarning("plat " + id + ": " + e.Message); }
