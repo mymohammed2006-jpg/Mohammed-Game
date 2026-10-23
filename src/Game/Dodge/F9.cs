@@ -77,7 +77,7 @@ public static partial class G
 		g.save(); g.translate(cx, cy); g.scale(dir, 1);
 		g.fillStyle = col; g.beginPath(); g.moveTo(-w / 2, h * 0.1); g.lineTo(-w / 2, h / 2); g.lineTo(w / 2, h / 2); g.lineTo(w / 2, h * 0.05); g.lineTo(w * 0.28, -h * 0.1); g.lineTo(w * 0.12, -h / 2); g.lineTo(-w * 0.3, -h / 2); g.lineTo(-w * 0.42, -h * 0.05); g.closePath(); g.fill();
 		g.fillStyle = "rgba(20,10,30,0.55)"; g.fillRect(-w * 0.26, -h * 0.4, w * 0.16, h * 0.32); g.fillRect(-w * 0.06, -h * 0.4, w * 0.16, h * 0.32);
-		g.fillStyle = "#14111c"; circle(-w * 0.3, h / 2, h * 0.22); circle(w * 0.3, h / 2, h * 0.22);
+		g.fillStyle = "#7a0f33"; circle(-w * 0.3, h / 2, h * 0.22); circle(w * 0.3, h / 2, h * 0.22);   // dark pink: the box hurts there too
 		g.fillStyle = "#fff3c8"; g.fillRect(w / 2 - 6, h * 0.08, 6, h * 0.2);
 		g.restore();
 	}
@@ -173,6 +173,7 @@ public static partial class G
 				else if (t >= ta - wn && t < ta) wk = Math.Max(wk, F9k(t, ta - wn, ta));
 				else if (t >= ta + on && t < ta + on + 0.2) fade = Math.Max(fade, 1 - (t - ta - on) / 0.2);
 			}
+			F9LampPost(x, F9LY, act ? 1 : 0.35 + 0.5 * wk);   // the post first: its light (pink when it hurts) goes over it
 			if (act || wk > 0 || fade > 0)
 			{
 				bool fl = false; foreach (var ta in tas) if (t >= ta && t < ta + 0.05) fl = true;
@@ -180,7 +181,6 @@ public static partial class G
 				g.beginPath(); g.moveTo(x - F9ConeW(F9LY, sc), F9LY); g.lineTo(x + F9ConeW(F9LY, sc), F9LY); g.lineTo(x + F9ConeW(H, sc), H); g.lineTo(x - F9ConeW(H, sc), H); g.closePath(); g.fill();
 				if (!act && wk > 0) { g.strokeStyle = F9G(0.3 + 0.4 * wk); g.lineWidth = 2; g.setLineDash(new double[] { 9, 8 }); g.stroke(); g.setLineDash(new double[0]); }
 			}
-			F9LampPost(x, F9LY, act ? 1 : 0.35 + 0.5 * wk);
 			if (act) { g.fillStyle = PINK; circle(x, F9LY - 6, 9); }
 			g.restore();
 		};
@@ -204,18 +204,6 @@ public static partial class G
 		{
 			double a = Math.Min(F9k(t, tIn, tIn + 0.7), 1 - F9k(t, te, te + 0.5)); if (a <= 0) return; double bt = BT(t), s = scr(bt);
 			g.save(); g.globalAlpha = a;
-			g.fillStyle = "#0b0c16"; g.fillRect(0, 0, W, H);
-			int r0 = (int)Math.Floor((s - 20) / F9FPY) - 1, r1 = r0 + (int)(H / F9FPY) + 3;
-			for (int r = r0; r <= r1; r++)
-			{
-				double y = r * F9FPY + 20 - s; g.fillStyle = "rgba(255,255,255,0.03)"; g.fillRect(0, y + F9FH + 16, W, 4);
-				for (int c = 0; c < 9; c++)
-				{
-					double x = F9FX0 + c * F9FPX, q = F9h(r * 9 + c + 5000);
-					g.fillStyle = q > 0.55 ? F9Y(0.07 + 0.08 * q) : "rgba(20,22,38,1)"; g.fillRect(x, y, F9FW, F9FH);
-					g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(x + F9FW / 2 - 1, y, 2, F9FH);
-				}
-			}
 			for (int j = 0; j < n; j++)
 			{
 				double t0 = tb[j]; if (bt < t0 - wn || bt > t0 + on + 0.3) continue;
@@ -229,7 +217,7 @@ public static partial class G
 				}
 				else
 				{
-					double f = bt < t0 + on ? 1 : 1 - (bt - t0 - on) / 0.3; g.fillStyle = F9P(0.45 * f); g.fillRect(x - F9SP, y - F9SP, F9FW + 2 * F9SP, F9FH + 2 * F9SP);
+					double f = bt < t0 + on ? 1 : 1 - (bt - t0 - on) / 0.3; g.fillStyle = F9P(0.7 * f); g.fillRect(x - F9SP, y - F9SP, F9FW + 2 * F9SP, F9FH + 2 * F9SP);   // the light around it hurts too: clearly pink
 					g.fillStyle = bt < t0 + 0.07 ? "#fff" : F9P(0.95 * f); g.fillRect(x, y, F9FW, F9FH);
 					g.fillStyle = $"rgba(70,0,22,{str(0.6 * f)})"; circle(x + F9FW / 2, y + 26, 11); g.fillRect(x + F9FW / 2 - 15, y + 38, 30, F9FH - 38);
 				}
@@ -246,6 +234,32 @@ public static partial class G
 				if (F9Rect(p, F9FX0 + c * F9FPX - F9SP, r * F9FPY + 20 - s - F9SP, F9FW + 2 * F9SP, F9FH + 2 * F9SP)) return true;
 			}
 			return false;
+		};
+		return h;
+	}
+
+	// the tower's wall behind the windows (harmless, a place): rises with the camera like F9Facade
+	public static Hz F9FacadeWall(double b0, double v, double tIn, double te)
+	{
+		var h = new Hz { kind = "F9FacadeWall" };
+		h.update = (t, dt) => { if (t > te + 0.5) h.dead = true; };
+		h.draw = t =>
+		{
+			double a = Math.Min(F9k(t, tIn, tIn + 0.7), 1 - F9k(t, te, te + 0.5)); if (a <= 0) return; double s = Math.Max(0, BT(t) - b0) * v;
+			g.save(); g.globalAlpha = a;
+			g.fillStyle = "#0b0c16"; g.fillRect(0, 0, W, H);
+			int r0 = (int)Math.Floor((s - 20) / F9FPY) - 1, r1 = r0 + (int)(H / F9FPY) + 3;
+			for (int r = r0; r <= r1; r++)
+			{
+				double y = r * F9FPY + 20 - s; g.fillStyle = "rgba(255,255,255,0.03)"; g.fillRect(0, y + F9FH + 16, W, 4);
+				for (int c = 0; c < 9; c++)
+				{
+					double x = F9FX0 + c * F9FPX, q = F9h(r * 9 + c + 5000);
+					g.fillStyle = q > 0.55 ? F9Y(0.07 + 0.08 * q) : "rgba(20,22,38,1)"; g.fillRect(x, y, F9FW, F9FH);
+					g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(x + F9FW / 2 - 1, y, 2, F9FH);
+				}
+			}
+			g.restore();
 		};
 		return h;
 	}
@@ -316,6 +330,7 @@ public static partial class G
 			g.fillStyle = gr; g.beginPath(); g.moveTo(fx, cy - 6); g.lineTo(fx + dir * bl, cy - (on ? 40 : 30)); g.lineTo(fx + dir * bl, cy + (on ? 40 : 30)); g.lineTo(fx, cy + 12); g.closePath(); g.fill();
 			// the high beam coming: a dashed outline a beat before
 			foreach (var b in hb) if (t >= b - SPB && t < b) { double k = F9k(t, b - SPB, b); g.strokeStyle = F9G(0.3 + 0.5 * k); g.lineWidth = 2; g.setLineDash(new double[] { 8, 7 }); g.beginPath(); g.moveTo(fx, cy - 6); g.lineTo(fx + dir * len, cy - 40); g.lineTo(fx + dir * len, cy + 40); g.lineTo(fx, cy + 12); g.closePath(); g.stroke(); g.setLineDash(new double[0]); }
+			if (t >= ta) { g.fillStyle = F9P(0.45); g.fillRect(x - cw / 2, cy - ch / 2, cw, ch); }   // all of the box that hurts is pink, not only the car
 			F9CarDraw(x, cy, dir, cw, ch, PINK);
 		};
 		h.hit = (p, t) =>
@@ -358,10 +373,6 @@ public static partial class G
 					for (int k = 0; k + 1 < gaps.Length; k += 2) { double cx = xs[i] + d.dx * (gaps[k] + gaps[k + 1]) / 2, cy = BY + d.dy * (gaps[k] + gaps[k + 1]) / 2; g.fillStyle = F9Y(0.35); circle(cx, cy, 10); g.fillStyle = gr; }
 				}
 				else { F9Dash(xs[i] + nx, BY + ny, ex + nx, ey + ny, F9G(0.5)); F9Dash(xs[i] - nx, BY - ny, ex - nx, ey - ny, F9G(0.5)); }
-				// the tower itself (harmless)
-				double tw2 = 76, ty = H - ths[i]; g.fillStyle = "#151726"; g.fillRect(xs[i] - tw2 / 2, ty, tw2, ths[i]); g.fillRect(xs[i] - 4, ty - 50, 8, 50);
-				g.strokeStyle = "rgba(255,198,96,0.35)"; g.lineWidth = 2; g.strokeRect(xs[i] - tw2 / 2, ty, tw2, ths[i]);
-				for (double yy = H - ths[i] + 12; yy < H - 12; yy += 20) for (int c = 0; c < 3; c++) if (F9h((int)yy * 3 + c + i * 31) > 0.35) { g.fillStyle = F9Y(0.55); g.fillRect(xs[i] - 24 + c * 18, yy, 10, 11); }
 			}
 			// the light far below: a glow on the street
 			double la = F9Lin(kb, ka, bt) * Math.PI / 180, lx = W / 2 - JS.cos(la) / Math.Max(0.15, JS.sin(la)) * 260; var lg = g.createRadialGradient(lx, H, 4, lx, H, 140); lg.addColorStop(0, F9Y(0.7)); lg.addColorStop(1, F9Y(0)); g.fillStyle = lg; g.fillRect(lx - 140, H - 140, 280, 140);
@@ -382,6 +393,25 @@ public static partial class G
 		return h;
 	}
 
+	// the towers that throw the shadows (harmless, a place): drawn with F9Shadows' fade
+	public static Hz F9ShadowTowers(double[] xs, double[] ths, double tw, double te)
+	{
+		var h = new Hz { kind = "F9ShadowTowers" }; int n = xs.Length;
+		h.update = (t, dt) => { if (t > te + 0.5) h.dead = true; };
+		h.draw = t =>
+		{
+			double a = Math.Min(F9k(t, tw - 0.4, tw), 1 - F9k(t, te, te + 0.4)); if (a <= 0) return; g.save(); g.globalAlpha = a;
+			for (int i = 0; i < n; i++)
+			{
+				double tw2 = 76, ty = H - ths[i]; g.fillStyle = "#151726"; g.fillRect(xs[i] - tw2 / 2, ty, tw2, ths[i]); g.fillRect(xs[i] - 4, ty - 50, 8, 50);
+				g.strokeStyle = "rgba(255,198,96,0.35)"; g.lineWidth = 2; g.strokeRect(xs[i] - tw2 / 2, ty, tw2, ths[i]);
+				for (double yy = H - ths[i] + 12; yy < H - 12; yy += 20) for (int c = 0; c < 3; c++) if (F9h((int)yy * 3 + c + i * 31) > 0.35) { g.fillStyle = F9Y(0.55); g.fillRect(xs[i] - 24 + c * 18, yy, 10, 11); }
+			}
+			g.restore();
+		};
+		return h;
+	}
+
 	// a tower falls: base at (x, floor), it tips over toward dir (on its corner on that side) from tf and lies flat from ta, pink, hold s.
 	// len tall, w wide. Grey path from tw
 	public static Hz F9Topple(double x, int dir, double len, double w, double tw, double tf, double ta, double hold)
@@ -398,7 +428,7 @@ public static partial class G
 				double bx = x + dir * w / 2; g.arc(bx, BY, len, -Math.PI / 2, dir > 0 ? 0 : -Math.PI, dir < 0); g.stroke();
 				g.strokeRect(dir > 0 ? bx : bx - len, BY - w, len, w); g.setLineDash(new double[0]);
 			}
-			double an = ang(t); bool act = t >= tf;
+			double an = ang(t); bool act = t >= tf; if (!act) { g.restore(); return; }   // standing: F9ToppleStand draws it
 			g.save(); g.translate(x + dir * w / 2, BY); g.rotate(an + Math.PI / 2);
 			// local: the tower goes up from (0,0) to (0,-len), w wide away from dir (the corner it turns on is the origin)
 			double lx = dir > 0 ? -w : 0;
@@ -413,6 +443,22 @@ public static partial class G
 			// player in the tower's own frame
 			double dx = p.x - bx, dy = p.y - BY, c = JS.cos(-an), s = JS.sin(-an), lx = dx * c - dy * s, ly = dx * s + dy * c, x0 = dir > 0 ? -w : 0;
 			double cx = clamp(lx, x0, x0 + w), cy = clamp(ly, -len, 0); return hypot(lx - cx, ly - cy) < p.r - 2;
+		};
+		return h;
+	}
+
+	// the tower before it falls (harmless, a place): F9Topple's tower standing till tf
+	public static Hz F9ToppleStand(double x, int dir, double len, double w, double tw, double tf)   // x: as F9Topple's
+	{
+		var h = new Hz { kind = "F9ToppleStand" }; const double BY = H;
+		h.update = (t, dt) => { if (t >= tf) h.dead = true; };
+		h.draw = t =>
+		{
+			if (t < tw - 0.5 || t >= tf) return; g.save(); g.globalAlpha = F9k(t, tw - 0.5, tw);
+			double bx = x + dir * w / 2, lx = dir > 0 ? bx - w : bx; g.fillStyle = "#151726"; g.fillRect(lx, BY - len, w, len);
+			g.strokeStyle = "rgba(255,198,96,0.4)"; g.lineWidth = 2; g.strokeRect(lx, BY - len, w, len);
+			for (double yy = -len + 16; yy < -14; yy += 24) for (int c = 0; c < 3; c++) if (F9h((int)yy * 5 + c + (int)x) > 0.35) { g.fillStyle = F9Y(0.6); g.fillRect(lx + 12 + c * (w - 24) / 3, BY + yy, 14, 12); }
+			g.restore();
 		};
 		return h;
 	}
@@ -433,7 +479,7 @@ public static partial class G
 		h.update = (t, dt) => { if (t > ta + dur * 0.16 + 0.1) h.dead = true; };
 		h.draw = t =>
 		{
-			if (t < t0) return; var w = at(t); double a = up ? 1 : clamp((t - t0) / (dur * 0.25), 0.25, 1);
+			if (t < t0) return; var w = at(t); double a = up ? 1 : clamp((t - t0) / (dur * 0.25), 0.7, 1);
 			g.fillStyle = F9P(0.85 * a);
 			g.fillRect(0, w.y - w.th / 2, Math.Max(0, w.cx - w.hw), w.th); g.fillRect(w.cx + w.hw, w.y - w.th / 2, W - w.cx - w.hw, w.th);
 			// foam on top
@@ -465,7 +511,7 @@ public static partial class G
 				if (drop) { double dy = y - (y + 40) * (1 - k * k); g.fillStyle = "rgba(220,236,255,0.9)"; g.beginPath(); g.moveTo(x, dy - 18); g.quadraticCurveTo(x + 9, dy - 2, x, dy + 6); g.quadraticCurveTo(x - 9, dy - 2, x, dy - 18); g.fill(); }
 				return;
 			}
-			double R = (t - ta) * sp, f = 1 - F9k(R, rmax * 0.75, rmax); if (f <= 0) return;
+			double R = Math.Min((t - ta) * sp, rmax), f = 1 - F9k(t, te, te + 0.15); if (f <= 0) return;   // full pink while it hurts (till te)
 			g.strokeStyle = t < ta + 0.05 ? "#fff" : F9P(0.9 * f); g.lineWidth = th; g.beginPath(); g.arc(x, y, Math.Max(1, R), ga + gw / 2, ga - gw / 2 + TAU); g.stroke();
 		};
 		h.hit = (p, t) =>
@@ -479,6 +525,24 @@ public static partial class G
 	}
 
 	// the lighthouse on its rock at (x, y): n beams (hw radians half wide) turning on the angle plan ka (degrees) at beats kb. Grey from tw, pink ta..te
+	// the lighthouse (harmless, a place): white and red stripes, a lamp on top (pink while its beams hurt)
+	public static Hz F9LightHouse(double x, double y, double tw, double ta, double te)
+	{
+		var h = new Hz { kind = "F9LightHouse" };
+		h.update = (t, dt) => { if (t > te + 0.6) h.dead = true; };
+		h.draw = t =>
+		{
+			double a = Math.Min(F9k(t, tw - 0.6, tw), 1 - F9k(t, te, te + 0.6)); if (a <= 0) return; bool act = t >= ta && t < te;
+			g.save(); g.globalAlpha = a;
+			g.fillStyle = "#1a1418"; g.beginPath(); g.ellipse(x, y + 70, 120, 40, 0, 0, TAU); g.fill();
+			g.fillStyle = "#e8e2d6"; g.beginPath(); g.moveTo(x - 30, y + 60); g.lineTo(x - 18, y - 30); g.lineTo(x + 18, y - 30); g.lineTo(x + 30, y + 60); g.closePath(); g.fill();
+			g.fillStyle = "#7a3a3a"; g.fillRect(x - 27, y + 20, 54, 14); g.fillRect(x - 22, y - 10, 44, 12);
+			g.fillStyle = act ? PINK : F9Y(0.9); circle(x, y - 40, 14); g.fillStyle = "#2a2228"; g.fillRect(x - 20, y - 58, 40, 6);
+			g.restore();
+		};
+		return h;
+	}
+
 	public static Hz F9Light(double x, double y, int n, double hw, double[] kb, double[] ka, double tw, double ta, double te)
 	{
 		var h = new Hz { kind = "F9Light" }; const double R0 = 46, LEN = 1700;
@@ -494,12 +558,7 @@ public static partial class G
 				if (act) { g.fillStyle = F9P(0.8); g.beginPath(); g.moveTo(x + JS.cos(an - hw) * R0, y + JS.sin(an - hw) * R0); g.lineTo(x + JS.cos(an - hw) * LEN, y + JS.sin(an - hw) * LEN); g.lineTo(x + JS.cos(an + hw) * LEN, y + JS.sin(an + hw) * LEN); g.lineTo(x + JS.cos(an + hw) * R0, y + JS.sin(an + hw) * R0); g.closePath(); g.fill(); }
 				else { F9Dash(x + JS.cos(an - hw) * R0, y + JS.sin(an - hw) * R0, x + JS.cos(an - hw) * LEN, y + JS.sin(an - hw) * LEN, F9G(0.5)); F9Dash(x + JS.cos(an + hw) * R0, y + JS.sin(an + hw) * R0, x + JS.cos(an + hw) * LEN, y + JS.sin(an + hw) * LEN, F9G(0.5)); }
 			}
-			// the lighthouse (harmless): white and red stripes, a lamp on top
-			g.fillStyle = "#1a1418"; g.beginPath(); g.ellipse(x, y + 70, 120, 40, 0, 0, TAU); g.fill();
-			g.fillStyle = "#e8e2d6"; g.beginPath(); g.moveTo(x - 30, y + 60); g.lineTo(x - 18, y - 30); g.lineTo(x + 18, y - 30); g.lineTo(x + 30, y + 60); g.closePath(); g.fill();
-			g.fillStyle = "#7a3a3a"; g.fillRect(x - 27, y + 20, 54, 14); g.fillRect(x - 22, y - 10, 44, 12);
-			g.fillStyle = act ? PINK : F9Y(0.9); circle(x, y - 40, 14); g.fillStyle = "#2a2228"; g.fillRect(x - 20, y - 58, 40, 6);
-			g.restore();
+			g.restore();   // the lighthouse itself: F9LightHouse (a place)
 		};
 		h.hit = (p, t) =>
 		{
@@ -565,12 +624,8 @@ public static partial class G
 			// outside: the earth, pink when it kills
 			g.fillStyle = act ? F9P(0.42) : F9G(0.08); g.beginPath(); g.rect(0, 0, W, H);
 			var p0 = F9ToScreen(F9CX[0], F9CY[0], an); g.moveTo(p0.x, p0.y); for (int i = n - 1; i >= 1; i--) { var q = F9ToScreen(F9CX[i], F9CY[i], an); g.lineTo(q.x, q.y); } g.closePath(); g.fill();
-			// inside: dark wood
-			g.fillStyle = "rgba(34,22,16,0.92)"; g.beginPath(); for (int i = 0; i < n; i++) { var q = F9ToScreen(F9CX[i], F9CY[i], an); if (i == 0) g.moveTo(q.x, q.y); else g.lineTo(q.x, q.y); } g.closePath(); g.fill();
-			g.strokeStyle = "rgba(70,46,30,0.6)"; g.lineWidth = 2; g.beginPath();
-			for (double ly = -260; ly <= 260; ly += 40) { var l0 = F9ToScreen(-300, ly, an); var l1 = F9ToScreen(540, ly * 0.72, an); g.moveTo(l0.x, l0.y); g.lineTo(l1.x, l1.y); }
-			g.stroke();
-			g.strokeStyle = act ? PINK : F9G(0.6); g.lineWidth = act ? 8 : 3; g.beginPath(); for (int i = 0; i < n; i++) { var q = F9ToScreen(F9CX[i], F9CY[i], an); if (i == 0) g.moveTo(q.x, q.y); else g.lineTo(q.x, q.y); } g.closePath(); g.stroke();
+			// inside: F9CoffinWood (a place, under the skull)
+			g.strokeStyle = act ? PINK : F9G(0.6); g.lineWidth = act ? 12 : 3; g.beginPath(); for (int i = 0; i < n; i++) { var q = F9ToScreen(F9CX[i], F9CY[i], an); if (i == 0) g.moveTo(q.x, q.y); else g.lineTo(q.x, q.y); } g.closePath(); g.stroke();
 			g.restore();
 		};
 		h.hit = (p, t) =>
@@ -583,6 +638,24 @@ public static partial class G
 				md = Math.Min(md, F9Seg(l.x, l.y, F9CX[i], F9CY[i], F9CX[j], F9CY[j]));
 			}
 			return !inside || md < p.r - 2 + 4;
+		};
+		return h;
+	}
+
+	// the coffin's inside (harmless, a place): dark wood, turning with the coffin
+	public static Hz F9CoffinWood(double tw, double te)
+	{
+		var h = new Hz { kind = "F9CoffinWood" }; int n = F9CX.Length;
+		h.update = (t, dt) => { if (t > te + 0.8) h.dead = true; };
+		h.draw = t =>
+		{
+			double a = Math.Min(F9k(t, tw, tw + 0.8), 1 - F9k(t, te, te + 0.8)); if (a <= 0) return; double an = F9CofAng(BT(t));
+			g.save(); g.globalAlpha = a;
+			g.fillStyle = "rgba(34,22,16,0.92)"; g.beginPath(); for (int i = 0; i < n; i++) { var q = F9ToScreen(F9CX[i], F9CY[i], an); if (i == 0) g.moveTo(q.x, q.y); else g.lineTo(q.x, q.y); } g.closePath(); g.fill();
+			g.strokeStyle = "rgba(70,46,30,0.6)"; g.lineWidth = 2; g.beginPath();
+			for (double ly = -260; ly <= 260; ly += 40) { var l0 = F9ToScreen(-300, ly, an); var l1 = F9ToScreen(540, ly * 0.72, an); g.moveTo(l0.x, l0.y); g.lineTo(l1.x, l1.y); }
+			g.stroke();
+			g.restore();
 		};
 		return h;
 	}
@@ -610,7 +683,7 @@ public static partial class G
 		return h;
 	}
 
-	// the lid comes down: pink from the top of the screen down to y (ky at beats kb). Grey line from tw
+	// the lid comes down: pink wood from the top of the screen down to y (ky at beats kb). Grey line from tw
 	public static Hz F9Lid(double[] kb, double[] ky, double tw, double ta, double te)
 	{
 		var h = new Hz { kind = "F9Lid" };
@@ -620,7 +693,7 @@ public static partial class G
 			if (t < tw) return; double bt = BT(t), y = F9Lerp(kb, ky, bt), f = 1 - F9k(t, te, te + 0.5);
 			if (t < ta) { F9Dash(0, F9Lerp(kb, ky, BT(ta)), W, F9Lerp(kb, ky, BT(ta)), F9G(0.6)); return; }
 			if (t >= te) y = y * f;
-			g.fillStyle = "rgba(46,30,22,1)"; g.fillRect(0, 0, W, y); g.strokeStyle = "rgba(80,54,36,0.8)"; g.lineWidth = 2; g.beginPath(); for (double yy = y - 30; yy > 0; yy -= 30) { g.moveTo(0, yy); g.lineTo(W, yy); } g.stroke();
+			g.fillStyle = F9P(0.55 * f); g.fillRect(0, 0, W, y); g.strokeStyle = $"rgba(120,10,45,{str(0.6 * f)})"; g.lineWidth = 2; g.beginPath(); for (double yy = y - 30; yy > 0; yy -= 30) { g.moveTo(0, yy); g.lineTo(W, yy); } g.stroke();
 			g.fillStyle = F9P(0.9 * f); g.fillRect(0, y - 12, W, 12);
 		};
 		h.hit = (p, t) => t >= ta && t < te && p.y - p.r + 2 < F9Lerp(kb, ky, BT(t));
@@ -739,100 +812,130 @@ public static partial class G
 	}
 
 	// ---------- the kinds (the events in data/dodge_F9.json) ----------
+	// Only pink hurts, so nothing may hide an attack: the places (sky, sea, the tower's wall, the roads, the coffin, the skull) are drawn
+	// first, in the order they came, under every attack, whenever they came (the coffin: only its wood inside). The list keeps its order (ids, Easy cuts): the first
+	// thing in it draws the places before itself, the places draw nothing on their own turn.
+	// The street lamps go over everything (the tower's lit windows come while they still burn): the last thing in the list draws them after itself.
+	static readonly List<(Hz h, Action<double> d)> F9Places = new(), F9Tops = new();
+	static void F9Under(Hz h) { F9Places.Add((h, h.draw)); h.draw = t => { F9First(h, t); F9Last(h, t); }; hazards.Add(h); }
+	static void F9Add(Hz h) { var d = h.draw; h.draw = t => { F9First(h, t); d(t); F9Last(h, t); }; hazards.Add(h); }
+	static void F9Top(Hz h) { F9Tops.Add((h, h.draw)); h.draw = t => { F9First(h, t); F9Last(h, t); }; hazards.Add(h); }
+	static void F9First(Hz h, double t)
+	{
+		if (hazards.Count == 0 || hazards[0] != h) return;
+		F9Places.RemoveAll(q => !hazards.Contains(q.h));
+		foreach (var q in F9Places) q.d(t);
+	}
+	static void F9Last(Hz h, double t)
+	{
+		if (hazards.Count == 0 || hazards[hazards.Count - 1] != h) return;
+		F9Tops.RemoveAll(q => !hazards.Contains(q.h));
+		foreach (var q in F9Tops) q.d(t);
+	}
 	// times are beats; warnings (wn) are Normal's, Easy stretches them here
 	static double F9wn(DodgeEv e) => e.num("wn") * (easy ? ezV("ezwn", EZ_WN) : 1);
 	static double F9ez(double v, double ez) => easy ? v * ez : v;
 	static bool F9skip(DodgeEv e) => easy && e.flag("ezskip");
 
-	static readonly int _kf9stage = DodgeKind("F9stage", e => () => hazards.Add(F9Stage(e.i("part"), B(e.b), B(e.num("to")))));
-	static readonly int _kf9fx = DodgeKind("F9fx", e => () => hazards.Add(F9Fx(B(e.b), e.num("v", 0.3), e.num("s", 8), Math.Min(2, e.num("dur", 1.2)))));
+	static readonly int _kf9stage = DodgeKind("F9stage", e => () => F9Under(F9Stage(e.i("part"), B(e.b), B(e.num("to")))));
+	static readonly int _kf9fx = DodgeKind("F9fx", e => () => F9Add(F9Fx(B(e.b), e.num("v", 0.3), e.num("s", 8), Math.Min(2, e.num("dur", 1.2)))));
 	static readonly int _kf9lamp = DodgeKind("F9lamp", e => { double wn = F9wn(e); return () =>
 	{
 		if (F9skip(e)) return;
-		hazards.Add(F9Lamp(e.num("x"), e.nums("hb").Select(B).ToArray(), wn * SPB, F9ez(e.num("on"), 0.8) * SPB, B(e.num("t0")), B(e.num("to")), F9ez(1, 0.8)));
+		F9Top(F9Lamp(e.num("x"), e.nums("hb").Select(B).ToArray(), wn * SPB, F9ez(e.num("on"), 0.8) * SPB, B(e.num("t0")), B(e.num("to")), F9ez(1, 0.8)));
 	}; });
 	static readonly int _kf9facade = DodgeKind("F9facade", e => { double wn = F9wn(e); return () =>
-		hazards.Add(F9Facade(e.nums("cells"), e.nums("tb"), F9ez(e.num("on"), 0.8), wn, e.num("b0"), F9ez(e.num("v"), 0.8), B(e.b), B(e.num("to")))); });
+	{
+		F9Add(F9Facade(e.nums("cells"), e.nums("tb"), F9ez(e.num("on"), 0.8), wn, e.num("b0"), F9ez(e.num("v"), 0.8), B(e.b), B(e.num("to"))));
+		F9Under(F9FacadeWall(e.num("b0"), F9ez(e.num("v"), 0.8), B(e.b), B(e.num("to"))));   // after it: the attack keeps its id
+	}; });
 	static readonly int _kf9row = DodgeKind("F9row", e => { double wn = F9wn(e); return () =>
 	{
 		if (F9skip(e)) return;
-		hazards.Add(F9Row(e.num("y"), e.num("ox"), B(e.num("hit") - wn), B(e.num("hit")), F9ez(e.num("on"), 0.8) * SPB));
+		F9Add(F9Row(e.num("y"), e.num("ox"), B(e.num("hit") - wn), B(e.num("hit")), F9ez(e.num("on"), 0.8) * SPB));
 	}; });
-	static readonly int _kf9roads = DodgeKind("F9roads", e => () => hazards.Add(F9Roads(B(e.b), B(e.num("to")))));
+	static readonly int _kf9roads = DodgeKind("F9roads", e => () => F9Under(F9Roads(B(e.b), B(e.num("to")))));
 	static readonly int _kf9car = DodgeKind("F9car", e => { double wn = F9wn(e); return () =>
 	{
 		if (F9skip(e)) return; var hb = easy ? new double[0] : e.nums("hb").Select(B).ToArray();
-		hazards.Add(F9Car(e.i("ln"), e.i("dir", 1), B(e.num("hit") - wn), B(e.num("hit")), F9ez(e.num("sp"), 0.8), hb, e.num("hl", 0.5) * SPB, e.num("len", 230), F9ez(e.num("cw", 120), 0.85)));
+		F9Add(F9Car(e.i("ln"), e.i("dir", 1), B(e.num("hit") - wn), B(e.num("hit")), F9ez(e.num("sp"), 0.8), hb, e.num("hl", 0.5) * SPB, e.num("len", 230), F9ez(e.num("cw", 120), 0.85)));
 	}; });
 	static readonly int _kf9shadows = DodgeKind("F9shadows", e => { double wn = F9wn(e); return () =>
 	{
 		var kb = e.nums("kb"); var ka = e.nums("ka");
 		var gp = e.nums("gaps"); if (easy) gp = gp.Select((v, i) => i % 2 == 0 ? v - 15 : v + 15).ToArray();
-		hazards.Add(F9Shadows(e.nums("xs"), e.nums("th"), kb, ka, F9ez(e.num("bw"), 0.7), gp, B(e.num("hit") - wn), B(e.num("hit")), B(e.num("to"))));
+		F9Add(F9Shadows(e.nums("xs"), e.nums("th"), kb, ka, F9ez(e.num("bw"), 0.7), gp, B(e.num("hit") - wn), B(e.num("hit")), B(e.num("to"))));
+		F9Under(F9ShadowTowers(e.nums("xs"), e.nums("th"), B(e.num("hit") - wn), B(e.num("to"))));   // after it: the attack keeps its id
 	}; });
 	static readonly int _kf9topple = DodgeKind("F9topple", e => { double wn = F9wn(e); return () =>
 	{
 		if (F9skip(e)) return; double hit = e.num("hit"), fl = e.num("fall", 0.6) * (easy ? 1.3 : 1);
-		hazards.Add(F9Topple(e.num("x"), e.i("dir", 1), F9ez(e.num("len"), 0.85), F9ez(e.num("w"), 0.8), B(hit - fl - wn), B(hit - fl), B(hit), F9ez(e.num("hold", 0.5), 0.7) * SPB));
+		F9Add(F9Topple(e.num("x"), e.i("dir", 1), F9ez(e.num("len"), 0.85), F9ez(e.num("w"), 0.8), B(hit - fl - wn), B(hit - fl), B(hit), F9ez(e.num("hold", 0.5), 0.7) * SPB));
+		F9Under(F9ToppleStand(e.num("x"), e.i("dir", 1), F9ez(e.num("len"), 0.85), F9ez(e.num("w"), 0.8), B(hit - fl - wn), B(hit - fl)));   // after it: the attack keeps its id
 	}; });
 	static readonly int _kf9wave = DodgeKind("F9wave", e => () =>
 	{
 		if (F9skip(e)) return;
-		hazards.Add(F9Wave(B(e.num("hit")), e.num("dur") * SPB * (easy ? 1.2 : 1), e.num("gx"), F9ez(e.num("gw"), 1.35), e.flag("up")));
+		F9Add(F9Wave(B(e.num("hit")), e.num("dur") * SPB * (easy ? 1.2 : 1), e.num("gx"), F9ez(e.num("gw"), 1.35), e.flag("up")));
 	});
 	static readonly int _kf9ripple = DodgeKind("F9ripple", e => { double wn = F9wn(e); return () =>
 	{
 		if (F9skip(e)) return;
-		hazards.Add(F9Ripple(e.num("x"), e.num("y"), !e.flag("nodrop"), B(e.num("hit") - wn), B(e.num("hit")), F9ez(e.num("sp"), 0.8) / SPB, F9ez(e.num("th", 12), 0.75),
+		F9Add(F9Ripple(e.num("x"), e.num("y"), !e.flag("nodrop"), B(e.num("hit") - wn), B(e.num("hit")), F9ez(e.num("sp"), 0.8) / SPB, F9ez(e.num("th", 12), 0.75),
 			e.num("ga") * Math.PI / 180, F9ez(e.num("gw"), 1.35) * Math.PI / 180, e.num("rmax", 900)));
 	}; });
 	static readonly int _kf9light = DodgeKind("F9light", e => { double wn = F9wn(e); return () =>
 	{
 		var kb = e.nums("kb"); var ka = e.nums("ka");
 		if (easy) { double a0 = ka[0]; ka = ka.Select(a => a0 + (a - a0) * 0.8).ToArray(); }
-		hazards.Add(F9Light(e.num("x"), e.num("y"), e.i("n", 2), F9ez(e.num("hw"), 0.75) * Math.PI / 180, kb, ka, B(e.num("hit") - wn), B(e.num("hit")), B(e.num("to"))));
+		F9Add(F9Light(e.num("x"), e.num("y"), e.i("n", 2), F9ez(e.num("hw"), 0.75) * Math.PI / 180, kb, ka, B(e.num("hit") - wn), B(e.num("hit")), B(e.num("to"))));
+		F9Under(F9LightHouse(e.num("x"), e.num("y"), B(e.num("hit") - wn), B(e.num("hit")), B(e.num("to"))));   // after it: the attack keeps its id
 	}; });
 	static readonly int _kf9tide = DodgeKind("F9tide", e => { double wn = F9wn(e); return () =>
 	{
 		var ky = e.nums("ky"); if (easy) ky = ky.Select(y => H - (H - y) * 0.75).ToArray();
-		hazards.Add(F9Tide(e.nums("kb"), ky, B(e.num("hit") - wn), B(e.num("hit")), B(e.num("to"))));
+		F9Add(F9Tide(e.nums("kb"), ky, B(e.num("hit") - wn), B(e.num("hit")), B(e.num("to"))));
 	}; });
 	static readonly int _kf9glint = DodgeKind("F9glint", e => () =>
 	{
 		if (F9skip(e)) return;
-		hazards.Add(F9Glint(e.nums("xs"), F9ez(e.num("hw"), 0.8), B(e.num("hit")), F9ez(e.num("sp"), 0.8) / SPB));
+		F9Add(F9Glint(e.nums("xs"), F9ez(e.num("hw"), 0.8), B(e.num("hit")), F9ez(e.num("sp"), 0.8) / SPB));
 	});
 	static readonly int _kf9coffin = DodgeKind("F9coffin", e =>
 	{
 		F9CofB = e.nums("kb"); F9CofA = e.nums("ka"); if (easy) F9CofA = F9CofA.Select(a => a * 0.7).ToArray();
-		double wn = F9wn(e); return () => hazards.Add(F9Coffin(B(e.num("hit") - wn), B(e.num("hit")), B(e.num("to"))));
+		double wn = F9wn(e); return () =>
+		{
+			F9Add(F9Coffin(B(e.num("hit") - wn), B(e.num("hit")), B(e.num("to"))));
+			F9Under(F9CoffinWood(B(e.num("hit") - wn), B(e.num("to"))));   // after it: the attack keeps its id
+		};
 	});
 	static readonly int _kf9nail = DodgeKind("F9nail", e => { double wn = F9wn(e); return () =>
 	{
 		if (F9skip(e)) return; var hb = e.nums("hb");
-		hazards.Add(F9Nail(e.num("lx"), e.num("ly"), e.num("ang"), F9ez(e.num("len"), 0.8), hb, B(hb[0] - wn), B(e.num("to")), F9ez(e.num("nw", 14), 0.8)));
+		F9Add(F9Nail(e.num("lx"), e.num("ly"), e.num("ang"), F9ez(e.num("len"), 0.8), hb, B(hb[0] - wn), B(e.num("to")), F9ez(e.num("nw", 14), 0.8)));
 	}; });
 	static readonly int _kf9lid = DodgeKind("F9lid", e => { double wn = F9wn(e); return () =>
 	{
 		var ky = e.nums("ky"); if (easy) ky = ky.Select(y => y * 0.8).ToArray();
-		hazards.Add(F9Lid(e.nums("kb"), ky, B(e.num("hit") - wn), B(e.num("hit")), B(e.num("to"))));
+		F9Add(F9Lid(e.nums("kb"), ky, B(e.num("hit") - wn), B(e.num("hit")), B(e.num("to"))));
 	}; });
 	static readonly int _kf9dirt = DodgeKind("F9dirt", e => { double wn = F9wn(e); return () =>
 	{
 		if (F9skip(e)) return; double R = F9ez(e.num("R"), 0.8), y = e.num("y") + (easy ? e.num("R") - R : 0);
-		hazards.Add(F9Dirt(e.num("x"), y, R, B(e.num("hit") - wn), B(e.num("hit")), e.num("fall", 0.75) * SPB, B(e.num("to"))));
+		F9Add(F9Dirt(e.num("x"), y, R, B(e.num("hit") - wn), B(e.num("hit")), e.num("fall", 0.75) * SPB, B(e.num("to"))));
 	}; });
-	static readonly int _kf9skull = DodgeKind("F9skull", e => () => hazards.Add(F9Skull(e.num("x"), e.num("y"), e.num("r"), B(e.b), B(e.num("tc")), B(e.num("tb")))));
+	static readonly int _kf9skull = DodgeKind("F9skull", e => () => F9Under(F9Skull(e.num("x"), e.num("y"), e.num("r"), B(e.b), B(e.num("tc")), B(e.num("tb")))));
 	static readonly int _kf9eyes = DodgeKind("F9eyes", e => { double wn = F9wn(e); return () =>
 	{
 		if (F9skip(e)) return; double sl = easy ? 0.8 : 1;
-		hazards.Add(F9Eyes(e.num("lx"), e.num("ly"), e.num("rx"), e.num("ry"), e.num("la0"), e.num("la0") + (e.num("la1") - e.num("la0")) * sl, e.num("ra0"), e.num("ra0") + (e.num("ra1") - e.num("ra0")) * sl,
+		F9Add(F9Eyes(e.num("lx"), e.num("ly"), e.num("rx"), e.num("ry"), e.num("la0"), e.num("la0") + (e.num("la1") - e.num("la0")) * sl, e.num("ra0"), e.num("ra0") + (e.num("ra1") - e.num("ra0")) * sl,
 			F9ez(e.num("bw"), 0.7), B(e.num("hit") - wn), B(e.num("hit")), e.num("sw") * SPB, F9ez(e.num("hold", 0.3), 0.7) * SPB));
 	}; });
 	static readonly int _kf9crack = DodgeKind("F9crack", e => { double wn = F9wn(e); return () =>
 	{
 		if (F9skip(e)) return;
-		hazards.Add(F9Crack(e.nums("xs"), e.nums("ys"), F9ez(e.num("w"), 0.75), B(e.num("hit") - wn), B(e.num("hit")), F9ez(e.num("hold", 0.5), 0.7) * SPB));
+		F9Add(F9Crack(e.nums("xs"), e.nums("ys"), F9ez(e.num("w"), 0.75), B(e.num("hit") - wn), B(e.num("hit")), F9ez(e.num("hold", 0.5), 0.7) * SPB));
 	}; });
-	static readonly int _kf9open = DodgeKind("F9open", e => () => hazards.Add(F9Open(B(e.b))));
+	static readonly int _kf9open = DodgeKind("F9open", e => () => F9Add(F9Open(B(e.b))));
 }

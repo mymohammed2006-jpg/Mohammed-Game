@@ -11,9 +11,10 @@ namespace MG;
 public static partial class G
 {
 	public record NewsItem(string hd, string ic, string[] pts, int from, int to);
-	public static string NEWS_V => classicUi ? "37" : "46";   // the comparison tools stay on v39's page
+	public static string NEWS_V => classicUi ? "37" : "47";   // the comparison tools stay on v39's page
 	public static readonly NewsItem[] NEWS_ITEMS =
 	{
+		new("إصلاح", null, new[] { "في I'm\u00a0Still\u00a0Here كل شي يضربك صار وردي وباين.", "ما فيه ضرب مخفي ورا الشارع أو الأبراج." }, 0, 47),
 		new("ريبلاياتي", null, new[] { "احفظ الريبلاي بجهازك لما تفوز أو تخسر،", "أو من قائمة الإيقاف داخل المرحلة.", "تلقاها كلها في \"ريبلاياتي\" بالقائمة.", "وفي التدريب والبلاتفورم بعد، حتى الأونلاين.", "وداخل الريبلاي اختار: كامل أو بدون الموتات." }, 0, 46),
 		new("مرحلة جديدة", null, new[] { "azm511 أضاف مرحلة في مراحل الشباب: I'm\u00a0Still\u00a0Here.", "صارت في البروفايل والترتيب." }, 0, 46),
 		new("البلاتفورم", null, new[] { "الوقت صار يطلع بكل مراحل البلاتفورم،", "والترتيب فيها بالحرف وبعدين الأسرع.", "الضد صار من ٢ إلى ٤ لاعبين،", "وآخر واحد ما يوصل البوابة يخسر." }, 0, 46),
