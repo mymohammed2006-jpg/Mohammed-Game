@@ -143,13 +143,30 @@ public static partial class G
 		return w;
 	}
 	static async Task<JsonNode> commit(params JsonObject[] writes) { var body = new JsonObject { ["writes"] = new JsonArray(writes) }; return await jpost($"{FS_URL}:commit", body, await idToken()); }
+	// v49: a platformer time the server refuses (e.g. under its shortest time) must not stop the letters and XP: send it again without the times
+	static async Task commitPt(params JsonObject[] writes)
+	{
+		try { await commit(writes); }
+		catch (FetchErr e) when (e.code == 403 && writes.Any(hasPt))
+		{
+			var again = writes.Select(w => (JsonObject)w.DeepClone()).ToArray(); foreach (var w in again) dropPt(w);   // copies: the first ones already belong to the refused request
+			var pw = again.FirstOrDefault(w => w["updateMask"] is JsonObject); if (pw != null && pw["updateMask"]["fieldPaths"].AsArray().Count == 0) throw;   // only the times changed: kept for the next try (a refusal can also be the 20 s gap)
+			await commit(again);
+		}
+	}
+	static bool hasPt(JsonObject w) => w["update"]?["fields"] is JsonObject f && f.ContainsKey("pt") || w["updateMask"]?["fieldPaths"] is JsonArray m && m.Any(x => S(x).StartsWith("pt."));
+	static void dropPt(JsonObject w)
+	{
+		if (w["update"]?["fields"] is JsonObject f) f.Remove("pt");
+		if (w["updateMask"]?["fieldPaths"] is JsonArray m) foreach (var x in m.Where(x => S(x).StartsWith("pt.")).ToList()) m.Remove(x);
+	}
 	// the player's XP goes in their file too (not in the comparison runs, which copy v39)
 	static JsonObject xpField(JsonObject f) { if (!classicUi) f["xp"] = new JsonObject { ["integerValue"] = str(xp) }; return f; }
 	static JsonObject ptField(JsonObject f) { var t = localTimes(); if (!classicUi && t.Count > 0) f["pt"] = fsNum(t); return f; }
 	static async Task createPlayer()
 	{
 		var (n, e) = localBests(); var ts = n.Keys.Select(k => "nt." + k).Concat(e.Keys.Select(k => "et." + k)).ToList();
-		await commit(new JsonObject { ["update"] = new JsonObject { ["name"] = $"{FS_DOC}/names/{nameKey(acc.name)}", ["fields"] = new JsonObject { ["uid"] = new JsonObject { ["stringValue"] = acc.uid } } }, ["currentDocument"] = new JsonObject { ["exists"] = false } },
+		await commitPt(new JsonObject { ["update"] = new JsonObject { ["name"] = $"{FS_DOC}/names/{nameKey(acc.name)}", ["fields"] = new JsonObject { ["uid"] = new JsonObject { ["stringValue"] = acc.uid } } }, ["currentDocument"] = new JsonObject { ["exists"] = false } },
 			playerWrite(ptField(xpField(new JsonObject { ["name"] = new JsonObject { ["stringValue"] = acc.name }, ["n"] = fsMap(n), ["e"] = fsMap(e), ["nt"] = fsMap(new(), true), ["et"] = fsMap(new(), true) })), null, ts, true));
 		board.at = 0;
 	}
@@ -192,11 +209,11 @@ public static partial class G
 						else if (pt && l != null && lt >= 0 && (ot < 0 || lt < ot)) { upT[L.id] = lt; mask.Add($"pt.{L.id}"); }
 					}
 				bool xpUp = !classicUi && xp > on.xp; if (xpUp) mask.Add("xp");
-				if (mask.Count > 0) { var fields = new JsonObject(); foreach (var (f, m) in up) fields[f] = fsMap(m); if (upT.Count > 0) fields["pt"] = fsNum(upT); if (xpUp) xpField(fields); await commit(playerWrite(fields, mask, ts, false)); board.at = 0; }
+				if (mask.Count > 0) { var fields = new JsonObject(); foreach (var (f, m) in up) fields[f] = fsMap(m); if (upT.Count > 0) fields["pt"] = fsNum(upT); if (xpUp) xpField(fields); await commitPt(playerWrite(fields, mask, ts, false)); board.at = 0; }
 			}
 			acc.dirty = false; saveAcc(); await flushRpq(); netState = "ok"; if (upShow) { upShow = false; upFailShown = false; showCorner("انحفظ أونلاين ✓", "#5fe08f", 2800); }
 		}
-		catch (Exception e) { netState = e.Message == "NET" ? "net" : "err"; if (upShow && !upFailShown) { upFailShown = true; showCorner("بينحفظ أونلاين أول ما يرجع النت", "#ffb35c", 3500); } }
+		catch (Exception e) { netState = e.Message == "NET" ? "net" : "err"; if (upShow && !upFailShown) { upFailShown = true; showCorner(netState == "net" ? "بينحفظ أونلاين أول ما يرجع النت" : "ما قدرت أحفظ أونلاين الحين، بجرب بعدين", "#ffb35c", 3500); } }
 		finally { syncing = false; }
 	}
 	public static void markDirty() { if (acc == null) return; acc.dirty = true; saveAcc(); upShow = true; upFailShown = false; showCorner("جاري الحفظ أونلاين…", "#ffffff", 10000); sync(); }
