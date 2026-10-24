@@ -20,7 +20,7 @@ namespace MG;
 // States: tmIntro (the start, the same moment on the three PCs), tmPlay, tmPause, tmSet (the settings from the pause).
 public static partial class G
 {
-	public class TSnap { public double at, x, y, rx, ry, vx, vy, sa, sk, fx, ddx, ddy, dash, still, revT, hurt; public int gen, fl, hp, falls, flips, tp, on; }
+	public class TSnap { public double at, x, y, rx, ry, vx, vy, sa, sk, fx, ddx, ddy, dash, still, revT, hurt; public int gen, fl, hp, falls, flips, tp, on; public uint keys; }
 	public partial class NetRun
 	{
 		public bool team; public int seat; public Peer[] tp = new Peer[TM_N];          // host: tp[1], tp[2]; the others: tp[0] (to the host)
@@ -146,10 +146,10 @@ public static partial class G
 		var d = n.world; int i = tm.th.IndexOf(s), nb = BitConverter.ToInt16(d, 2); if (i < 0 || i >= nb || 4 + i * 9 + 9 > d.Length) return false;
 		int o = 4 + i * 9; fl = d[o]; v = BitConverter.ToSingle(d, o + 1); t = BitConverter.ToSingle(d, o + 5); return true;
 	}
-	// my square, 30 times a second (type 2: seat, page build, flags, lives, falls, moves, swaps, what it stands on, then the numbers)
+	// my square, 30 times a second (type 2: seat, page build, flags, lives, falls, moves, swaps, what it stands on, then the numbers, then the keys it stood on since the last one)
 	static void tnSnapSend()
 	{
-		var b = tm.b[tmMe]; var d = new byte[70]; int o = 0;
+		var b = tm.b[tmMe]; var d = new byte[74]; int o = 0;
 		void F(double v) { BitConverter.TryWriteBytes(d.AsSpan(o), (float)v); o += 4; }
 		int on = b.onT != null && b.onT.k != "snap" ? tm.th.IndexOf(b.onT) : -1;
 		d[o++] = 2; d[o++] = (byte)tmMe; d[o++] = (byte)(tm.gen & 255);
@@ -157,6 +157,7 @@ public static partial class G
 		d[o++] = (byte)Math.Max(0, b.hp); d[o++] = (byte)Math.Min(255, tm.falls[tmMe]); d[o++] = (byte)(tm.flips[tmMe] & 255); d[o++] = (byte)(tm.tp[tmMe] & 255);
 		BitConverter.TryWriteBytes(d.AsSpan(o), (short)on); o += 2;
 		F(b.x); F(b.y); F(on >= 0 ? b.x - b.onT.X : 0); F(on >= 0 ? b.y - b.onT.Y : 0); F(b.vx); F(b.vy); F(b.sa); F(b.sk); F(b.fx); F(b.ddx); F(b.ddy); F(b.dash); F(b.still); F(b.revT); F(b.hurt);
+		BitConverter.TryWriteBytes(d.AsSpan(o), tmMyKeys); tmMyKeys = 0;
 		tnSendB(false, d);
 	}
 	static void tnSnapGot(byte[] d, double now)
@@ -167,6 +168,7 @@ public static partial class G
 		var s = new TSnap { at = now, gen = d[o++], fl = d[o++], hp = d[o++], falls = d[o++], flips = d[o++], tp = d[o++] };
 		s.on = BitConverter.ToInt16(d, o); o += 2;
 		s.x = F(); s.y = F(); s.rx = F(); s.ry = F(); s.vx = F(); s.vy = F(); s.sa = F(); s.sk = F(); s.fx = F(); s.ddx = F(); s.ddy = F(); s.dash = F(); s.still = F(); s.revT = F(); s.hurt = F();
+		if (d.Length >= 74) s.keys = BitConverter.ToUInt32(d, o);
 		var L = net.ts[seat]; L.Add(s); if (L.Count > 40) L.RemoveAt(0);
 	}
 
@@ -174,6 +176,12 @@ public static partial class G
 	static TS tnThing(int i) => i >= 0 && i < tm.th.Count && tm.th[i].k != "snap" ? tm.th[i] : null;
 	static double lerp(double a, double b, double f) => a + (b - a) * f;
 	static bool tnSameGen(TSnap s) => s.gen == (tm.gen & 255);
+	// the maker: whether another one's newest message says they stood on their key (k = the key's place among the page's keys)
+	static bool tnKeyBit(int seat, int k)
+	{
+		var n = net; if (tmMe != 0 || n == null || seat == tmMe || k < 0 || k >= 32) return false;
+		var c = n.ts[seat].LastOrDefault(tnSameGen); return c != null && ((c.keys >> k) & 1) != 0;
+	}
 	// where another one is now on this PC (their messages, 100 ms back; called by tmStep instead of moving it)
 	static void tnBody(TBody b)
 	{

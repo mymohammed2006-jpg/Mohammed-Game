@@ -256,6 +256,10 @@ public static partial class G
 	// picture drawn 100 ms back, or their presses counted late on every PC and gold met the saw)
 	static TBody[] tmSeen;
 	static TBody[] tmDec => tmSeen ?? tm.b;
+	static bool tmCbtnOn(TBody who, TS s) => !who.down && !who.gate && who.ground && Math.Abs(who.y + P_HALF - s.Y) < 3 && who.x > s.X - 4 && who.x < s.X + s.W + 4;
+	// online: the keys my square stood on since my last message (a hop on a key touches it for one step: the 30-60 messages a
+	// second missed it, and the partner's path never came)
+	static uint tmMyKeys; static int tmMyKeysGen = -1;
 	static int tmOnIt(TS s) { int n = 0; foreach (var b in tmDec) if (!b.down && !b.gate && b.onT == s) n++; return n; }
 	static double tmSawPos(PlatSaw s, out double y)
 	{
@@ -288,14 +292,17 @@ public static partial class G
 		if (tm.waves.Count > 0) tmWaves(dt);
 		// buttons and stones first (from where everyone stood last step)
 		tmSeen = tmMe == 0 ? tnSeenAll() : null;
+		if (tmMyKeysGen != tm.gen) { tmMyKeys = 0; tmMyKeysGen = tm.gen; }
+		int kOrd = -1;
 		foreach (var s in tm.th)
 		{
+			if (s.k == "cbtn") { kOrd++; if (tmMe >= 0 && (int)s.d.a == tmMe && kOrd < 32 && tmCbtnOn(tm.b[tmMe], s)) tmMyKeys |= 1u << kOrd; }   // online: my own keys, every step (sent with my square)
 			if (s.k is "stone" or "btn" or "cbtn" && tnWorld(s, out int wf, out _, out _)) { s.on = (wf & 1) != 0; continue; }   // online: as the maker sees it
 			if (s.k == "stone") { double sx0 = s.d.x * PT; s.on = s.of != null && !s.of.melt && tmDec.Any(b => !b.down && b.onT == s.of && Math.Abs(b.x - sx0) < 26); }
 			else if (s.k == "btn" && s.d.a == 1) s.on = tmDec.Any(b => tmStands(b, tmRx(b.x), s));
 			else if (s.k == "btn") s.on = tmDec.Any(b => !b.down && b.ground && Math.Abs(b.y + P_HALF - s.Y) < 3 && b.x > s.X - 4 && b.x < s.X + s.W + 4);
 			else if (s.k == "cam") { var who = tm.b[(int)s.d.a]; s.on = tmStands(who, who.x, s); if (!s.on) s.n = 1; }
-			else if (s.k == "cbtn") { var who = tmDec[(int)s.d.a]; s.on = !who.down && !who.gate && who.ground && Math.Abs(who.y + P_HALF - s.Y) < 3 && who.x > s.X - 4 && who.x < s.X + s.W + 4; }
+			else if (s.k == "cbtn") s.on = tmCbtnOn(tmDec[(int)s.d.a], s) || tnKeyBit((int)s.d.a, kOrd);
 			if (s.on) s.lat = true;   // the maker online: pressed since its last word (a touch between two words still counts)
 		}
 		// then the things move
