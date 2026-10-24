@@ -26,6 +26,7 @@ public static partial class G
 		else if (mode == "speed") DodgeSpeed(L);
 		else if (mode == "hbot") DodgeHBot.Run(a.Skip(k + 1).ToArray());
 		else if (mode == "rpcheck") DodgeRpCheck(L, m);
+		else if (mode == "afk") DodgeAfk(L);
 	}
 
 	// ---------- how hard ----------
@@ -86,6 +87,34 @@ public static partial class G
 		dry = false; double sc = 30 * 100.0 / (CX * CY); int mb = 0; for (int i = 0; i < 64; i++) if (blkN[i] > 0 && blk[i] / blkN[i] > blk[mb] / Math.Max(1, blkN[mb])) mb = i;
 		GD.Print("per 16 beats: " + string.Join(" ", Enumerable.Range(0, 64).Where(i => blkN[i] > 0).Select(i => toFixed(blk[i] / blkN[i] * sc, 0))));
 		GD.Print($"SPEED {L.id} {(easy ? "e" : "n")}: new pink {toFixed(tot / n * sc, 1)}%/s, busiest 16 beats (from beat {mb * 16}) {toFixed(blk[mb] / blkN[mb] * sc, 1)}%/s");
+	}
+
+	// ---------- standing still: the longest time a parked square is never touched, on a 40 px grid ----------
+	static void DodgeAfk(Level L)
+	{
+		beginRun(0, 1); dry = true; double end = double.TryParse(System.Environment.GetEnvironmentVariable("AFKEND"), out var ae) ? B(ae) : B(L.end); const int CX = 32, CY = 18; var since = new double[CX * CY]; var best = new double[CX * CY]; var at = new double[CX * CY];
+		for (int i = 0; i < since.Length; i++) since[i] = sim0;
+		var pr = new Player { r = 5 }; double next = 0;
+		for (long k = 1; ; k++)
+		{
+			double t = sim0 + k * STEP; if (t > end) break; songT = t; player.x = W / 2; player.y = H / 2; player.inv = 1e9;
+			fireEvents(t); stepHazards(t, STEP); hazards = hazards.Where(h => !h.dead).ToList(); particles.Clear();
+			int nh = 0;
+			if (System.Environment.GetEnvironmentVariable("AFKDBG") != null && ((int)(t * 60)) % 60 == 0) GD.Print($"t {toFixed(t, 1)} hz {hazards.Count} {string.Join(",", hazards.Select(z => z.kind).Distinct())}");
+			for (int j = 0; j < CY; j++) for (int i = 0; i < CX; i++)
+			{
+				int q = j * CX + i; pr.x = 20 + i * 40; pr.y = 20 + j * 40; if (i == 15 && j == 8) continue;   // the middle: the shadow follows the parked square there
+				if (System.Environment.GetEnvironmentVariable("AFKPT") is string ap && ap == $"{pr.x},{pr.y}" && hazards.Any(z => z.hit(pr, t))) GD.Print($"hit {toFixed(t, 2)} b {toFixed(BT(t), 2)} {string.Join(",", hazards.Where(z => z.hit(pr, t)).Select(z => z.kind))}");
+				if (hazards.Any(z => z.hit(pr, t))) { if (t - since[q] > best[q]) { best[q] = t - since[q]; at[q] = since[q]; } since[q] = t; }
+			}
+		}
+		for (int q = 0; q < since.Length; q++) if (end - since[q] > best[q]) { best[q] = end - since[q]; at[q] = since[q]; }
+		dry = false;
+		var all = Enumerable.Range(0, CX * CY).Where(q => q != 8 * CX + 15).OrderByDescending(q => best[q]).ToList();
+		GD.Print($"AFK {L.id} {(easy ? "e" : "n")}: longest untouched stand (s, from s, x y):");
+		foreach (var q in all.Take(int.TryParse(System.Environment.GetEnvironmentVariable("AFKN"), out var an) ? an : 25)) GD.Print($"  {toFixed(best[q], 1)} from {toFixed(at[q], 1)} at {20 + q % CX * 40} {20 + q / CX * 40}");
+		if (System.Environment.GetEnvironmentVariable("AFKMAP") != null) for (int j = 0; j < CY; j++) GD.Print("MAP " + string.Join("", Enumerable.Range(0, CX).Select(i => { double b = best[j * CX + i]; return b > 10 ? "#" : b > 6 ? "+" : b > 3 ? "." : " "; })));
+		GD.Print($"AFK {L.id}: spots over 6 s: {all.Count(q => best[q] > 6)}, over 10 s: {all.Count(q => best[q] > 10)}");
 	}
 
 	// ---------- the bot's run as the game shows it ----------
