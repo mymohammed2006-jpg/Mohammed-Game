@@ -20,6 +20,7 @@ public static partial class G
 		["L14"] = 1.8,   // Jump again: the same difficulty as L5 (Mohammed, 10-20)
 		["L15"] = 4.0,   // Abra Macabre: the hardest level, On The Floor x3.3 + 20% (Mohammed, 10-21)
 		["L17"] = 1.8,   // حالف لا ما انام: the same difficulty as L5 (Mohammed, 10-24)
+		["L18"] = 1.8,   // level 18, Awof Al-Dunya: the same difficulty as L5 (Mohammed, 10-24)
 		["L19"] = 1.8,   // عافني وراح: the same difficulty as L5 (Mohammed 20:30 10-24)
 		["P1"] = 1.5,   // the platformer's first level
 		["P2"] = 2.0,   // the co-op level for three (harder than P1, easier than Link)
