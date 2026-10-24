@@ -41,7 +41,7 @@ public class PlatLevel
 
 public static partial class G
 {
-	public static readonly string[] PLAT_IDS = { "P1", "P2" };
+	public static readonly string[] PLAT_IDS = { "P1", "P2", "P3" };
 	static List<PlatLevel> _plats;
 	public static List<Level> PLAT_LV => PLATS.Where(p => !p.test).Select(p => p.lv).ToList();
 	public static List<PlatLevel> PLATS
@@ -59,7 +59,7 @@ public static partial class G
 					{
 						// the co-op level for three: its card on the same list (online only); the finished card plays its storm part
 						var T = LoadTeam(id);
-						L = new PlatLevel { id = T.id, name = T.name, song = T.song, stems = T.stems, stemNames = T.stemNames, on = T.on, spb = T.spb, coop = true, players = TM_N, team = T, loop = T.pages[Math.Min(1, T.pages.Count - 1)].loop };
+						L = new PlatLevel { id = T.id, name = T.name, song = T.song, stems = T.stems, stemNames = T.stemNames, on = T.on, spb = T.spb, coop = true, players = T.players, team = T, loop = T.pages[Math.Min(1, T.pages.Count - 1)].loop };
 						L.bufs = T.bufs;
 					}
 					else

@@ -19,6 +19,7 @@ public class TeamNetTest
 	string role, outDir, route; Main host; int i, me; bool shot; double t0, endAt = -1; StringBuilder log = new();
 	(int room, double t, string k)[] lines; string lastK = ""; int step; double stepAt; string press; int pressN;
 	G.TeamRun lastTm; Dictionary<int, double> entry = new(); int page0;
+	static readonly string LV = System.Environment.GetEnvironmentVariable("LV"); TeamTest duo;   // env LV=P3: the radio level for two (host and g1), TeamTest's routes and bot
 	static readonly System.Net.Http.HttpClient http = new();
 	readonly System.Diagnostics.Stopwatch wall = new();
 	static double Env(string k, double d) => double.TryParse(System.Environment.GetEnvironmentVariable(k), out var v) ? v : d;
@@ -31,7 +32,7 @@ public class TeamNetTest
 		localStorage.Memory = true; G.padsDisabled = true; G.classicUi = false; G.gatePassed = true;
 		AudioCtx.manualTime = 0; G.InitSound(); G.gfx.Resize(1280, 720); G.scale = 1; G.offX = 0; G.offY = 0;
 		G.applyTheme(false); G.applyMenu(); G.LoadBests(); G.LoadXp(); G.LoadSongs(); actx.resume();
-		Peer.GatherMs = 1500; Peer.Relay = false;
+		Peer.GatherMs = 1500; Peer.Relay = false; Peer.TestLagMs = Env("NET_LAG", 0) / SCALE;   // env NET_LAG: one way, in game ms
 		G.netSend = r =>
 		{
 			string u = r.RequestUri.OriginalString.Replace("https://firestore.googleapis.com/", "http://127.0.0.1:8085/")
@@ -48,7 +49,8 @@ public class TeamNetTest
 		{ var f = l.Trim().Split(' ', 2); if (f[0] == "ROOM") { room = int.Parse(f[1].Split('#')[0].Trim()); continue; } o.Add((room, double.Parse(f[0]), f.Length > 1 ? f[1].Split('#')[0].Trim() : "")); }
 		lines = o.ToArray();
 		G.tnBot = Bot;
-		G.state = "pltList"; G.plSel = G.PLATS.FindIndex(p => p.team != null); performance.manual = 100000; t0 = 100000; G.last = t0; wall.Start();
+		if (LV != null) duo = TeamTest.ForOne(route, role == "host" ? 0 : 1, page0);
+		G.state = "pltList"; G.plSel = G.PLATS.FindIndex(p => p.team != null && (LV == null || p.id == LV)); performance.manual = 100000; t0 = 100000; G.last = t0; wall.Start();
 	}
 	// TeamTest's driver for one player: the keys at this time since the page began, "@x" walks to x, "A" dodges the lightning
 	G.TIn Bot()
@@ -56,6 +58,7 @@ public class TeamNetTest
 		var tm = G.tm; me = G.tmMe;
 		if (tm != lastTm) { lastTm = tm; if (!entry.ContainsKey(tm.page) || tm.page == page0) entry[tm.page] = tm.t; }
 		double rt = tm.t - entry[tm.page]; string kk = "";
+		if (duo != null) return duo.Input(me, tm.t, tm.page, rt);
 		foreach (var l in lines) if (l.room == tm.page && l.t <= rt + 1e-9) kk = l.k;
 		bool dashNow = kk.Contains('X') && !lastK.Contains('X'), jumpNow = kk.Contains('J') && !lastK.Contains('J'); lastK = kk;
 		var inp = new G.TIn { x = (kk.Contains('R') ? 1 : 0) - (kk.Contains('L') ? 1 : 0), y = (kk.Contains('D') ? 1 : 0) - (kk.Contains('U') ? 1 : 0), jump = jumpNow, jumpHeld = kk.Contains('J'), dash = dashNow };
@@ -97,7 +100,7 @@ public class TeamNetTest
 				step = 12; stepAt = now;
 			}
 			else if (step == 12) { Press("Enter"); step = 13; stepAt = now; }
-			else if (step == 3 && ph == "lobby" && G.net.hi.All(x => x) && now - G.net.phaseAt > 1500) { Press("Enter"); step = 4; stepAt = now; }
+			else if (step == 3 && ph == "lobby" && G.net.hi.Take(G.net.L.team.players).All(x => x) && now - G.net.phaseAt > 1500) { Press("Enter"); step = 4; stepAt = now; }
 		}
 		if (G.tm?.won == true && endAt < 0) endAt = now;
 		bool done = t > T || (endAt > 0 && now - endAt > 9000) || (t > 30 && G.state == "pltList");
@@ -114,7 +117,12 @@ public class TeamNetTest
 			log.Append(" got=").Append(tm.got.Count).Append(" falls=").Append(string.Join(",", tm.falls)).Append(" r=").Append(tm.restarts);
 			if (tm.th.Any(s => s.k == "slot")) log.Append(" placed=").Append(tm.th.Count(s => s.k == "slot" && s.on));
 			if (tm.th.Any(s => s.k == "snap")) log.Append(" snaps=").Append(tm.th.Count(s => s.k == "snap"));
-			if (tm.won) log.Append(" WON xp=").Append(string.Join(",", tm.xpGot)).Append(" best=").Append(G.PLATS.First(p => p.team != null).best);
+			if (tm.won) log.Append(" WON xp=").Append(string.Join(",", tm.xpGot)).Append(" best=").Append(G.PLATS.First(p => p.team == tm.L).best);
+			if (!double.IsNaN(tm.riseY)) log.Append(" rise=").Append(str(Math.Round(tm.riseY))).Append(tm.ropeLive ? " R" : "");
+			if (tm.spkN != null) { log.Append(" sh=").Append(tm.shield).Append(" bars=").Append(tm.bars.Count); foreach (var w in tm.bars) log.Append(" w").Append(w.dir > 0 ? '>' : '<').Append(str(Math.Round(w.x))).Append('/').Append(w.r0).Append(':').Append(string.Concat(w.on.Select(o => o ? '1' : '0'))); }
+			foreach (var s in tm.th) if (s.k == "mover" && s.d.need != null) log.Append(" lift=").Append(str(Math.Round(s.Y)));
+			foreach (var s in tm.th) if (s.k == "cbtn" && s.on) log.Append(' ').Append(s.d.id);
+			if (tm.th.Any(s => s.k is "path" or "door")) log.Append(" paths=").Append(string.Concat(tm.th.Where(s => s.k is "path" or "door").Select(s => s.solid ? '1' : '0')));
 			if (tm.doneAt >= 0) log.Append(" DONE");
 			if (tm.restartAt >= 0) log.Append(" RESTART");
 		}

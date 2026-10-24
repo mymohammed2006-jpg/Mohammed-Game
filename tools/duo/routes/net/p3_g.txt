@@ -1,0 +1,11 @@
+# page 3 online: like p3_g.txt, but gold jumps the rock itself (K) instead of copying blue's jump at once (M): a person sees the rock, and sees the other one's jump a moment late
+0 F-16 K
+2.62 @1015 J
+2.9 @1015
+3.4 B K
+7.0 @2065 K
+7.8 @2088 D
+8.4 @2300 J
+8.9 @2370
+9.7 @3340 K
+14.2 @3305

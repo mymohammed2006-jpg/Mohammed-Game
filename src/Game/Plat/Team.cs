@@ -109,7 +109,7 @@ public static partial class G
 	public static readonly string[] TM_COL = { "#ff4d5e", "#2de2e6", "#ffcf5a" };   // each player's own colour
 	public class TS                                                  // a thing while playing
 	{
-		public TThing d; public string k; public double X, Y, W, H, dx, dy, off, timer, s, fy, fv; public bool solid, one, on, melt, gone; public TS of, L, R; public int n;
+		public TThing d; public string k; public double X, Y, W, H, dx, dy, off, timer, s, fy, fv; public bool solid, one, on, melt, gone, lat; public TS of, L, R; public int n;
 	}
 	public class TBody
 	{
@@ -296,6 +296,7 @@ public static partial class G
 			else if (s.k == "btn") s.on = tmDec.Any(b => !b.down && b.ground && Math.Abs(b.y + P_HALF - s.Y) < 3 && b.x > s.X - 4 && b.x < s.X + s.W + 4);
 			else if (s.k == "cam") { var who = tm.b[(int)s.d.a]; s.on = tmStands(who, who.x, s); if (!s.on) s.n = 1; }
 			else if (s.k == "cbtn") { var who = tmDec[(int)s.d.a]; s.on = !who.down && !who.gate && who.ground && Math.Abs(who.y + P_HALF - s.Y) < 3 && who.x > s.X - 4 && who.x < s.X + s.W + 4; }
+			if (s.on) s.lat = true;   // the maker online: pressed since its last word (a touch between two words still counts)
 		}
 		// then the things move
 		foreach (var s in tm.th)
@@ -338,7 +339,11 @@ public static partial class G
 						double f = k - Math.Floor(k); f = 1 - Math.Pow(1 - Math.Min(1, f * 3), 3);   // a lurch on each beat
 						tm.chaseX = d.x * PT + (Math.Floor(k) + f) * d.a * PT; break;
 					}
-				case "mover": tmMover(s, d.need == null || tmNeed(d) ? dB : 0); break;
+				case "mover":
+					tmMover(s, d.need == null || tmNeed(d) ? dB : 0);
+					if (fresh && (wfl & 1) == 0) { s.s += (wv - s.s) * 0.3; tmMover(s, 0); }   // online guests: a lift at rest goes to where the maker has it
+					break;
+				case "rise": if (fresh && s == tm.th.First(q => q.k == "rise") && !double.IsNaN(tm.riseY)) tm.riseY += (wv - tm.riseY) * 0.5; break;   // and the static
 				case "echo": tmEchoStep(s, dt); break;
 				case "snap": if (bt >= s.timer) { s.solid = false; s.gone = true; } break;
 				case "hatch": s.solid = !(s.of != null && s.of.s > 0.02); s.s = Math.Clamp(s.s + (s.solid ? -4 : 4) * dt, 0, 1); break;
@@ -429,7 +434,7 @@ public static partial class G
 		// pieces and the gate (a piece in the mirror is taken by a reflection)
 		foreach (var b in tm.b) if (!b.down && !b.gate && tmMine(b)) { tmTiles(b, b.x, false); if (tm.P.mirror > 0) tmTiles(b, tmRx(b.x), true); }
 		if (tm.tw != null && tm.doneAt < 0) tmTowerStep();
-		if (tmBoss && tm.b.All(b => b.gate) && tm.P.mic) { tmMicWin(); return; }
+		if (tmBoss && tm.b.All(b => b.gate) && tm.P.mic) { tmMicWin(); tnTell("pd", new() { ["t"] = tm.t }); return; }
 		if (tmBoss && tm.b.All(b => b.gate)) { tmPageDone(tm.t); tnTell("pd", new() { ["t"] = tm.t }); }
 		foreach (var b in tm.b) { b.trail.Add((b.x, b.y, tm.t)); b.trail.RemoveAll(q => tm.t - q.t > 0.18); }
 		tm.steps.RemoveAll(q => tm.t - q.t > 2.5);

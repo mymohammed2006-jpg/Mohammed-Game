@@ -154,24 +154,26 @@ public static partial class G
 		if (n.host && ph is "make" or "wait")
 		{
 			txt("غرفتك", W / 2, 95, 48, "#fff");
-			txt("عط صاحبينك هذا الكود يدخلونه من: البلاتفورم ← أونلاين ← ادخل بكود", W / 2, 155, 24, "rgba(255,255,255,0.7)", 500);
+			txt(tnN > 2 ? "عط صاحبينك هذا الكود يدخلونه من: البلاتفورم ← أونلاين ← ادخل بكود" : "عط صاحبك هذا الكود يدخله من: البلاتفورم ← أونلاين ← ادخل بكود", W / 2, 155, 24, "rgba(255,255,255,0.7)", 500);
 			if (ph == "wait") codeTxt(n.code, W / 2, 255, 110, RED); else txt("أسوي الغرفة" + dots, W / 2, 255, 36, "rgba(255,255,255,0.7)", 700);
 		}
 		else if (!n.host && ph is "join" or "conn") { txt("أدخل الغرفة", W / 2, 105, 48, "#fff"); txt("جاري الاتصال" + dots, W / 2, 255, 36, "rgba(255,255,255,0.75)", 700); }
 		else { txt("جاهزين؟", W / 2, 95, 48, "#fff"); txt(n.L?.name ?? "", W / 2, 155, 28, RED3, 700); }
-		for (int i = 0; i < TM_N; i++)
+		int N = tnN;
+		for (int i = 0; i < N; i++)
 		{
-			double x = W / 2 + (1 - i) * 300, y = 430; bool in_ = n.hi[i] || (!n.host && i == n.seat && n.said[0]);
+			double x = W / 2 + ((N - 1) / 2.0 - i) * 300, y = 430; string col = tnCol(i); bool in_ = n.hi[i] || (!n.host && i == n.seat && n.said[0]);
 			string name = n.nm[i] is { Length: > 0 } s ? s : "";
 			g.save(); g.translate(x, y - 30); g.scale(3, 3); g.rotate(Math.Sin(now / 600 + i) * 0.15); g.globalAlpha = in_ ? 1 : 0.25;
-			g.shadowColor = TM_COL[i]; g.shadowBlur = 14; g.fillStyle = TM_COL[i]; g.fillRect(-9, -9, 18, 18); g.shadowBlur = 0; g.fillStyle = ARENA; g.fillRect(-3, -3, 6, 6);
+			g.shadowColor = col; g.shadowBlur = 14; g.fillStyle = col; g.fillRect(-9, -9, 18, 18); g.shadowBlur = 0; g.fillStyle = ARENA; g.fillRect(-3, -3, 6, 6);
 			g.restore(); g.globalAlpha = 1;
 			txt(in_ ? name : (name != "" ? name + dots : "أستنى" + dots), x, y + 70, 30, in_ ? "#fff" : "rgba(255,255,255,0.5)", 800);
-			if (i == n.seat) txt("أنت", x, y + 108, 22, TM_COL[i], 700);
+			if (i == n.seat) txt("أنت", x, y + 108, 22, col, 700);
 		}
+		string waitOne = N > 2 ? "أستنى الثالث يدخل" : "أستنى صاحبك يدخل";
 		if (ph == "lobby" && n.host && tnReady) row(new[] { (BTN[kind].confirm, "ابدأ") }, W / 2, 620, 38, "#fff", 30);
-		else if (ph == "lobby" && !n.host) txt((tnReady ? $"أستنى {tnName(0)} يبدأ" : "أستنى الثالث يدخل") + dots, W / 2, 620, 28, "rgba(255,255,255,0.75)", 700);
-		else if (n.host && ph == "wait") txt((n.hi[1] || n.hi[2] ? "أستنى الثالث يدخل" : "أستنى الاثنين يدخلون") + dots, W / 2, 620, 28, "rgba(255,255,255,0.75)", 700);
+		else if (ph == "lobby" && !n.host) txt((tnReady ? $"أستنى {tnName(0)} يبدأ" : waitOne) + dots, W / 2, 620, 28, "rgba(255,255,255,0.75)", 700);
+		else if (n.host && ph == "wait") txt((N == 2 || n.hi[1] || n.hi[2] ? waitOne : "أستنى الاثنين يدخلون") + dots, W / 2, 620, 28, "rgba(255,255,255,0.75)", 700);
 		row(new[] { (BTN[kind].back, "اطلع من الغرفة") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
 	}
 	// the level online: the start (the same moment for the three), the level from this one's own screen, the pause
@@ -184,11 +186,11 @@ public static partial class G
 			if (n == null) return;
 			txt(n.L?.name ?? "", W / 2, 150, 64, "#fff", 800);
 			g.font = $"26px {TFONT}"; g.fillStyle = "rgba(255,255,255,0.8)"; g.textAlign = "center"; g.direction = "ltr"; g.textBaseline = "middle"; g.fillText(n.L?.best != null ? n.L.song : "؟؟؟", W / 2, 215); g.direction = "rtl";
-			for (int i = 0; i < TM_N; i++)
+			for (int i = 0; i < tnN; i++)
 			{
-				double x = W / 2 + (1 - i) * 260, y = 380;
-				g.shadowColor = TM_COL[i]; g.shadowBlur = 20; g.fillStyle = TM_COL[i]; g.fillRect(x - 27, y - 27, 54, 54); g.shadowBlur = 0; g.fillStyle = "#1b0f26"; g.fillRect(x - 9, y - 9, 18, 18);
-				txt(tnName(i), x, y + 70, 30, "#fff", 800); if (i == n.seat) txt("أنت", x, y + 106, 22, TM_COL[i], 700);
+				double x = W / 2 + ((tnN - 1) / 2.0 - i) * 260, y = 380; string col = tnCol(i);
+				g.shadowColor = col; g.shadowBlur = 20; g.fillStyle = col; g.fillRect(x - 27, y - 27, 54, 54); g.shadowBlur = 0; g.fillStyle = "#1b0f26"; g.fillRect(x - 9, y - 9, 18, 18);
+				txt(tnName(i), x, y + 70, 30, "#fff", 800); if (i == n.seat) txt("أنت", x, y + 106, 22, col, 700);
 			}
 			double left = (n.goAt - now) / 1000; if (left > 0) txt(ar(Math.Ceiling(left)), W / 2, 600, 70, GOLD, 800);
 			return;

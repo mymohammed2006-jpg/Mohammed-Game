@@ -1,0 +1,11 @@
+# page 3 online: like p3_b.txt, but blue stops hopping in place at the last cover before the run to the gate (the hops' rhythm decided where it landed)
+0 @975 K
+2.6 @975 J
+2.9 @1060
+3.4 @2000 C K
+7.0 @2090 K
+8.6 @2250
+9.0 @2650 K
+11.0 @2945 K
+12.0 @2945
+12.6 @3300 K

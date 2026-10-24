@@ -54,6 +54,100 @@ public class TeamTest
 		G.tmStart(G.LoadTeam(id), page); G.state = "team";
 		view = System.Environment.GetEnvironmentVariable("VIEW");
 	}
+	// one player's buttons at time t (rt: since page rm began), from its route; online (test/TeamNetTest.cs DUO) one of these per PC
+	public G.TIn Input(int k, double t, int rm, double rt)
+	{
+		var inp = new G.TIn();
+		string kk = ""; foreach (var l in lines[k]) if (l.room == rm && l.t <= rt + 1e-9) kk = l.k;
+		bool dashNow = kk.Contains('X') && !lastK[k].Contains('X'), jumpNow = kk.Contains('J') && !lastK[k].Contains('J'); lastK[k] = kk;
+		// "J!": the jump waits for the next beat (the radio's waves need a jump on the beat)
+		// "j!": the same, a short hop (the jump let go early, so it lands before the next beat)
+		if (kk.Contains("j!") && !lastK2[k].Contains("j!")) { beatJ[k] = true; hop[k] = true; }
+		if (jumpNow && kk.Contains("J!")) { beatJ[k] = true; hop[k] = false; jumpNow = false; }
+		if (beatJ[k]) { double bt = G.tmBeatPub(), nb = bt + 1.0 / fps / G.tm.L.spb; if (Math.Floor(nb) != Math.Floor(bt)) { jumpNow = true; beatJ[k] = false; heldTo[k] = t + (hop[k] ? 0.18 : 0.3); } }
+		lastK2[k] = kk;
+		inp = new G.TIn { x = (kk.Contains('R') ? 1 : 0) - (kk.Contains('L') ? 1 : 0), y = (kk.Contains('D') ? 1 : 0) - (kk.Contains('U') ? 1 : 0), jump = jumpNow, jumpHeld = kk.Contains('J') || t < heldTo[k], dash = dashNow };
+		// "@<x>": walk to x and stop there; "A": on the ride, step to a part the next lightning misses
+		var b = G.tm.b[k]; double? goal = null;
+		foreach (var tok in kk.Split(' ', StringSplitOptions.RemoveEmptyEntries)) if (tok.StartsWith("@")) goal = double.Parse(tok[1..]);
+		if (kk.Contains('A')) goal = dodge(b, k);
+		if (goal != null) { double d = goal.Value - b.x; inp.x = Math.Abs(d) < 2 ? 0 : Math.Clamp(d / 25, -1, 1); }
+		// the shield page: "F<px>" keeps that far from the other one; "B" keeps behind the shield (away from the nearest wave
+		// coming); "C" stops while a wave comes close (the one carrying the shield waits for the other); "K" jumps spikes and
+		// low rock ahead; "M" jumps when the other one jumps; "D" holds down (takes the shield when touching)
+		{
+			var o = G.tm.b[1 - k]; var tks = kk.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+			foreach (var tok in tks) if (tok.Length > 1 && tok[0] == 'F' && double.TryParse(tok[1..], out var off)) goal = o.x + off;
+			if (tks.Contains("B"))
+			{
+				MG.TBar best = null; double bt = 99;
+				foreach (var w in G.tm.bars) { double d = (b.x - w.x) * w.dir; if (d > -10 && d / w.v < bt && w.on.Where((on, r) => on && Math.Abs((w.r0 + r) * G.PT + 20 - b.y) < 50).Any()) { bt = d / w.v; best = w; } }
+				if (best != null) side[k] = best.dir;
+				goal = o.x + side[k] * 15;
+			}
+			if (goal != null) { double d = goal.Value - b.x; inp.x = Math.Abs(d) < 2 ? 0 : Math.Clamp(d / 25, -1, 1); }
+			// "H": no shield, waves from ahead: run from cover to cover (low rock blocks), going on only when the next one is reached first
+			if (tks.Contains("H") && goal != null)
+			{
+				int row = (int)Math.Floor(b.y / G.PT), dir = Math.Sign(goal.Value - b.x);
+				var spots = new System.Collections.Generic.List<double>();
+				for (int tx = 0; tx < G.tm.w; tx++) if (G.tm.m[row][tx] == '#' && row >= 2 && G.tm.m[row - 2][tx] != '#') spots.Add(dir > 0 ? tx * G.PT - 11 : (tx + 1) * G.PT + 11);
+				MG.TBar w0 = null; double eta = 99;
+				foreach (var w in G.tm.bars) { double d = (w.x - b.x) * dir; if (w.dir == -dir && d > -5 && d / w.v < eta && w.on.Where((on, r) => on && Math.Abs((w.r0 + r) * G.PT + 20 - b.y) < 30).Any()) { eta = d / w.v; w0 = w; } }
+				double? tgt = null;
+				if (w0 != null)
+				{
+					double best = double.NaN;
+					foreach (var sp in spots) { double reach = Math.Abs(sp - b.x) / 370 + 0.25, arrive = (w0.x - sp) * dir / w0.v; if (arrive > reach && (sp - b.x) * dir >= -2 && (double.IsNaN(best) || (sp - best) * dir > 0) && (goal.Value - sp) * dir > -5) best = sp; }
+					if (double.IsNaN(best)) foreach (var sp in spots) if ((sp - b.x) * dir < 0 && (double.IsNaN(best) || (sp - best) * dir > 0)) best = sp;
+					if (!double.IsNaN(best) && (eta < 1.6 || Math.Abs(best - b.x) < 3)) tgt = best;
+				}
+				if (tgt != null) { double d = tgt.Value - b.x; inp.x = Math.Abs(d) < 2 ? 0 : Math.Clamp(d / 25, -1, 1); }
+			}
+			if (tks.Contains("C"))
+				foreach (var w in G.tm.bars) { double d = (b.x - w.x) * w.dir; if (d > 0 && d < 170 && Math.Abs(w.r0 * G.PT - b.y) < 200) inp.x = 0; }
+			if (tks.Contains("K") && b.ground && Math.Abs(inp.x) > 0.2)
+			{
+				int dir = Math.Sign(inp.x), fx = (int)Math.Floor((b.x + dir * 26) / G.PT), fy = (int)Math.Floor((b.y + 20) / G.PT), my = (int)Math.Floor(b.y / G.PT);
+				char cf = G.tm.m[fy][fx], cm = G.tm.m[my][fx];
+				if (cf == '^' || cm == '#') { inp.jump = true; inp.jumpHeld = true; heldTo[k] = t + 0.3; }
+			}
+			if (tks.Contains("M") && o.vy < -700 && oWasGround[k] && !o.ground && b.ground) { inp.jump = true; inp.jumpHeld = true; heldTo[k] = t + 0.3; }
+			oWasGround[k] = o.ground;
+			if (tks.Contains("D")) inp.y = 1;
+		}
+		// "Z": wait while a saw is near the way to the goal and not going away from it
+		if (kk.Split(' ').Contains("Z") && goal != null)
+			foreach (var sw in G.tm.P.saws)
+			{
+				double sx = G.tmSawPosPub(sw, 0, out double sy), sx2 = G.tmSawPosPub(sw, 0.1, out _), dir = Math.Sign(goal.Value - b.x);
+				bool ahead = (sx - b.x) * dir > -40 && (sx - b.x) * dir < 160, away = (sx2 - sx) * dir > 0;
+				if (Math.Abs(sy - b.y) < 70 && ahead && !(away && (sx - b.x) * dir > 60)) inp.x = 0;
+			}
+		// "S": jump a saw coming at you (standing on a key under one)
+		if (kk.Split(' ').Contains("S") && b.ground)
+			foreach (var sw in G.tm.P.saws)
+			{
+				double sx = G.tmSawPosPub(sw, 0, out double sy), sx2 = G.tmSawPosPub(sw, 0.12, out _);
+				if (Math.Abs(sy - b.y) < 40 && Math.Abs(sx2 - b.x) < sw.r + 26 && Math.Abs(sx2 - b.x) <= Math.Abs(sx - b.x) + 1) { inp.jump = true; inp.jumpHeld = true; heldTo[k] = t + 0.25; }
+			}
+		// the cable: "P" pumps the swing (pushes the way it goes), "Q<deg>" lets go with a jump once the swing is that far up (moving right; "q" moving left)
+		if (kk.Contains('P') && b.hang) inp.x = Math.Abs(b.vx) < 30 ? 1 : Math.Sign(b.vx);
+		foreach (var tok in kk.Split(' ', StringSplitOptions.RemoveEmptyEntries)) if ((tok[0] == 'Q' || tok[0] == 'q') && tok.Length > 1 && (b.hang || b.ropeC > 0))
+		{
+			var o = G.tm.b[1 - k]; double th = Math.Atan2(b.x - o.x, b.y - o.y) * 180 / Math.PI; bool right = tok[0] == 'Q';
+			if ((right ? b.vx > 0 && th >= double.Parse(tok[1..]) : b.vx < 0 && -th >= double.Parse(tok[1..])) && t >= heldTo[k] && qDone[k] != kk) { qDone[k] = kk; inp.jump = true; inp.jumpHeld = true; heldTo[k] = t + 0.35; inp.x = right ? 1 : -1; }
+		}
+		return inp;
+	}
+	public static TeamTest ForOne(string route, int me, int page)
+	{
+		var r = new TeamTest { page = page }; var o = new System.Collections.Generic.List<(int, double, string)>(); int room = page;
+		foreach (var l in File.ReadAllLines(route).Where(l => l.Trim().Length > 0 && !l.StartsWith("#")))
+		{ var f = l.Trim().Split(' ', 2); if (f[0] == "ROOM") { room = int.Parse(f[1].Split('#')[0].Trim()); continue; } o.Add((room, double.Parse(f[0]), f.Length > 1 ? f[1].Split('#')[0].Trim() : "")); }
+		r.lines = new (int, double, string)[G.TM_N][]; for (int k = 0; k < G.TM_N; k++) { r.lines[k] = k == me ? o.ToArray() : new (int, double, string)[0]; r.lastK[k] = ""; }
+		return r;
+	}
 	void duoShot()
 	{
 		var g = G.g; if (pass > 0) G.gfx.BeginFrame(); g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#000"; g.fillRect(0, 0, 1280, 720);
@@ -88,89 +182,7 @@ public class TeamTest
 			var ins = new G.TIn[G.tm.b.Length];
 			if (G.tm != lastTm) { lastTm = G.tm; if (!entry.ContainsKey(G.tm.page) || G.tm.page == page) entry[G.tm.page] = t; }
 			int rm = G.tm.page; double rt = t - entry[rm];
-			for (int k = 0; k < G.tm.b.Length; k++)
-			{
-				string kk = ""; foreach (var l in lines[k]) if (l.room == rm && l.t <= rt + 1e-9) kk = l.k;
-				bool dashNow = kk.Contains('X') && !lastK[k].Contains('X'), jumpNow = kk.Contains('J') && !lastK[k].Contains('J'); lastK[k] = kk;
-				// "J!": the jump waits for the next beat (the radio's waves need a jump on the beat)
-				// "j!": the same, a short hop (the jump let go early, so it lands before the next beat)
-				if (kk.Contains("j!") && !lastK2[k].Contains("j!")) { beatJ[k] = true; hop[k] = true; }
-				if (jumpNow && kk.Contains("J!")) { beatJ[k] = true; hop[k] = false; jumpNow = false; }
-				if (beatJ[k]) { double bt = G.tmBeatPub(), nb = bt + 1.0 / fps / G.tm.L.spb; if (Math.Floor(nb) != Math.Floor(bt)) { jumpNow = true; beatJ[k] = false; heldTo[k] = t + (hop[k] ? 0.18 : 0.3); } }
-				lastK2[k] = kk;
-				ins[k] = new G.TIn { x = (kk.Contains('R') ? 1 : 0) - (kk.Contains('L') ? 1 : 0), y = (kk.Contains('D') ? 1 : 0) - (kk.Contains('U') ? 1 : 0), jump = jumpNow, jumpHeld = kk.Contains('J') || t < heldTo[k], dash = dashNow };
-				// "@<x>": walk to x and stop there; "A": on the ride, step to a part the next lightning misses
-				var b = G.tm.b[k]; double? goal = null;
-				foreach (var tok in kk.Split(' ', StringSplitOptions.RemoveEmptyEntries)) if (tok.StartsWith("@")) goal = double.Parse(tok[1..]);
-				if (kk.Contains('A')) goal = dodge(b, k);
-				if (goal != null) { double d = goal.Value - b.x; ins[k].x = Math.Abs(d) < 2 ? 0 : Math.Clamp(d / 25, -1, 1); }
-				// the shield page: "F<px>" keeps that far from the other one; "B" keeps behind the shield (away from the nearest wave
-				// coming); "C" stops while a wave comes close (the one carrying the shield waits for the other); "K" jumps spikes and
-				// low rock ahead; "M" jumps when the other one jumps; "D" holds down (takes the shield when touching)
-				{
-					var o = G.tm.b[1 - k]; var tks = kk.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-					foreach (var tok in tks) if (tok.Length > 1 && tok[0] == 'F' && double.TryParse(tok[1..], out var off)) goal = o.x + off;
-					if (tks.Contains("B"))
-					{
-						MG.TBar best = null; double bt = 99;
-						foreach (var w in G.tm.bars) { double d = (b.x - w.x) * w.dir; if (d > -10 && d / w.v < bt && w.on.Where((on, r) => on && Math.Abs((w.r0 + r) * G.PT + 20 - b.y) < 50).Any()) { bt = d / w.v; best = w; } }
-						if (best != null) side[k] = best.dir;
-						goal = o.x + side[k] * 15;
-					}
-					if (goal != null) { double d = goal.Value - b.x; ins[k].x = Math.Abs(d) < 2 ? 0 : Math.Clamp(d / 25, -1, 1); }
-					// "H": no shield, waves from ahead: run from cover to cover (low rock blocks), going on only when the next one is reached first
-					if (tks.Contains("H") && goal != null)
-					{
-						int row = (int)Math.Floor(b.y / G.PT), dir = Math.Sign(goal.Value - b.x);
-						var spots = new System.Collections.Generic.List<double>();
-						for (int tx = 0; tx < G.tm.w; tx++) if (G.tm.m[row][tx] == '#' && row >= 2 && G.tm.m[row - 2][tx] != '#') spots.Add(dir > 0 ? tx * G.PT - 11 : (tx + 1) * G.PT + 11);
-						MG.TBar w0 = null; double eta = 99;
-						foreach (var w in G.tm.bars) { double d = (w.x - b.x) * dir; if (w.dir == -dir && d > -5 && d / w.v < eta && w.on.Where((on, r) => on && Math.Abs((w.r0 + r) * G.PT + 20 - b.y) < 30).Any()) { eta = d / w.v; w0 = w; } }
-						double? tgt = null;
-						if (w0 != null)
-						{
-							double best = double.NaN;
-							foreach (var sp in spots) { double reach = Math.Abs(sp - b.x) / 370 + 0.25, arrive = (w0.x - sp) * dir / w0.v; if (arrive > reach && (sp - b.x) * dir >= -2 && (double.IsNaN(best) || (sp - best) * dir > 0) && (goal.Value - sp) * dir > -5) best = sp; }
-							if (double.IsNaN(best)) foreach (var sp in spots) if ((sp - b.x) * dir < 0 && (double.IsNaN(best) || (sp - best) * dir > 0)) best = sp;
-							if (!double.IsNaN(best) && (eta < 1.6 || Math.Abs(best - b.x) < 3)) tgt = best;
-						}
-						if (tgt != null) { double d = tgt.Value - b.x; ins[k].x = Math.Abs(d) < 2 ? 0 : Math.Clamp(d / 25, -1, 1); }
-					}
-					if (tks.Contains("C"))
-						foreach (var w in G.tm.bars) { double d = (b.x - w.x) * w.dir; if (d > 0 && d < 170 && Math.Abs(w.r0 * G.PT - b.y) < 200) ins[k].x = 0; }
-					if (tks.Contains("K") && b.ground && Math.Abs(ins[k].x) > 0.2)
-					{
-						int dir = Math.Sign(ins[k].x), fx = (int)Math.Floor((b.x + dir * 26) / G.PT), fy = (int)Math.Floor((b.y + 20) / G.PT), my = (int)Math.Floor(b.y / G.PT);
-						char cf = G.tm.m[fy][fx], cm = G.tm.m[my][fx];
-						if (cf == '^' || cm == '#') { ins[k].jump = true; ins[k].jumpHeld = true; heldTo[k] = t + 0.3; }
-					}
-					if (tks.Contains("M") && o.vy < -700 && oWasGround[k] && !o.ground && b.ground) { ins[k].jump = true; ins[k].jumpHeld = true; heldTo[k] = t + 0.3; }
-					oWasGround[k] = o.ground;
-					if (tks.Contains("D")) ins[k].y = 1;
-				}
-				// "Z": wait while a saw is near the way to the goal and not going away from it
-				if (kk.Split(' ').Contains("Z") && goal != null)
-					foreach (var sw in G.tm.P.saws)
-					{
-						double sx = G.tmSawPosPub(sw, 0, out double sy), sx2 = G.tmSawPosPub(sw, 0.1, out _), dir = Math.Sign(goal.Value - b.x);
-						bool ahead = (sx - b.x) * dir > -40 && (sx - b.x) * dir < 160, away = (sx2 - sx) * dir > 0;
-						if (Math.Abs(sy - b.y) < 70 && ahead && !(away && (sx - b.x) * dir > 60)) ins[k].x = 0;
-					}
-				// "S": jump a saw coming at you (standing on a key under one)
-				if (kk.Split(' ').Contains("S") && b.ground)
-					foreach (var sw in G.tm.P.saws)
-					{
-						double sx = G.tmSawPosPub(sw, 0, out double sy), sx2 = G.tmSawPosPub(sw, 0.12, out _);
-						if (Math.Abs(sy - b.y) < 40 && Math.Abs(sx2 - b.x) < sw.r + 26 && Math.Abs(sx2 - b.x) <= Math.Abs(sx - b.x) + 1) { ins[k].jump = true; ins[k].jumpHeld = true; heldTo[k] = t + 0.25; }
-					}
-				// the cable: "P" pumps the swing (pushes the way it goes), "Q<deg>" lets go with a jump once the swing is that far up (moving right; "q" moving left)
-				if (kk.Contains('P') && b.hang) ins[k].x = Math.Abs(b.vx) < 30 ? 1 : Math.Sign(b.vx);
-				foreach (var tok in kk.Split(' ', StringSplitOptions.RemoveEmptyEntries)) if ((tok[0] == 'Q' || tok[0] == 'q') && tok.Length > 1 && (b.hang || b.ropeC > 0))
-				{
-					var o = G.tm.b[1 - k]; double th = Math.Atan2(b.x - o.x, b.y - o.y) * 180 / Math.PI; bool right = tok[0] == 'Q';
-					if ((right ? b.vx > 0 && th >= double.Parse(tok[1..]) : b.vx < 0 && -th >= double.Parse(tok[1..])) && t >= heldTo[k] && qDone[k] != kk) { qDone[k] = kk; ins[k].jump = true; ins[k].jumpHeld = true; heldTo[k] = t + 0.35; ins[k].x = right ? 1 : -1; }
-				}
-			}
+			for (int k = 0; k < G.tm.b.Length; k++) ins[k] = Input(k, t, rm, rt);
 			AudioCtx.manualTime += 1.0 / fps; performance.manual += 1000.0 / fps;
 			if (!nodraw) G.gfx.BeginFrame();
 			int n0 = G.tm.restarts; G.tmStep(1.0 / fps, ins);

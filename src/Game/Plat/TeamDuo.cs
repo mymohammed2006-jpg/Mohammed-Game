@@ -22,7 +22,7 @@ public class TWave { public double x, y, r, r0, R; public int who; public double
 //          (1 right, -1 left) at v px a second until x1; rock stops each row of it, and so does the shield
 // The shield: one of the two carries it (blue at the start); a wave's rows that reach it stop there, so it keeps safe the
 // one carrying it and the one right behind it. The one without it takes it by holding down while touching the other.
-public class TBar { public double x, x0; public int dir, r0; public bool[] on; public double v, x1, born; }
+public class TBar { public double x, x0; public int dir, r0, spk; public bool[] on; public double v, x1, born; public long n; }
 public class TTower { public G.TS s; public int ph; public long callAt = -1; public int at; public bool[,] did = new bool[16, 2]; public double failT = -9, okT = -9, doneT = -9; public long lastBeat = -1; }
 
 // Page four's things:
@@ -160,7 +160,14 @@ public static partial class G
 	// ground: nothing holds them.
 	const double ROPE_PUMP = 2000, ROPE_MAXV = 1100, ROPE_FALL = 1500, ROPE_JUMP = 1.15;   // a jump off the cable goes a little higher (the cable throws you)
 	static double tmSwing(TBody b, double mx, double dt) => Math.Clamp((b.vx + mx * ROPE_PUMP * dt) * (1 - 0.15 * dt), -ROPE_MAXV, ROPE_MAXV);
+	// online the other one is measured where they are now (their newest message), not where they are drawn 100 ms back: the
+	// cable pulled from that old place, so pulling the other one up out of a pit took far longer than on one PC
 	static void tmRope()
+	{
+		var o = tmMe >= 0 && tm.b.Length == 2 ? tm.b[1 - tmMe] : null; if (o == null) { tmRope0(); return; }
+		double x = o.x, y = o.y; (o.x, o.y) = tnNow(o, false); tmRope0(); o.x = x; o.y = y;
+	}
+	static void tmRope0()
 	{
 		var a = tm.b[0]; var c = tm.b[1]; a.hang = c.hang = false;
 		tm.ropeLive = tmRopeOn(); if (!tm.ropeLive) return;
@@ -197,9 +204,10 @@ public static partial class G
 	// h hangs from the one on the ground, o (its part of the cable goes to q: o itself, or the edge it bends over)
 	static void tmHold(TBody o, TBody h, double qx, double qy, double e)
 	{
+		if (tmMe >= 0) e = Math.Min(e, P_SPEED * 2 * TN_DT);   // online the one holding can be a little ahead (below): caught up smoothly, not in one yank
 		tmPull(h, qx, qy, e); h.hang = !h.ground && h.y > qy + 10;   // it holds you only from below if (h.hang) { h.coyote = Math.Max(h.coyote, P_COYOTE); h.ropeC = P_COYOTE; }   // a jump lets go of the cable (a moment after it slackens too)
 		double len = tmRopePath(o, h, out double px, out double py);
-		if (len > tm.P.rope + 1)   // stuck behind a wall: the one holding can't walk on
+		if (len > tm.P.rope + (tmMine(h) ? 1 : 90))   // stuck behind a wall: the one holding can't walk on (online the one hanging is a moment behind: some slack)
 		{
 			bool piv = !double.IsNaN(px);
 			tmHoldX(o, piv ? px : h.x, piv ? py : h.y, tm.P.rope - (piv ? hypot(h.x - px, h.y - py) : 0));
@@ -227,11 +235,16 @@ public static partial class G
 		double vr = h.vx * nx + h.vy * ny; if (vr > 0) { h.vx -= vr * nx; h.vy -= vr * ny; }
 	}
 	// m stays where the cable lets it: no farther than L from q (back toward it, sideways)
+	// (online it only takes back this step's walk away: the other one's place is a moment old, and pulling by it threw the one
+	// holding into the pit)
 	static void tmHoldX(TBody m, double qx, double qy, double L)
 	{
 		L = Math.Max(0, L);
 		double dy = Math.Abs(m.y - qy), side = Math.Sign(m.x - qx), nx = dy >= L ? qx : qx + side * Math.Sqrt(L * L - dy * dy);
-		if (Math.Abs(nx - qx) < Math.Abs(m.x - qx)) { tmShove(m, nx - m.x, 0); if (Math.Sign(m.vx) == side) m.vx = 0; }
+		if (Math.Abs(nx - qx) >= Math.Abs(m.x - qx)) return;
+		double back = nx - m.x;
+		if (tmMe >= 0) { double away = m.mdx * side; if (away <= 0) return; back = -side * Math.Min(away, Math.Abs(back)); }
+		tmShove(m, back, 0); if (Math.Sign(m.vx) == side) m.vx = 0;
 	}
 	// the cable's length between the two: straight, or bent over one edge of rock (px, py; NaN when straight)
 	public static double tmRopePath(TBody a, TBody c, out double px, out double py)
@@ -259,6 +272,7 @@ public static partial class G
 	// moved by the cable, against the walls (in small steps so it never goes through one)
 	static void tmShove(TBody b, double dx, double dy)
 	{
+		if (!tmMine(b)) return;   // online: the other one's own PC moves them (their place comes with their messages)
 		int n = (int)Math.Ceiling(Math.Max(Math.Abs(dx), Math.Abs(dy)) / 12); if (n == 0) return;
 		for (int k = 0; k < n; k++)
 		{
@@ -302,13 +316,15 @@ public static partial class G
 			var d = s.d; long n = (long)Math.Floor((bt - d.c) / d.b);
 			if (tm.spkN[i] != long.MinValue && n > tm.spkN[i] && bt >= d.c)
 			{
-				int rows = Math.Max(1, (int)Math.Round(d.h)); var w = new TBar { x = (d.x + 0.5 + 0.5 * d.a) * PT, dir = (int)d.a, r0 = (int)d.y, on = Enumerable.Repeat(true, rows).ToArray(), v = d.v > 0 ? d.v : 420, x1 = d.x1 * PT, born = tm.t };
+				int rows = Math.Max(1, (int)Math.Round(d.h)); var w = new TBar { spk = i, n = n, x = (d.x + 0.5 + 0.5 * d.a) * PT, dir = (int)d.a, r0 = (int)d.y, on = Enumerable.Repeat(true, rows).ToArray(), v = d.v > 0 ? d.v : 420, x1 = d.x1 * PT, born = tm.t };
 				w.x0 = w.x; tm.bars.Add(w); s.timer = tm.t;
 				sfx(tt => { sTone(tt, 70, 0.35, "sawtooth", 0.07); sNoise(tt, 0.3, "lowpass", 400, 0.12); });
 			}
 			tm.spkN[i] = n; i++;
 		}
 		var sh = tm.b[tm.shield]; bool shOn = !sh.down && !sh.gate;
+		// online, the other one carrying it: where this screen shows them (so the one behind them is safe where they see the shield);
+		// and the carrier's PC tells each row its shield took (tmBarGone), so a wave it stopped there is gone here too
 		foreach (var w in tm.bars)
 		{
 			w.x += w.dir * w.v * dt;
@@ -320,19 +336,30 @@ public static partial class G
 				// the shield takes the rows that reach it
 				double ry0 = row * PT, ry1 = ry0 + PT;
 				if (shOn && sh.y + SHIELD_R > ry0 && sh.y - SHIELD_R < ry1 && Math.Abs(w.x - sh.x) < SHIELD_R + BAR_W / 2)
-				{ w.on[r] = false; burst(sh.x + Math.Sign(w.x0 - sh.x) * SHIELD_R, (ry0 + ry1) / 2, "#ffffff", 4, 160); tm.shieldT = Math.Max(tm.shieldT, 0); }
+				{
+					w.on[r] = false; burst(sh.x + Math.Sign(w.x0 - sh.x) * SHIELD_R, (ry0 + ry1) / 2, "#ffffff", 4, 160); tm.shieldT = Math.Max(tm.shieldT, 0);
+					if (tmMe >= 0 && tmMine(sh)) tnTell("ab", new() { ["s"] = w.spk, ["n"] = w.n, ["r"] = r });
+				}
 			}
 		}
 		tm.bars.RemoveAll(w => !w.on.Any(o => o) || (w.dir > 0 ? w.x > w.x1 : w.x < w.x1));
 		// passing the shield: the one without it holds down while touching the one with it
 		tm.shieldT -= dt;
 		var o2 = tm.b[1 - tm.shield];
-		if (tm.shieldT <= 0 && shOn && !o2.down && !o2.gate && ins != null && ins.Length > o2.i && ins[o2.i].y > 0.5 && Math.Abs(o2.x - sh.x) < 24 && Math.Abs(o2.y - sh.y) < 24)
-		{
-			tm.shield = o2.i; tm.shieldT = 0.4; burst(o2.x, o2.y, "#ffffff", 16, 260);
-			sfx(tt => { sTone(tt, 880, 0.08, "triangle", 0.08); sTone(tt + 0.06, 1320, 0.12, "triangle", 0.07); });
-		}
+		if (tm.shieldT <= 0 && shOn && tmMine(o2) && !o2.down && !o2.gate && ins != null && ins.Length > o2.i && ins[o2.i].y > 0.5 && Math.Abs(o2.x - sh.x) < 24 && Math.Abs(o2.y - sh.y) < 24)
+		{ tmShieldTo(o2.i); tnTell("sh", new()); }   // online: the one who takes it tells the other
 		// the one carrying it goes down: it stays with them (the other can take it from them once they are back)
+	}
+	// online: the carrier's PC says its shield took row r of a wave (speaker s's n-th)
+	static void tmBarGone(int s, long n, int r)
+	{
+		var w = tm.bars.FirstOrDefault(q => q.spk == s && q.n == n); if (w == null || r < 0 || r >= w.on.Length || !w.on[r]) return;
+		w.on[r] = false; burst(w.x, (w.r0 + r + 0.5) * PT, "#ffffff", 4, 160);
+	}
+	static void tmShieldTo(int i)
+	{
+		var b = tm.b[i]; tm.shield = i; tm.shieldT = 0.4; burst(b.x, b.y, "#ffffff", 16, 260);
+		sfx(tt => { sTone(tt, 880, 0.08, "triangle", 0.08); sTone(tt + 0.06, 1320, 0.12, "triangle", 0.07); });
 	}
 	static bool tmBarHit(TBody b)
 	{

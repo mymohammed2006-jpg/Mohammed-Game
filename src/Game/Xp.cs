@@ -21,7 +21,7 @@ public static partial class G
 		["L15"] = 4.0,   // Abra Macabre: the hardest level, On The Floor x3.3 + 20% (Mohammed, 10-21)
 		["P1"] = 1.5,   // the platformer's first level
 		["P2"] = 2.0,   // the co-op level for three (harder than P1, easier than Link)
-		["P3"] = 3.0,   // the radio, co-op for two (harder than P2): my proposal 10-24, waiting his word
+		["P3"] = 3.0,   // the radio, co-op for two (harder than P2): Mohammed 00:29 10-24
 		// Hardcore (3 hearts, Normal only), by how hard each one is: L15 x4, then +50%, +30%, +30% (Mohammed 19:35 10-21)
 		["H1"] = 6.0, ["H2"] = 8.0, ["H3"] = 10.0,
 	};

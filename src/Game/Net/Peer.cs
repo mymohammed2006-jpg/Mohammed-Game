@@ -23,6 +23,7 @@ public class Peer
 	public static bool Relay = true;      // tests: false (no internet relay here)
 	public static bool RelayOnly;          // tests: only the relay (to check the relay path)
 	public static string METERED_URL = "";   // "https://<app>.metered.live/api/v1/turn/credentials?apiKey=<key>" (free plan, 20 GB a month)
+	public static double TestLagMs;       // tests: each message arrives this much later (a far line, on one machine)
 	public static int GatherMs = 5000;   // the longest wait for the PC's addresses (and the relay's) before the offer is sent
 	static readonly System.Net.Http.HttpClient http = new() { Timeout = TimeSpan.FromSeconds(4) };
 	// TURN REST credentials: user = expiry time, password = base64(HMAC-SHA1(secret, user))
@@ -92,7 +93,7 @@ public class Peer
 	void hook(RTCDataChannel ch)
 	{
 		bool rel = ch.label == "r";
-		ch.onmessage += (c, proto, d) => inbox.Enqueue((rel, d));
+		ch.onmessage += (c, proto, d) => { if (TestLagMs > 0) _ = Task.Delay((int)TestLagMs).ContinueWith(_ => inbox.Enqueue((rel, d))); else inbox.Enqueue((rel, d)); };
 		ch.onclose += () => closed = true;
 	}
 	// the SDP once every address is known (or after GatherMs), so one write to Firebase carries all of them

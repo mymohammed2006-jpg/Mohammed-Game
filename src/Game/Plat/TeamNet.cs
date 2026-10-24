@@ -33,29 +33,34 @@ public static partial class G
 		public List<Peer> all() => team ? tp.Where(p => p != null).ToList() : vs ? vp.Where(p => p != null).ToList() : peer != null ? new List<Peer> { peer } : new List<Peer>();
 	}
 	const double TN_DELAY = 100;                // ms: the others are drawn this far in the past
+	// the radio (two, the shield and the cable need the other one where they really are): 60 messages a second, drawn 50 ms back
+	static double tnDelay => tmDuo ? 50 : TN_DELAY;
+	static double tnEvery => tmDuo ? 16 : 33;
 	public static int tnPage0 = 0;              // the tests: start on another page
 	public static double TN_DT = STEP;          // the tests: the bots' routes were made on 60 steps a second
 	public static Func<TIn> tnBot;              // the tests: a bot plays this PC's square
 	static string tnName(int i) => net?.nm[i] is { Length: > 0 } s ? s : tm?.names[i] ?? "";
+	static int tnN => net?.L?.team?.players ?? TM_N;   // how many play this level (the photo three, the radio two)
+	static string tnCol(int i) { var c = net?.L?.team?.cols; return c != null && i < c.Length ? TM_COL[c[i]] : TM_COL[i]; }
 
 	// ---------- the room ----------
 	static async void tnHost(PlatLevel L)
 	{
-		var n = net = new NetRun { host = true, team = true, seat = 0, L = L }; n.tp[1] = new Peer(); n.tp[2] = new Peer();
+		int N = L.team.players; var n = net = new NetRun { host = true, team = true, seat = 0, L = L }; n.tp[1] = new Peer(); if (N > 2) n.tp[2] = new Peer();
 		n.nm[0] = acc?.name ?? ""; n.hi[0] = true; netSetPhase("make"); state = "pltRoom";
 		try
 		{
-			var o1 = n.tp[1].Offer(); var o2 = n.tp[2].Offer(); await Task.WhenAll(o1, o2); if (net != n) return;
+			var o1 = n.tp[1].Offer(); var o2 = N > 2 ? n.tp[2].Offer() : Task.FromResult<string>(null); await Task.WhenAll(o1, o2); if (net != n) return;
 			string code = await roomMake(L.id, o1.Result, o2.Result); if (net != n) { if (code != null) _ = roomDel(code); return; }
 			if (code == null) { netEnd("ما قدرت أسوي غرفة، جرب مرة ثانية"); return; }
 			n.code = code; netSetPhase("wait");
-			// the two answers (the room stays 10 minutes)
-			while (net == n && (n.connAt[1] == 0 || n.connAt[2] == 0))
+			// the answers (the room stays 10 minutes)
+			while (net == n && Enumerable.Range(1, N - 1).Any(s => n.connAt[s] == 0))
 			{
 				await Task.Delay(1500); if (net != n) return;
 				var d = await roomGet(code); if (net != n) return;
 				if (d == null) { netEnd("انتهت الغرفة"); return; }
-				for (int s = 1; s <= 2; s++)
+				for (int s = 1; s < N; s++)
 				{
 					string a = s == 1 ? d.a : d.a2; if (a == null || n.connAt[s] > 0) continue;
 					n.nm[s] = (s == 1 ? d.gn : d.gn2) ?? "";
@@ -75,11 +80,12 @@ public static partial class G
 			n.team = true; n.nm[0] = d.hn ?? ""; n.L = PLATS.FirstOrDefault(p => p.id == d.lv && p.team != null);
 			if (n.L == null) { netEnd("حدّث اللعبة عشان تلعب هذي المرحلة"); return; }
 			if (d.h == acc.uid) { netEnd("هذي غرفتك أنت"); return; }
+			int N = n.L.team.players; string full = N > 2 ? "الغرفة فيها ٣ لاعبين" : "الغرفة فيها لاعبين";
 			for (int tries = 0; tries < 3; tries++)
 			{
 				if (d.g == acc.uid || d.g2 == acc.uid) { netEnd("أنت داخل هذي الغرفة من قبل"); return; }
-				int seat = d.a == null ? 1 : d.a2 == null ? 2 : 0;
-				if (seat == 0) { netEnd("الغرفة فيها ٣ لاعبين"); return; }
+				int seat = d.a == null ? 1 : N > 2 && d.a2 == null ? 2 : 0;
+				if (seat == 0) { netEnd(full); return; }
 				var p = new Peer(); string ans = await p.Join(seat == 1 ? d.o : d.o2); if (net != n) { p.Close(); return; }
 				if (ans == null) { p.Close(); netEnd("صار خطأ بالاتصال، جرب مرة ثانية"); return; }
 				try { await roomAnswer(n.code, ans, seat); }
@@ -88,7 +94,7 @@ public static partial class G
 				n.seat = seat; n.tp[0] = p; n.peer = p; n.hi[0] = true; n.connAt[0] = performance.now(); netSetPhase("conn");
 				return;
 			}
-			netEnd("الغرفة فيها ٣ لاعبين");
+			netEnd(full);
 		}
 		catch (Exception) { if (net == n) netEnd("ما فيه إنترنت؟ جرب مرة ثانية"); }
 	}
@@ -111,7 +117,8 @@ public static partial class G
 	// the maker, 30 times a second: the things the three drive by standing on them (scale, ride, sinking and falling clouds, stones,
 	// buttons), as it sees them. Each PC saw the others 100 ms late and differently, so the pans drifted apart (gold rode into the
 	// saw on its own PC only); now the two follow the maker. Type 3: page build, how many, then per thing: flags, a number, a timer.
-	static readonly HashSet<string> TN_WORLD = new() { "scale", "ride", "sink", "fall", "stone", "btn", "cbtn" };
+	// The radio: its lifts (how far along, and whether their key holds them now) and how high the static is.
+	static readonly HashSet<string> TN_WORLD = new() { "scale", "ride", "sink", "fall", "stone", "btn", "cbtn", "mover", "rise" };
 	static int tnBase() { int k = tm.th.FindIndex(q => q.k == "snap"); return k < 0 ? tm.th.Count : k; }
 	static void tnWorldSend()
 	{
@@ -123,8 +130,10 @@ public static partial class G
 			if (TN_WORLD.Contains(s.k))
 			{
 				int occ = s.k == "scale" ? (tmOnIt(s.L) > 0 && tmOnIt(s.R) > 0 ? 1 : 0) : tmOnIt(s);
-				fl = (s.on ? 1 : 0) | (occ > 0 ? 2 : 0) | (s.melt ? 4 : 0) | (s.gone ? 8 : 0) | (Math.Min(3, occ) << 4);
-				v = s.k == "scale" ? s.s : s.k == "ride" ? s.X : s.off; t = s.timer;
+				fl = (s.on || (s.lat && s.k is "stone" or "btn" or "cbtn") ? 1 : 0) | (occ > 0 ? 2 : 0) | (s.melt ? 4 : 0) | (s.gone ? 8 : 0) | (Math.Min(3, occ) << 4);
+				v = s.k == "scale" ? s.s : s.k == "ride" ? s.X : s.k == "mover" ? s.s : s.k == "rise" ? tm.riseY : s.off; t = s.timer;
+				if (s.k == "mover") fl = s.d.need == null || tmNeed(s.d) ? 1 : 0;
+				s.lat = false;
 			}
 			d[o++] = (byte)fl; BitConverter.TryWriteBytes(d.AsSpan(o), (float)v); o += 4; BitConverter.TryWriteBytes(d.AsSpan(o), (float)t); o += 4;
 		}
@@ -169,7 +178,7 @@ public static partial class G
 	static void tnBody(TBody b)
 	{
 		var n = net; if (n == null || !n.team) return;
-		double t = performance.now() - TN_DELAY; TSnap a = null, c = null;
+		double t = performance.now() - tnDelay; TSnap a = null, c = null;
 		foreach (var s in n.ts[b.i]) { if (!tnSameGen(s)) continue; if (s.at <= t) a = s; else { c = s; break; } }
 		if (a == null && c == null) return;   // nothing from this page yet: it stays where the page put it
 		a ??= c; c ??= a;
@@ -195,8 +204,8 @@ public static partial class G
 	// the maker: each one as their newest message has it (for who stands on what; mine as it is)
 	static TBody[] tnSeenAll()
 	{
-		var n = net; var r = new TBody[TM_N];
-		for (int i = 0; i < TM_N; i++)
+		var n = net; var r = new TBody[tm.b.Length];
+		for (int i = 0; i < r.Length; i++)
 		{
 			var b = tm.b[i]; r[i] = b; if (n == null || i == tmMe) continue;
 			var c = n.ts[i].LastOrDefault(tnSameGen); if (c == null) continue;
@@ -209,14 +218,16 @@ public static partial class G
 	static (double, double) tnPos(TBody b)
 	{
 		var n = net; if (tmMe < 0 || n == null || b.i != tmMe || n.hist.Count == 0) return (b.x, b.y);
-		double t = performance.now() - TN_DELAY; var h = n.hist[0]; foreach (var q in n.hist) { if (q.at > t) break; h = q; }
+		double t = performance.now() - tnDelay; var h = n.hist[0]; foreach (var q in n.hist) { if (q.at > t) break; h = q; }
 		return (h.x, h.y);
 	}
 	// where another one is right now (its newest message, moved on by its speed): where my square lands in a lightning swap
-	static (double, double) tnNow(TBody o)
+	// (ext false: as the newest message has it, not moved on: the radio's cable)
+	static (double, double) tnNow(TBody o, bool ext = true)
 	{
 		var n = net; var s = n?.ts[o.i].LastOrDefault(tnSameGen); if (s == null) return (o.x, o.y);
 		var on = tnThing(s.on); if (on != null) return (on.X + s.rx, on.Y + s.ry);
+		if (!ext) return (s.x, s.y);
 		double age = Math.Min(0.15, (performance.now() - s.at) / 1000 + 0.04);
 		return (s.x + s.vx * age, s.y + s.vy * age);
 	}
@@ -244,13 +255,15 @@ public static partial class G
 			case "st": tmSnapStep(w, D("x"), D("y"), D("u")); break;
 			case "sl": { var s = tm.th.FirstOrDefault(q => q.k == "slot" && (int)q.d.a == I("i") && !q.on); if (s != null) tmPlace(s); break; }
 			case "rs": if (tm.restartAt < 0 && tm.doneAt < 0) { tm.restartAt = D("t"); flash = 0.3; } break;
-			case "pd": if (tm.doneAt < 0 && tm.restartAt < 0) tmPageDone(D("t")); break;
+			case "pd": if (tm.doneAt < 0 && tm.restartAt < 0) { if (tm.P.mic) tmMicWin(); else tmPageDone(D("t")); } break;
 			case "tb": if (tm.snapAt < 0) tmTether(I("p")); break;
+			case "sh": if (tm.spkN != null && w < tm.b.Length) tmShieldTo(w); break;   // the radio: the one who took the shield
+			case "ab": if (tm.spkN != null) tmBarGone(I("s"), j["n"]?.GetValue<long>() ?? -1, I("r")); break;   // and a wave's row its shield took
 		}
 	}
 
 	// ---------- every frame ----------
-	static readonly HashSet<string> TN_FWD = new() { "pc", "cam", "st", "sl", "xp" };   // the host passes these on to the other one
+	static readonly HashSet<string> TN_FWD = new() { "pc", "cam", "st", "sl", "xp", "sh", "ab" };   // the host passes these on to the other one
 	static void tnTick(double now)
 	{
 		var n = net; bool over = tm?.won == true;   // after the photo: someone leaving doesn't take the others off the win screen
@@ -274,7 +287,7 @@ public static partial class G
 			}
 			else if (now - n.connAt[s] > 25000) { netDiag = p.Diag(); netEnd(n.host ? $"ما قدرنا نتصل بـ{tnName(s)}، يمكن الشبكة تمنع الاتصال" : "ما قدرنا نتصل، يمكن الشبكة تمنع الاتصال", n.host, tnName(s)); return; }
 		}
-		if (n.host && n.phase == "wait" && n.said[1] && n.said[2]) { netSetPhase("lobby"); _ = roomDel(n.code); }
+		if (n.host && n.phase == "wait" && Enumerable.Range(1, tnN - 1).All(s => n.said[s])) { netSetPhase("lobby"); _ = roomDel(n.code); }
 		for (int s = 0; s < TM_N; s++)
 		{
 			var p = n.tp[s]; if (p == null) continue;
@@ -301,15 +314,15 @@ public static partial class G
 		// the host measures each line (for the start's timing)
 		if (n.host && n.phase is "wait" or "lobby")
 			for (int s = 1; s < TM_N; s++) if (n.said[s] && now - n.pingT[s] > 1000) { n.pingT[s] = now; n.tp[s].Send(new JsonObject { ["k"] = "ping", ["t"] = now }.ToJsonString()); }
-		if (tm != null && tmMe >= 0 && state is "tmPlay" or "tmPause" or "tmSet" && now - n.sendAt >= 33) { n.sendAt = now; tnSnapSend(); if (n.host) tnWorldSend(); }
+		if (tm != null && tmMe >= 0 && state is "tmPlay" or "tmPause" or "tmSet" && now - n.sendAt >= tnEvery) { n.sendAt = now; tnSnapSend(); if (n.host) tnWorldSend(); }
 	}
 
 	// ---------- the start ----------
-	static bool tnReady => net != null && net.hi.All(h => h);
+	static bool tnReady => net != null && net.hi.Take(tnN).All(h => h);
 	static void tnGo()
 	{
 		var n = net; if (n == null || !n.host || !tnReady) return;
-		for (int s = 1; s < TM_N; s++) n.tp[s].Send(new JsonObject { ["k"] = "go", ["d"] = NET_GO - Math.Max(0, n.rt[s]) / 2 }.ToJsonString());
+		for (int s = 1; s < tnN; s++) n.tp[s].Send(new JsonObject { ["k"] = "go", ["d"] = NET_GO - Math.Max(0, n.rt[s]) / 2 }.ToJsonString());
 		tnStart(performance.now() + NET_GO);
 	}
 	static void tnStart(double goAt)
