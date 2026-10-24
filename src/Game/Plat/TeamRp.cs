@@ -41,7 +41,7 @@ public static partial class G
 		foreach (var b in tm.b)
 		{
 			F(b.x); F(b.y); F(b.sa); F(b.sk); F(b.fx); F(b.ddx); F(b.ddy); F(b.dash); F(b.hurt); F(b.revT); F(b.still); F(b.downAt);
-			w.Write((byte)Math.Clamp(b.hp, 0, 255)); w.Write((byte)((b.down ? 1 : 0) | (b.gate ? 2 : 0) | (b.armed ? 4 : 0) | (b.carry != null ? 8 : 0)));
+			w.Write((byte)Math.Clamp(b.hp, 0, 255)); w.Write((byte)((b.down ? 1 : 0) | (b.gate ? 2 : 0) | (b.armed ? 4 : 0) | (b.carry != null ? 8 : 0) | (b.hang ? 16 : 0)));
 		}
 		int nb = tnBase(); w.Write((short)nb);
 		for (int i = 0; i < nb; i++)
@@ -53,7 +53,15 @@ public static partial class G
 		foreach (var s in snaps) { w.Write((byte)(int)s.d.a); F(s.X); F(s.Y); F(s.timer); F(s.s); }
 		w.Write((short)tm.hail.Count); foreach (var q in tm.hail) { F(q.x); F(q.y); }
 		w.Write((short)tm.steps.Count); foreach (var q in tm.steps) { F(q.x); F(q.y); F(q.t); w.Write((byte)q.who); }
+		if (tmRpDuo(tm.L))   // the radio: how garbled, the static, the cable, the shield and the speakers' waves
+		{
+			F(tm.murk); F(tm.riseY); w.Write((byte)((tm.ropeLive ? 1 : 0) | (tm.shield << 1)));
+			w.Write((byte)Math.Min(255, tm.bars.Count));
+			foreach (var q in tm.bars.Take(255)) { F(q.x); w.Write((sbyte)q.dir); w.Write((byte)q.r0); int m = 0; for (int k = 0; k < q.on.Length && k < 8; k++) if (q.on[k]) m |= 1 << k; w.Write((byte)m); w.Write((byte)q.on.Length); }
+		}
 	}
+	// the radio level (its own colours, two players): its frames carry more, and only its bodies
+	static bool tmRpDuo(TeamLevel L) => L?.cols != null;
 	// saves it on the PC (res: "win" from the win screen, "mid" from the pause)
 	static bool tmRpSave(string res)
 	{
@@ -78,14 +86,16 @@ public static partial class G
 		public double[][] bd = new double[TM_N][]; public int[] hp = new int[TM_N], bfl = new int[TM_N];
 		public double[] tx, ty, ts, tt, toff; public int[] tfl, tn;
 		public List<(int who, double x, double y, double timer, double s)> snaps = new(); public List<(double x, double y)> hail = new(); public List<(double x, double y, double t, int who)> steps = new();
+		public double murk, riseY = double.NaN; public int duo; public List<(double x, int dir, int r0, int on, int n)> bars = new();
 	}
-	public class TmRpData { public PlatLevel P; public TeamLevel L; public List<TFrame> fr = new(); public int seat; public string[] names; public List<string> strs; public Voice[] voices; public bool[] von; public string mkey; public TFrame prev; public List<TFrame> frFull, frCut; public int[] cutOi; public double lastT = double.NaN, lastTr; }
+	public class TmRpData { public PlatLevel P; public TeamLevel L; public List<TFrame> fr = new(); public int seat; public string[] names; public List<string> strs; public Voice[] voices; public bool[] von; public string mkey; public TFrame prev; public Voice stat; public double murkNow; public List<TFrame> frFull, frCut; public int[] cutOi; public double lastT = double.NaN, lastTr; }
 	static TmRpData tmrp;
 	static int tmRpSaveMe = -1, tmRpSaveView = -1;
 	public static bool tmRpOn => rp.team && tmrp != null;
 
-	static List<TFrame> tmRpParse(string b64)
+	static List<TFrame> tmRpParse(string b64, TeamLevel L)
 	{
+		int nb0 = L?.players ?? TM_N; bool duo = tmRpDuo(L);
 		var o = new List<TFrame>(); byte[] raw;
 		using (var i = new MemoryStream(Convert.FromBase64String(b64))) using (var z = new GZipStream(i, CompressionMode.Decompress)) using (var m = new MemoryStream()) { z.CopyTo(m); raw = m.ToArray(); }
 		var r = new BinaryReader(new MemoryStream(raw)); double F() => r.ReadSingle();
@@ -96,12 +106,17 @@ public static partial class G
 			f.swapA = r.ReadSByte(); f.swapB = r.ReadSByte(); f.snapAt = r.ReadSByte(); f.cover = r.ReadByte(); f.msg = r.ReadInt16(); f.stems = r.ReadByte(); f.restarts = r.ReadInt16(); f.hits = r.ReadInt16();
 			for (int i = 0; i < TM_N; i++) { f.falls[i] = r.ReadByte(); f.flips[i] = r.ReadByte(); f.xp[i] = r.ReadInt16(); }
 			int ng = r.ReadByte(); for (int i = 0; i < ng; i++) f.got.Add((r.ReadByte(), r.ReadByte()));
-			for (int i = 0; i < TM_N; i++) { var a = new double[12]; for (int k = 0; k < 12; k++) a[k] = F(); f.bd[i] = a; f.hp[i] = r.ReadByte(); f.bfl[i] = r.ReadByte(); }
+			for (int i = 0; i < nb0; i++) { var a = new double[12]; for (int k = 0; k < 12; k++) a[k] = F(); f.bd[i] = a; f.hp[i] = r.ReadByte(); f.bfl[i] = r.ReadByte(); }
 			int nb = r.ReadInt16(); f.tx = new double[nb]; f.ty = new double[nb]; f.ts = new double[nb]; f.tt = new double[nb]; f.toff = new double[nb]; f.tfl = new int[nb]; f.tn = new int[nb];
 			for (int i = 0; i < nb; i++) { f.tx[i] = F(); f.ty[i] = F(); f.ts[i] = F(); f.tt[i] = F(); f.toff[i] = F(); f.tfl[i] = r.ReadByte(); f.tn[i] = r.ReadByte(); }
 			int ns = r.ReadByte(); for (int i = 0; i < ns; i++) f.snaps.Add((r.ReadByte(), F(), F(), F(), F()));
 			int nh = r.ReadInt16(); for (int i = 0; i < nh; i++) f.hail.Add((F(), F()));
 			int nst = r.ReadInt16(); for (int i = 0; i < nst; i++) f.steps.Add((F(), F(), F(), r.ReadByte()));
+			if (duo)
+			{
+				f.murk = F(); f.riseY = F(); f.duo = r.ReadByte();
+				int nw = r.ReadByte(); for (int i = 0; i < nw; i++) f.bars.Add((F(), r.ReadSByte(), r.ReadByte(), r.ReadByte(), r.ReadByte()));
+			}
 			o.Add(f);
 		}
 		return o;
@@ -110,7 +125,7 @@ public static partial class G
 	static bool tmRpLoad(MyRp it, PlatLevel P)
 	{
 		if (P?.team == null || it.segs == null || it.segs.Count == 0) return false;
-		try { tmrp = new TmRpData { P = P, L = P.team, fr = tmRpParse(it.segs[0].d), seat = it.tmSeat, names = it.tmNames ?? new[] { "الأحمر", "الأزرق", "الأصفر" }, strs = it.tmStr ?? new List<string> { "" } }; }
+		try { tmrp = new TmRpData { P = P, L = P.team, fr = tmRpParse(it.segs[0].d, P.team), seat = it.tmSeat, names = it.tmNames ?? new[] { "الأحمر", "الأزرق", "الأصفر" }, strs = it.tmStr ?? new List<string> { "" } }; }
 		catch (Exception) { tmrp = null; return false; }
 		if (tmrp.fr.Count < 2 || tmrp.fr.Any(f => f.page >= P.team.pages.Count)) { tmrp = null; return false; }
 		rp.doc = new RpDoc { r = it.r, res = it.res, v = RP_V, hz = TM_HZ, segs = new List<RpSeg> { new RpSeg { t0 = 0, n = tmrp.fr.Count, b = new ushort[3] } } };
@@ -149,7 +164,7 @@ public static partial class G
 		bool wasPaused = rp.paused; if (wasPaused) rpPause(false);
 		tmRpGo(0, j / (double)TM_HZ); if (wasPaused) rpPause(true);
 	}
-	static void tmRpStopMusic() { if (tmrp?.voices == null) return; foreach (var v in tmrp.voices) if (v != null) { v.gain.setTargetAtTime(0, actx.currentTime, 0.04); v.stop(actx.currentTime + 0.3); } tmrp.voices = null; tmrp.mkey = null; }
+	static void tmRpStopMusic() { if (tmrp?.stat != null) { tmrp.stat.gain.setTargetAtTime(0, actx.currentTime, 0.04); tmrp.stat.stop(actx.currentTime + 0.3); tmrp.stat = null; } if (tmrp?.voices == null) return; foreach (var v in tmrp.voices) if (v != null) { v.gain.setTargetAtTime(0, actx.currentTime, 0.04); v.stop(actx.currentTime + 0.3); } tmrp.voices = null; tmrp.mkey = null; }
 	static void tmRpRate(double r) { if (tmrp?.voices != null) foreach (var v in tmrp.voices) v?.playbackRate.setValueAtTime(r, actx.currentTime); }
 	// the first page of a run of pages that go on from each other (one song part)
 	static int tmRpGroup(int page) { while (page > 0 && tmrp.L.pages[page].cont) page--; return page; }
@@ -166,24 +181,38 @@ public static partial class G
 	{
 		var L = tmrp.L; var P = L.pages[f.page]; double t = f.g[0];
 		bool won = (f.fl & 1) != 0 && P.outro > 0; double oAt = won ? tmRpOutroAt(P, f.g[4]) : 0; bool outro = won && t >= oAt;
-		string key = tmRpGroup(f.page) + (outro ? "o" : "");
+		bool mic = (f.fl & 1) != 0 && P.mic;   // the radio's end: the song clear, on from where it was to its end (TeamDuo.tmMicWin)
+		string key = tmRpGroup(f.page) + (outro ? "o" : "") + (mic ? "m" : "");
 		double tr = rp.aT + Math.Max(0, actx.currentTime - rp.aCT) * rp.rate; bool jump = !double.IsNaN(tmrp.lastT) && Math.Abs(t - (tmrp.lastT + (tr - tmrp.lastTr) * 1)) > 0.3 && !outro;
 		tmrp.lastT = t; tmrp.lastTr = tr;
 		if (!force && !jump && key == tmrp.mkey) { tmRpStems(f); return; }
 		tmRpStopMusic(); tmrp.mkey = key; if (noMus || L.bufs == null) return;
 		var lp = P.loop; double len = lp[1] - lp[0], wait = Math.Max(0, -t) / rp.rate, off = outro ? P.outro + (t - oAt) : t <= 0 ? lp[0] : lp[0] + (len > 0 ? t % len : 0);
+		if (mic) { double wAt = Math.Max(0, f.g[4]); off = lp[0] + (len > 0 ? wAt % len : 0) + (t - wAt); }
 		double when = actx.currentTime + 0.03 + wait; tmrp.voices = new Voice[L.bufs.Length];
 		for (int i = 0; i < L.bufs.Length; i++)
 		{
 			if (L.bufs[i] == null) continue;
-			var v = outro ? new Voice { song = L.bufs[i], loop = false } : new Voice { song = L.bufs[i], loop = true, loopStart = lp[0], loopEnd = lp[1] };
+			var v = outro || mic ? new Voice { song = L.bufs[i], loop = false } : new Voice { song = L.bufs[i], loop = true, loopStart = lp[0], loopEnd = lp[1] };
+			if (tmRpDuo(L)) v.murk = new AParam(f.murk);
 			v.playbackRate.value = rp.rate; v.gain.value = outro || (f.stems & (1 << i)) != 0 ? 1 : 0; v.start(when, off); tmrp.voices[i] = AudioCtx.Add(v);
 		}
 		tmrp.von = Enumerable.Range(0, L.bufs.Length).Select(i => outro || (f.stems & (1 << i)) != 0).ToArray();
+		tmrp.murkNow = f.murk;
+		if (tmRpDuo(L))   // his radio static over it, as loud as the song is garbled
+		{
+			if (!staticTried) { staticTried = true; staticBuf = LoadSong("SFX_STATIC"); }
+			if (staticBuf != null) { var st = new Voice { song = staticBuf, loop = true, loopStart = STATIC_LOOP, loopEnd = 2 * STATIC_LOOP }; st.gain.value = tmStaticGain(f.murk); st.start(when, STATIC_LOOP); tmrp.stat = AudioCtx.Add(st); }
+		}
 	}
 	static void tmRpStems(TFrame f)
 	{
 		if (tmrp.voices == null || tmrp.mkey?.EndsWith("o") == true) return;
+		if (tmRpDuo(tmrp.L) && Math.Abs(f.murk - tmrp.murkNow) > 0.001)
+		{
+			tmrp.murkNow = f.murk; foreach (var v in tmrp.voices) v?.murk?.setTargetAtTime(f.murk, actx.currentTime, 0.35);
+			tmrp.stat?.gain.setTargetAtTime(tmStaticGain(f.murk), actx.currentTime, 0.35);
+		}
 		for (int i = 0; i < tmrp.voices.Length; i++) { bool on = (f.stems & (1 << i)) != 0; var v = tmrp.voices[i]; if (v != null && tmrp.von[i] != on) { tmrp.von[i] = on; v.gain.setTargetAtTime(on ? 1 : 0, actx.currentTime, 0.25); } }
 	}
 	static void tmRpGo(int i, double? T)
@@ -226,16 +255,26 @@ public static partial class G
 		foreach (var q in A.snaps) tm.th.Add(new TS { d = new TThing { k = "snap", a = q.who }, k = "snap", X = q.x, Y = q.y, W = 40, H = 10, one = true, solid = true, timer = q.timer, s = q.s });
 		tm.hail.Clear(); foreach (var (x, y) in A.hail) tm.hail.Add(new THail { x = x, y = y });
 		tm.steps.Clear(); foreach (var q in A.steps) tm.steps.Add(q);
+		if (tmRpDuo(L))
+		{
+			tm.murk = A.murk; tm.riseY = double.IsNaN(A.riseY) || double.IsNaN(C.riseY) ? A.riseY : Lr(A.riseY, C.riseY); tm.ropeLive = (A.duo & 1) != 0; tm.shield = Math.Clamp(A.duo >> 1, 0, tm.b.Length - 1);
+			tm.bars.Clear(); bool sb = same && C.bars.Count == A.bars.Count;
+			for (int i = 0; i < A.bars.Count; i++)
+			{
+				var q = A.bars[i]; double x = sb && C.bars[i].dir == q.dir && C.bars[i].r0 == q.r0 ? Lr(q.x, C.bars[i].x) : q.x;
+				tm.bars.Add(new TBar { x = x, x0 = x, dir = q.dir, r0 = q.r0, on = Enumerable.Range(0, q.n).Select(r => (q.on & (1 << r)) != 0).ToArray(), v = 420 });
+			}
+		}
 		// the three
-		for (int i = 0; i < TM_N; i++)
+		for (int i = 0; i < tm.b.Length; i++)
 		{
 			var b = tm.b[i]; var a = A.bd[i]; var c = C.bd[i]; bool wasDown = b.down, wasGate = b.gate; int wasHp = b.hp; bool wasDash = b.dash > 0;
 			b.x = Lr(a[0], c[0]); b.y = Lr(a[1], c[1]); b.sa = a[2]; b.sk = Lr(a[3], c[3]); b.fx = a[4]; b.ddx = a[5]; b.ddy = a[6]; b.dash = a[7]; b.hurt = a[8]; b.revT = a[9]; b.still = a[10]; b.downAt = a[11];
-			b.hp = A.hp[i]; int f = A.bfl[i]; b.down = (f & 1) != 0; b.gate = (f & 2) != 0; b.armed = (f & 4) != 0;
+			b.hp = A.hp[i]; int f = A.bfl[i]; b.down = (f & 1) != 0; b.gate = (f & 2) != 0; b.armed = (f & 4) != 0; b.hang = (f & 16) != 0;
 			b.carry = (f & 8) != 0 ? tm.th.FirstOrDefault(q => q.k == "pic" && (int)q.d.a == i && !q.on) : null;
 			if (dt > 0) { b.trail.Add((b.x, b.y, tm.t)); b.trail.RemoveAll(q => tm.t - q.t > 0.18 || q.t > tm.t); } else b.trail.Clear();
 			if (!fx || p0 == null) continue;
-			string col = TM_COL[i];
+			string col = tmCol(i);
 			if (b.down && !wasDown) { burst(b.x, b.y, col, 50, 520); sfx(tt => { sTone(tt, 110, 0.3, "square", 0.18); sNoise(tt, 0.25, "lowpass", 900, 0.3); }); }
 			else if (!b.down && wasDown) { burst(b.x, b.y, col, 30, 320); sfx(tt => { sTone(tt, 523, 0.12, "triangle", 0.1); sTone(tt + 0.08, 784, 0.18, "triangle", 0.1); }); }
 			else if (!b.down && b.hp < wasHp) { burst(b.x, b.y, col, 22, 380); sfx(tt => { sTone(tt, 110, 0.3, "square", 0.18); sNoise(tt, 0.25, "lowpass", 900, 0.3); }); }

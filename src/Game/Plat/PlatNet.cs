@@ -86,6 +86,7 @@ public static partial class G
 		}
 		catch (Exception) { if (net == n) netEnd("ما فيه إنترنت؟ جرب مرة ثانية"); }
 	}
+	public static void netEndPub() => netEnd(null);   // the tests (test/PvRun.cs)
 	// leave (or the other left): back to the level list with a line saying why
 	static void netEnd(string why, bool tell = false, string byeName = null)
 	{

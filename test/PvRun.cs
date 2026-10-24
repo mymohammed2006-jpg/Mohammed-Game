@@ -31,6 +31,7 @@ public class PvRun
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "rp") { RpScene(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "all46") { All46(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "rpt") { RptScene(now); G.last = now(); return; }
+		if (System.Environment.GetEnvironmentVariable("MG_PV") == "radio") { RadioScene(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "rpp") { RppScene(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "hc2") { HcOrder(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "hcsk") { HcSkins(now); G.last = now(); return; }
@@ -240,6 +241,30 @@ public class PvRun
 		for (int j = 0; j < 4; j++) at[2196 + j * 2] = () => tap("ArrowDown"); at[2206] = () => tap("Enter");
 		at[2260] = () => tap("KeyT"); at[2263] = () => G.rpSeekTo(double.Parse(System.Environment.GetEnvironmentVariable("MG_TM_AT") ?? "60")); shots[2275] = "14-coop-replay-box-on"; at[2276] = () => tap("KeyT"); shots[2282] = "15-coop-replay-box-off";
 		endF = 2290;
+	}
+	// the radio level for two: its card on the list, the room, the start, the pause, and its replay (MG_RPT_FILE from TeamTest RPT=1)
+	void RadioScene(Func<double> now)
+	{
+		void tap(string k) { G.OnKeyDown(k, false); rel.Add(k); }
+		G.MYRP_DIR = "user://pv_replays"; var dd = DirAccess.Open(G.MYRP_DIR); if (dd != null) foreach (var f in dd.GetFiles()) dd.Remove(f);
+		DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath(G.MYRP_DIR));
+		var P = G.PLATS.First(p => p.id == "P3");
+		at[1] = () => { G.gatePassed = true; G.state = "pltList"; G.plSel = G.PLATS.IndexOf(P); };
+		shots[40] = "r1-list";
+		at[41] = () => { G.net = new G.NetRun { team = true, host = true, seat = 0, L = P, phase = "wait", code = "48213" }; G.net.nm[0] = "Mohammed"; G.net.hi[0] = true; G.state = "pltRoom"; };
+		shots[60] = "r2-room-wait";
+		at[61] = () => { G.net.nm[1] = "azm511"; G.net.hi[1] = true; G.net.phase = "lobby"; };
+		shots[80] = "r3-room-ready";
+		at[81] = () => { G.tnPage0 = P.team.pages.Count - 1; typeof(G).GetMethod("tnStart", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).Invoke(null, new object[] { now() + 1500 }); };
+		shots[100] = "r4-start";
+		at[200] = () => tap("Escape"); shots[206] = "r5-pause"; at[207] = () => tap("Escape");
+		at[220] = () => { G.netEndPub(); G.tnPage0 = 0; var f = System.Environment.GetEnvironmentVariable("MG_RPT_FILE"); if (f != null) File.Copy(f, ProjectSettings.GlobalizePath(G.MYRP_DIR + "/1761160000000_P3.json"), true); };
+		at[240] = () => { G.state = "main"; G.openMyRp("main"); }; shots[260] = "r6-replays";
+		at[261] = () => tap("Enter");
+		var ticks = (System.Environment.GetEnvironmentVariable("MG_RPT_TICKS") ?? "300,900,1500,1790").Split(',').Select(int.Parse).ToArray();
+		int f0 = 330;
+		foreach (var k in ticks) { int kk = k; at[f0] = () => G.rpSeekTo(kk / 30.0 - 3 / 60.0); shots[f0 + 4] = $"r7-replay-{k}"; f0 += 12; }
+		endF = f0 + 4;
 	}
 	// v46: the co-op level's replay (a file made by test/TeamBot.cs RPT=1): the list, watching, jumps to MG_RPT_TICKS, the end
 	void RptScene(Func<double> now)

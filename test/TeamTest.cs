@@ -17,6 +17,43 @@ public class TeamTest
 	double from = double.TryParse(System.Environment.GetEnvironmentVariable("FROM"), out var fr) ? fr : 0;   // env FROM: pictures only after this time
 	string view; int pass = -1; bool[] beatJ = new bool[G.TM_N]; double[] heldTo = new double[G.TM_N]; bool[] hop = new bool[G.TM_N]; string[] lastK2 = { "", "", "" }; string[] qDone = { "", "", "" }; int[] side = { -1, -1, -1 }; bool[] oWasGround = new bool[3];   // env VIEW: a player's screen (0-2), or "cycle" (each one's screen in turn in the dark rooms); else everyone's
 	BinaryWriter wav = System.Environment.GetEnvironmentVariable("WAV") != null ? new BinaryWriter(new MemoryStream()) : null;
+	// env RPT=1: records the replay while the bots play, then checks watching it shows the same at every tick (like TeamBot's)
+	bool rpt = System.Environment.GetEnvironmentVariable("RPT") == "1"; System.Collections.Generic.List<string> live = new();
+	static string RpStr()
+	{
+		var tm = G.tm; var o = new StringBuilder(); o.Append('p').Append(tm.page).Append(" t").Append(Math.Round(tm.t, 2)).Append(" got").Append(tm.got.Count).Append(tm.won ? " W" : "");
+		foreach (var b in tm.b) o.Append(" |").Append(Math.Round(b.x)).Append(',').Append(Math.Round(b.y)).Append(b.down ? "d" : "").Append(b.gate ? "g" : "").Append(b.hang ? "H" : "").Append(" h").Append(b.hp);
+		foreach (var s in tm.th) o.Append(" ").Append(s.k[0]).Append(Math.Round(s.X)).Append(',').Append(Math.Round(s.Y)).Append(s.on ? "+" : "").Append(s.solid ? "" : "~");
+		o.Append(" m").Append(Math.Round(tm.murk, 2)).Append(" rise").Append(double.IsNaN(tm.riseY) ? "-" : Math.Round(tm.riseY).ToString()).Append(tm.ropeLive ? " R" : "").Append(" sh").Append(tm.shield);
+		foreach (var w in tm.bars) o.Append(" w").Append(w.dir > 0 ? '>' : '<').Append(Math.Round(w.x)).Append('/').Append(w.r0).Append(':').Append(string.Concat(w.on.Select(q => q ? '1' : '0')));
+		return o.ToString();
+	}
+	static bool Near(string a, string b)   // a pixel apart at most (kept as 4-byte numbers)
+	{
+		var x = System.Text.RegularExpressions.Regex.Split(a, "(-?[0-9.]+)"); var y = System.Text.RegularExpressions.Regex.Split(b, "(-?[0-9.]+)"); if (x.Length != y.Length) return false;
+		for (int i = 0; i < x.Length; i++) { if (x[i] == y[i]) continue; if (i % 2 == 1 && double.TryParse(x[i], out var p) && double.TryParse(y[i], out var q) && Math.Abs(p - q) <= 1.01) continue; return false; }
+		return true;
+	}
+	void RpCheck()
+	{
+		var o = new StringBuilder();
+		G.MYRP_DIR = "user://rpt"; var dd = DirAccess.Open(G.MYRP_DIR); if (dd != null) foreach (var f in dd.GetFiles()) dd.Remove(f);
+		bool ok = G.tmRpSavePub(G.tm.won ? "win" : "mid"); G.myRpLoadPub(); var its = G.myRpsPub();
+		o.Append($"saved {ok}, files {its.Count}, ticks {G.tmRec.n}, live {live.Count}\n");
+		if (its.Count == 1)
+		{
+			var it = its[0]; o.Append($"kind {it.kind} res {it.res} r {it.r} len {it.len:F1}s size {it.segs[0].d.Length / 1024} KB\n");
+			G.myRpPlayPub(it); int bad = 0, n = live.Count;
+			for (int k = 0; k < n; k++)
+			{
+				G.tmRpApplyPub(k / (double)G.TM_HZ); string r = RpStr();
+				if (!Near(r, live[k])) { if (bad++ < 5) o.Append($"tick {k}:\n  live   {live[k]}\n  replay {r}\n"); }
+			}
+			o.Append($"ticks that differ: {bad} of {n}\n");
+			File.Copy(ProjectSettings.GlobalizePath(G.MYRP_DIR + "/" + it.file), Path.Combine(outDir, "replay.json"), true);
+		}
+		File.WriteAllText(Path.Combine(outDir, "rpt.log"), o.ToString());
+	}
 
 	// the ride's part (0-3) this player should be on for the next strike: stay if it is safe, else the nearest safe part
 	double? dodge(G.TBody b, int k)
@@ -52,6 +89,7 @@ public class TeamTest
 		T = double.TryParse(System.Environment.GetEnvironmentVariable("T"), out var tt) ? tt : lines.Max(l => l.Length > 0 ? l[^1].t : 0) + 3;
 		G.ensureAudio(); G.stopMenu();
 		G.tmStart(G.LoadTeam(id), page); G.state = "team";
+		if (rpt) G.tmRecStartPub();
 		view = System.Environment.GetEnvironmentVariable("VIEW");
 	}
 	// one player's buttons at time t (rt: since page rm began), from its route; online (test/TeamNetTest.cs DUO) one of these per PC
@@ -167,6 +205,7 @@ public class TeamTest
 		pass = -1;
 		if (done)
 		{
+			if (rpt) RpCheck();
 			File.WriteAllText(Path.Combine(outDir, "state.log"), log.ToString());
 			if (wav != null)
 			{
@@ -186,6 +225,7 @@ public class TeamTest
 			AudioCtx.manualTime += 1.0 / fps; performance.manual += 1000.0 / fps;
 			if (!nodraw) G.gfx.BeginFrame();
 			int n0 = G.tm.restarts; G.tmStep(1.0 / fps, ins);
+			if (rpt) { int r0 = G.tmRec.n; G.tmRecTickPub(1.0 / fps); for (int k = r0; k < G.tmRec.n; k++) live.Add(RpStr()); }
 			if (wav != null) { int n = AudioCtx.SR / fps; var l = new float[n]; var r = new float[n]; AudioCtx.RenderAt(l, r, n, AudioCtx.manualTime.Value); for (int j = 0; j < n; j++) { wav.Write((short)(Math.Clamp(l[j], -1, 1) * 32767)); wav.Write((short)(Math.Clamp(r[j], -1, 1) * 32767)); } }
 			G.particlesStep(1.0 / fps);
 			log.Append(str(Math.Round(t, 3))).Append(" r").Append(rm).Append(' ').Append(str(Math.Round(rt, 2))).Append(' ').Append(str(Math.Round(G.tmBeatPub(), 2)));
