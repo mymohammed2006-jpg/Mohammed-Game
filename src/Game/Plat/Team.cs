@@ -247,6 +247,7 @@ public static partial class G
 
 	// ---------- where things are ----------
 	static bool tmTile(int tx, int ty) => tx < 0 || ty < 0 || tx >= tm.w || ty >= tm.h || tm.m[ty][tx] is '#' or 'I';
+	public static bool tmPressedPub(string id) => tmPressed(id);   // the tests' bots
 	static bool tmPressed(string id) { var s = tm.th.FirstOrDefault(q => q.d.id == id && q.k is "stone" or "btn" or "cbtn"); return s != null && s.on; }
 	static bool tmAll(string[] ids) => ids != null && ids.All(tmPressed);
 	static bool tmNeed(TThing d) => tmAll(d.need) || tmAll(d.alt);

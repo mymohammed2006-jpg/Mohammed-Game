@@ -15,7 +15,7 @@ public class TeamTest
 	string id, outDir; int page, fps = 60, every = 1, i; double T; bool done, shot, nodraw = System.Environment.GetEnvironmentVariable("NODRAW") == "1";
 	int hits0; string[] routes; (int room, double t, string k)[][] lines; System.Collections.Generic.Dictionary<int, double> entry = new(); G.TeamRun lastTm; string[] lastK = new string[G.TM_N]; StringBuilder log = new(); Main host;
 	double from = double.TryParse(System.Environment.GetEnvironmentVariable("FROM"), out var fr) ? fr : 0;   // env FROM: pictures only after this time
-	string view; int pass = -1; bool[] beatJ = new bool[G.TM_N]; double[] heldTo = new double[G.TM_N]; bool[] hop = new bool[G.TM_N]; string[] lastK2 = { "", "", "" }; string[] qDone = { "", "", "" }; int[] side = { -1, -1, -1 }; bool[] oWasGround = new bool[3];   // env VIEW: a player's screen (0-2), or "cycle" (each one's screen in turn in the dark rooms); else everyone's
+	string view; int pass = -1; bool[] beatJ = new bool[G.TM_N]; double[] heldTo = new double[G.TM_N]; bool[] hop = new bool[G.TM_N]; string[] lastK2 = { "", "", "" }; string[] qDone = { "", "", "" }; int[] side = { -1, -1, -1 }; bool[] oWasGround = new bool[3]; double[] waitT = new double[3], waitAt = { -1, -1, -1 }; int[] waitRm = { -1, -1, -1 };   // env VIEW: a player's screen (0-2), or "cycle" (each one's screen in turn in the dark rooms); else everyone's
 	BinaryWriter wav = System.Environment.GetEnvironmentVariable("WAV") != null ? new BinaryWriter(new MemoryStream()) : null;
 	// env RPT=1: records the replay while the bots play, then checks watching it shows the same at every tick (like TeamBot's)
 	bool rpt = System.Environment.GetEnvironmentVariable("RPT") == "1"; System.Collections.Generic.List<string> live = new();
@@ -96,7 +96,12 @@ public class TeamTest
 	public G.TIn Input(int k, double t, int rm, double rt)
 	{
 		var inp = new G.TIn();
-		string kk = ""; foreach (var l in lines[k]) if (l.room == rm && l.t <= rt + 1e-9) kk = l.k;
+		// "W<id>": the route's clock stops on this line till key <id> is down as this PC shows it (a person waits for the partner's path)
+		if (waitRm[k] != rm) { waitRm[k] = rm; waitT[k] = 0; waitAt[k] = -1; }
+		string kk = ""; foreach (var l in lines[k]) if (l.room == rm && l.t <= rt - waitT[k] + 1e-9) kk = l.k;
+		var wTok = kk.Split(' ').FirstOrDefault(q => q.Length > 1 && q[0] == 'W');
+		if (wTok != null && !G.tmPressedPub(wTok[1..]) && waitAt[k] >= 0) waitT[k] += t - waitAt[k];
+		waitAt[k] = t;
 		bool dashNow = kk.Contains('X') && !lastK[k].Contains('X'), jumpNow = kk.Contains('J') && !lastK[k].Contains('J'); lastK[k] = kk;
 		// "J!": the jump waits for the next beat (the radio's waves need a jump on the beat)
 		// "j!": the same, a short hop (the jump let go early, so it lands before the next beat)
