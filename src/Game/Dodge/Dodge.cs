@@ -32,7 +32,7 @@ public static partial class G
 	// the new dodge levels, in the order they come after L11
 	public static readonly string[] DODGE_IDS = { "L12", "L13", "L14", "L15", "L17" };
 	// the new friends' levels, in the order they come after F8
-	public static readonly string[] DODGE_FRIENDS = { "F9" };
+	public static readonly string[] DODGE_FRIENDS = { "F9", "F11" };
 
 	static Dictionary<string, Func<DodgeEv, Action>> _dk;
 	static Dictionary<string, Func<DodgeEv, Action>> DK => _dk ??= new();
