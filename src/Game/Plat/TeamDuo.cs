@@ -217,7 +217,7 @@ public static partial class G
 	static void tmPull(TBody h, double qx, double qy, double e)
 	{
 		double d = Math.Max(1, hypot(h.x - qx, h.y - qy)), nx = (h.x - qx) / d, ny = (h.y - qy) / d;
-		if (h.y > qy - P_HALF - 3 && Math.Abs(h.x - qx) < 16)   // right under the edge: up it, and over it once nearly there
+		if (h.y > qy - P_HALF - 3 && h.y < qy + 80 && Math.Abs(h.x - qx) < 16)   // right under the edge: up it, and over it once nearly there (not deep down at the cable's end: there it held you to the wall and the swing never started at 240 steps a second)
 		{
 			if (h.y + P_HALF - qy <= 24) { tmShove(h, 0, qy - P_HALF - 2 - h.y); tmShove(h, Math.Sign(qx - h.x) * 6, 0); }
 			else { tmShove(h, 0, -e); tmShove(h, qx - h.x, 0); }
