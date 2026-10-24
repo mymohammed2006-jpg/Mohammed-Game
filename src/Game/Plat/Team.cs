@@ -173,6 +173,7 @@ public static partial class G
 		var old = tm; var P = L.pages[page];
 		tm = new TeamRun { L = L, page = page, P = P, fromClouds = fromClouds, coverTheme = old?.P.theme ?? 0 };
 		if (old != null && old.L == L) { tm.falls = old.falls; tm.playT = old.playT; tm.names = old.names; tm.gen = old.gen; tm.tp = old.tp; tm.restarts = old.restarts; tm.hits = old.hits; }   // the whole level's, for the win screen
+		else if (L.cols != null) tm.names = new[] { 0, 1, 2 }.Select(i => i < L.cols.Length ? tm.names[L.cols[i]] : "").ToArray();   // a level with its own colours: each one named by theirs (online puts the real names over these)
 		if (P.cont && old != null && old.L == L)
 		{
 			tm.stemOn = old.stemOn; tm.voices = old.voices; tm.stat = old.stat; tm.t = old.t; tm.beatN = old.beatN; tm.restarts = old.restarts; tm.hits = old.hits; tm.startWhen = old.startWhen; tm.n = old.n;
@@ -428,6 +429,7 @@ public static partial class G
 		// pieces and the gate (a piece in the mirror is taken by a reflection)
 		foreach (var b in tm.b) if (!b.down && !b.gate && tmMine(b)) { tmTiles(b, b.x, false); if (tm.P.mirror > 0) tmTiles(b, tmRx(b.x), true); }
 		if (tm.tw != null && tm.doneAt < 0) tmTowerStep();
+		if (tmBoss && tm.b.All(b => b.gate) && tm.P.mic) { tmMicWin(); return; }
 		if (tmBoss && tm.b.All(b => b.gate)) { tmPageDone(tm.t); tnTell("pd", new() { ["t"] = tm.t }); }
 		foreach (var b in tm.b) { b.trail.Add((b.x, b.y, tm.t)); b.trail.RemoveAll(q => tm.t - q.t > 0.18); }
 		tm.steps.RemoveAll(q => tm.t - q.t > 2.5);

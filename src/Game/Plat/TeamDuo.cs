@@ -354,4 +354,13 @@ public static partial class G
 		double v = d.a; if (!double.IsNaN(low) && tm.riseY > low + d.b) v = Math.Max(v, (tm.riseY - low - d.b) * 2.5);
 		tm.riseY -= v * dt;
 	}
+	// the last page: both at the microphone. The song is clear now and plays on to its end (no more looping), then the cards
+	static void tmMicWin()
+	{
+		tm.doneAt = tm.t; tm.won = true; tm.wonAt = tm.t; flash = 0.9; shake = 10; burst(W / 2, H / 2, "#ffffff", 90, 640);
+		sfx(tt => { sNoise(tt, 0.3, "highpass", 3000, 0.2); sTone(tt + 0.05, 523, 0.3, "triangle", 0.12); sTone(tt + 0.17, 659, 0.3, "triangle", 0.12); sTone(tt + 0.29, 784, 0.6, "triangle", 0.12); });
+		tm.murk = 0; tmMurkTo(0.3);
+		if (tm.voices != null) foreach (var v in tm.voices) if (v != null) v.loop = false;
+		if (tmMe >= 0) tnWon();
+	}
 }

@@ -157,6 +157,7 @@ public static partial class G
 	// the end: the photo comes out in the big frame, then fills the screen while the song plays out
 	static void tmDrawWin(double now)
 	{
+		if (tmDuo) { duoDrawWin(now); return; }
 		if (!tm.th.Any(s => s.k == "slot")) return;
 		double f = tm.t - tm.wonAt, a = clamp(f / 1.0, 0, 1), z = ease(clamp((f - 2.2) / 1.8, 0, 1));
 		var (fx, fy, fw, fh) = tmFrameRect();
@@ -184,10 +185,11 @@ public static partial class G
 	{
 		if (f < -0.5) return;
 		double cw = 330, ch = 300, gap = 30;
-		for (int i = 0; i < TM_N; i++)
+		int nb = tm.b.Length;
+		for (int i = 0; i < nb; i++)
 		{
 			double fi = f - i * 0.35, a = clamp((fi + 0.5) / 0.4, 0, 1); if (a <= 0) continue;
-			double cx = W / 2 + (i - 1) * (cw + gap), cy = top + ch / 2 + 20 * (1 - a); string c = TM_COL[i], rk = tmRank(i); int d = tm.falls[i];
+			double cx = W / 2 + (i - (nb - 1) / 2.0) * (cw + gap), cy = top + ch / 2 + 20 * (1 - a); string c = tmCol(i), rk = tmRank(i); int d = tm.falls[i];
 			g.save(); g.globalAlpha = a;
 			g.fillStyle = "rgba(12,10,34,0.88)"; g.shadowColor = c; g.shadowBlur = 18; rr(cx - cw / 2, cy - ch / 2, cw, ch, 18); g.fill(); g.shadowBlur = 0;
 			g.strokeStyle = c; g.lineWidth = 3; rr(cx - cw / 2, cy - ch / 2, cw, ch, 18); g.stroke();
@@ -207,7 +209,7 @@ public static partial class G
 			{
 				g.globalAlpha = clamp((fi - 0.3) / 0.3, 0, 1);
 				txt(d == 0 ? "بدون ولا طيحة" : d == 1 ? "طاح مرة" : $"طاح {ar(d)} مرات", cx, cy + 88, 24, "#e9e6f5", 500);
-				int xp = tmMe < 0 ? (int)Math.Round((rk == "S" ? 100 : rk == "A" ? 60 : rk == "B" ? 40 : 20) * XP_MULT["P2"]) : tm.xpGot[i];
+				int xp = tmMe < 0 ? (int)Math.Round((rk == "S" ? 100 : rk == "A" ? 60 : rk == "B" ? 40 : 20) * (XP_MULT.TryGetValue(tm.L.id, out var xm) ? xm : 1)) : tm.xpGot[i];
 				if (xp > 0) { g.font = $"800 28px {FONT}"; g.fillStyle = GOLD; g.shadowColor = GOLD; g.shadowBlur = 10; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText($"+{ar(xp)} XP", cx, cy + 124); g.shadowBlur = 0; g.direction = "rtl"; }
 				g.globalAlpha = 1;
 			}

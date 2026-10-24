@@ -293,6 +293,25 @@ public static partial class G
 		for (int i = 0; i < tm.b.Length; i++) { g.fillStyle = tm.b[i].gate ? tmCol(i) : "rgba(255,255,255,0.18)"; g.fillRect(X - 13 + i * 16, by + 8, 10, 10); }
 		if (!open) txt($"{ar(tm.got.Count)}/{ar(tmPieces())}", X, by - 80, 16, "rgba(255,255,255,0.55)");
 	}
+	// the win: the microphone big in the middle, singing, then each one's card under it
+	static void duoDrawWin(double now)
+	{
+		double f = tm.t - tm.wonAt, a = clamp(f / 0.8, 0, 1), z = ease(clamp(f / 1.2, 0, 1));
+		g.fillStyle = $"rgba(6,6,20,{str(0.82 * a)})"; g.fillRect(0, 0, W, H);
+		// sound rings out of it, on the song's beat
+		double b = tmBeat(), bf = b - Math.Floor(b);
+		g.save(); g.strokeStyle = "#ffffff"; g.lineWidth = 3;
+		for (int k = 0; k < 3; k++) { double r = 60 + ((bf + k / 3.0) % 1) * 220; g.globalAlpha = a * 0.35 * (1 - ((bf + k / 3.0) % 1)); g.beginPath(); g.arc(W / 2, 150, r, 0, TAU); g.stroke(); }
+		g.restore();
+		g.save(); g.globalAlpha = a; g.translate(W / 2, 150 + 40 * (1 - z)); g.scale(2.6, 2.6); duoMic(0, -PT / 2 + 34, true, now); g.restore();
+		if (f < 0.6) { g.fillStyle = $"rgba(255,255,255,{str(0.8 * (1 - f / 0.6))})"; g.fillRect(0, 0, W, H); }
+		tmDrawResults(now, f - 1.6, 314);
+		for (int i = 0; i < 40; i++)
+		{
+			double sx = (i * 97 + 30) % W, sy = ((f * (60 + i % 5 * 20) + i * 53) % (H + 40)) - 20, r = 2 + i % 3;
+			g.fillStyle = $"rgba(255,255,255,{str(clamp(f / 2, 0, 0.6) * (0.5 + 0.5 * Math.Sin(now / 200 + i)))})"; g.fillRect(sx - r / 2, sy - r / 2, r, r);
+		}
+	}
 	static void duoSound(double x, double y, double now)
 	{
 		g.save(); g.translate(x, y); double k = 0.5 + 0.5 * Math.Sin(now / 160);
