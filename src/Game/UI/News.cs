@@ -11,9 +11,10 @@ namespace MG;
 public static partial class G
 {
 	public record NewsItem(string hd, string ic, string[] pts, int from, int to);
-	public static string NEWS_V => classicUi ? "37" : "49";   // the comparison tools stay on v39's page
+	public static string NEWS_V => classicUi ? "37" : "50";   // the comparison tools stay on v39's page
 	public static readonly NewsItem[] NEWS_ITEMS =
 	{
+		new("تغيير", null, new[] { "المرحلة ٢١ صار اسمها \"المرحلة الحادية والعشرون\" مثل باقي المراحل." }, 0, 50),
 		new("مراحل جديدة", null, new[] { "المرحلة ١٦: عين بعين.", "المرحلة ١٧: حالف لا ما انام.", "المرحلة ١٨: اعوف الدنيا.", "المرحلة ١٩: عافني وراح.", "المرحلة ٢٠: New\u00a0Game.", "المرحلة ٢١: Barracuda.", "صاروا في البروفايل والترتيب." }, 0, 49),
 		new("مراحل الشباب", null, new[] { "Ghassan أضاف مرحلة: Walk.", "miracle أضاف مرحلة: أجمل غرامي.", "الثنتين موثّقة من Mohammed." }, 0, 49),
 		new("طور الزعيم", null, new[] { "طور جديد: واجه \"الزعيم الأخير\".", "لحالك أو مع لين ٣ من الشباب أونلاين.", "اللي يطيح يرجّعه لمسة من خويه.", "لو معك أحد بنفس الشكل، كل واحد ياخذ لونه." }, 0, 49),
