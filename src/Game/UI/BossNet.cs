@@ -160,6 +160,7 @@ public static partial class G
 		else if (k == "rv" && w >= 0 && w < VS_N)
 		{
 			int r = j["r"]?.GetValue<int>() ?? -1; n.bdown[w] = false;
+			if (w != n.vseat && bnMsgT > 0 && bnMsgS == $"{vsName(w)} طاح! المسه عشان يرجع") bnMsgT = 0;   // he is back: the "touch him" line goes (Mohammed 14:33 10-25)
 			if (w == n.vseat && bnMeDown && state == "play")
 			{
 				bnMeDown = false; player.hp = 1; player.inv = 1.5; player.hurt = 0; burst(player.x, player.y, CYAN, 30, 380);
