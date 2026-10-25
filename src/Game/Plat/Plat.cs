@@ -240,10 +240,11 @@ public static partial class G
 	public static bool stepPlat(Inp inp, double now, double dt)
 	{
 		if (stepNet(inp, now, dt)) return true;
+		if (stepBoss(inp, now, dt)) return true;
 		if (state == "modes")
 		{
-			if (inp.left || inp.right) modeSel = 1 - modeSel;
-			if (inp.confirm) { if (modeSel == 0) state = "levels"; else { state = "pltList"; plSel = Math.Min(plSel, Math.Max(0, PLATS.Count - 1)); } }
+			int nm = BOSSLV.Count > 0 ? 3 : 2; if (inp.left) modeSel = Math.Min(nm - 1, modeSel + 1); if (inp.right) modeSel = Math.Max(0, modeSel - 1);   // right to left, like the lists
+			if (inp.confirm) { if (modeSel == 0) state = "levels"; else if (modeSel == 2) { state = "bossMenu"; bossSel = 0; } else { state = "pltList"; plSel = Math.Min(plSel, Math.Max(0, PLATS.Count - 1)); } }
 			else if (inp.back || inp.pz) state = "main";
 		}
 		else if (state == "pltList")

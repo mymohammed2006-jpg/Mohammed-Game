@@ -42,7 +42,7 @@ public static partial class G
 	}
 
 	// ---------- screen transitions: the old picture fades into the new screen's background, then the new screen fades in ----------
-	static readonly string[] TR_ST = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "news", "chal", "skins", "hcList", "myRp" };
+	static readonly string[] TR_ST = { "main", "levels", "modes", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "news", "chal", "skins", "hcList", "myRp" };
 	const double TR_OUT = 110, TR_IN = 170;
 	static ImageTexture trSnap; static string trLast = ""; static bool trOn = false; static double trAt = -1e9;
 	public static void trCheck(double now)

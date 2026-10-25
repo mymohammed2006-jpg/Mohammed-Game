@@ -15,6 +15,7 @@ public static partial class G
 	public static bool drawPlatScreens(double now)
 	{
 		if (state == "modes") drawModes(now);
+		else if (state == "bossMenu") drawBossMenu(now);
 		else if (state == "pltList") drawPltList(now);
 		else if (state == "pltIntro") drawPltIntro(now);
 		else if (state is "pltPlay" or "pltPause" or "pltSet" or "pltDead" or "pltWin" or "pltVsEnd" or "pltVsWait") drawPlat(now);
@@ -30,16 +31,16 @@ public static partial class G
 	static void drawModes(double now)
 	{
 		bgShapes(now); txt("المراحل الرئيسية", W / 2, 105, 48, "#fff");
-		double cw = 420, chh = 360, cy = H / 2 + 20;
-		for (int i = 0; i < 2; i++)
+		int nm = BOSSLV.Count > 0 ? 3 : 2; double cw = nm == 3 ? 360 : 420, chh = 360, cy = H / 2 + 20, gp = nm == 3 ? 30 : 40;
+		for (int i = 0; i < nm; i++)
 		{
-			bool sel = i == modeSel; double x = W / 2 + (i == 0 ? 1 : -1) * (cw / 2 + 20); int ii = i;
+			bool sel = i == modeSel; double x = W / 2 + ((nm - 1) / 2.0 - i) * (cw + gp); int ii = i;
 			zone(x - cw / 2, cy - chh / 2, cw, chh, () => modeSel = ii);
 			double lf = lift("M" + i, sel);
 			rr(x - cw / 2, cy - chh / 2 + lf, cw, chh, 22); g.fillStyle = sel ? CARDS : CARD; g.fill();
 			g.strokeStyle = sel ? RED : "rgba(255,255,255,0.12)"; g.lineWidth = sel ? 3 : 1.5; g.stroke();
-			g.save(); g.translate(x, cy - 40 + lf); if (i == 0) modeIconDodge(now, sel); else modeIconPlat(now, sel); g.restore();
-			txt(i == 0 ? "الطور الرئيسي" : "البلاتفورم", x, cy + 95 + lf, sel ? 40 : 36, "#fff", 800);
+			g.save(); g.translate(x, cy - 40 + lf); if (i == 0) modeIconDodge(now, sel); else if (i == 1) modeIconPlat(now, sel); else modeIconBoss(now, sel); g.restore();
+			txt(i == 0 ? "الطور الرئيسي" : i == 1 ? "البلاتفورم" : "طور الزعيم", x, cy + 95 + lf, sel ? 40 : 36, "#fff", 800);
 		}
 		row(new[] { (BTN[kind].confirm, "اختيار"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
 	}

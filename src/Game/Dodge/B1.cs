@@ -203,6 +203,8 @@ public static partial class G
 	}
 
 	// ---------- the mark ----------
+	// where the marked one is when an aimed attack is made (alone: you; online: the standing ones in turn, UI/BossNet.cs)
+	static (double x, double y) B1Aim(double b) => bnPos(bnMarkSeat(b)) ?? (player != null ? (player.x, player.y) : (B1X + 200, B1Y));
 	// the white sight on the marked square (it does not hurt)
 	static Hz B1MarkFx(double t0, double t1)
 	{
@@ -210,8 +212,8 @@ public static partial class G
 		h.update = (t, dt) => { if (t > t1 + 0.4) h.dead = true; };
 		h.draw = t =>
 		{
-			var p = player; if (p == null || t < t0) return; double a = Math.Min(1, Math.Min((t - t0) / 0.3, (t1 - t) / 0.3)); if (a <= 0) return;
-			double r = 22 + 3 * pulse, sp = t * 2.2; g.save(); g.translate(p.x, p.y); g.rotate(sp); g.strokeStyle = $"rgba(255,255,255,{str(0.85 * a)})"; g.lineWidth = 2.5; g.beginPath();
+			if (t < t0) return; var p = bnPos(bnMarkSeat(BT(t))); if (p == null) return; double a = Math.Min(1, Math.Min((t - t0) / 0.3, (t1 - t) / 0.3)); if (a <= 0) return;
+			double r = 22 + 3 * pulse, sp = t * 2.2; g.save(); g.translate(p.Value.x, p.Value.y); g.rotate(sp); g.strokeStyle = $"rgba(255,255,255,{str(0.85 * a)})"; g.lineWidth = 2.5; g.beginPath();
 			for (int i = 0; i < 4; i++) { double q = i * Math.PI / 2; g.moveTo(JS.cos(q - 0.35) * r, JS.sin(q - 0.35) * r); g.arc(0, 0, r, q - 0.35, q + 0.35); g.moveTo(JS.cos(q) * (r + 4), JS.sin(q) * (r + 4)); g.lineTo(JS.cos(q) * (r + 11), JS.sin(q) * (r + 11)); }
 			g.stroke(); g.restore();
 		};
@@ -276,23 +278,30 @@ public static partial class G
 	}
 
 	// ---------- the circles: who is outside one at T1 is hit (the outside turns pink for that moment) ----------
-	static Hz B1Circle(Func<double, (double x, double y)> at, double T0, double T1, double R)
+	// one circle for each standing player (alone: one, white); online each is in its player's colour and keeps only that player safe
+	static void B1Circles(Func<int, Func<double, (double x, double y)>> path, double T0, double T1, double R)
 	{
-		var h = new Hz { kind = "B1Circle", z = -1 }; const double HOLD = 0.15;
+		var st = bnStandingSeats(); for (int k = 0; k < st.Count; k++) hazards.Add(B1Circle(path(k), T0, T1, R, net?.boss == true ? st[k] : -1));
+	}
+	static Hz B1Circle(Func<double, (double x, double y)> at, double T0, double T1, double R, int seat = -1)
+	{
+		var h = new Hz { kind = "B1Circle", z = -1 }; const double HOLD = 0.15; bool mine = seat < 0 || seat == bnMe;
+		string col(double a) => seat < 0 ? $"rgba(255,255,255,{str(a)})" : seat == 0 ? $"rgba(45,226,230,{str(a)})" : seat == 1 ? $"rgba(255,207,90,{str(a)})" : seat == 2 ? $"rgba(93,255,154,{str(a)})" : $"rgba(176,124,255,{str(a)})";
 		h.update = (t, dt) => { if (t > T1 + 0.5) h.dead = true; if (!h.ex && t >= T1) { h.ex = true; flash = Math.Max(flash, 0.15); sfx(tt => { sTone(tt, 196, 0.25, "square", 0.08); sNoise(tt, 0.2, "lowpass", 700, 0.15); }); } };
-		h.hit = (p, t) => { if (t < T1 || t >= T1 + HOLD) return false; var c = at(T1); return hypot(p.x - c.x, p.y - c.y) > R - p.r; };
+		h.hit = (p, t) => { if (!mine || t < T1 || t >= T1 + HOLD) return false; var c = at(T1); return hypot(p.x - c.x, p.y - c.y) > R - p.r; };
 		h.draw = t =>
 		{
 			if (t < T0 - 0.2) return; var c = at(Math.Min(t, T1)); double k = clamp((t - T0) / (T1 - T0), 0, 1), a = clamp((t - (T0 - 0.2)) / 0.2, 0, 1);
 			if (t >= T1)
 			{
 				double q = t < T1 + HOLD ? 1 : 1 - (t - T1 - HOLD) / 0.35; if (q <= 0) return;
-				g.save(); g.beginPath(); g.rect(0, 0, W, H); g.arc(c.x, c.y, R, 0, TAU, true); g.fillStyle = L15P(0.45 * q); g.fill("evenodd"); g.restore();
-				g.strokeStyle = $"rgba(255,255,255,{str(q)})"; g.lineWidth = 4; g.beginPath(); g.arc(c.x, c.y, R, 0, TAU); g.stroke(); return;
+				if (mine) { g.save(); g.beginPath(); g.rect(0, 0, W, H); g.arc(c.x, c.y, R, 0, TAU, true); g.fillStyle = L15P(0.45 * q); g.fill("evenodd"); g.restore(); }
+				g.strokeStyle = col(q); g.lineWidth = 4; g.beginPath(); g.arc(c.x, c.y, R, 0, TAU); g.stroke(); return;
 			}
-			g.fillStyle = $"rgba(255,255,255,{str(0.10 * a)})"; circle(c.x, c.y, R);
-			g.strokeStyle = $"rgba(255,255,255,{str(0.9 * a)})"; g.lineWidth = 3; g.beginPath(); g.arc(c.x, c.y, R, 0, TAU); g.stroke();
+			g.fillStyle = col(0.10 * a); circle(c.x, c.y, R);
+			g.strokeStyle = col(0.9 * a); g.lineWidth = 3; g.beginPath(); g.arc(c.x, c.y, R, 0, TAU); g.stroke();
 			g.lineWidth = 7; g.beginPath(); g.arc(c.x, c.y, R + 9, -Math.PI / 2, -Math.PI / 2 + TAU * k); g.stroke();
+			if (seat >= 0) { g.globalAlpha = a; txt(seat == bnMe ? "دائرتك" : vsName(seat), c.x, c.y, 18, col(1), 800); g.globalAlpha = 1; }
 		};
 		return h;
 	}
@@ -335,6 +344,32 @@ public static partial class G
 			for (double s = -H; s < W + H; s += 46) { g.moveTo(s + bt * 8 % 46, 0); g.lineTo(s + bt * 8 % 46 + H, H); }
 			g.save(); g.beginPath(); g.rect(0, 0, W, H); g.rect(q.x, q.y, W - 2 * q.x, H - 2 * q.y); g.clip("evenodd"); g.stroke(); g.restore();
 			g.strokeStyle = "#fff"; g.lineWidth = 2; g.strokeRect(q.x, q.y, W - 2 * q.x, H - 2 * q.y);
+		};
+		return h;
+	}
+
+	// ---------- online: a downed square (seat s) sits in a pink ring with a gap that turns; the core throws at it every 2 beats ----------
+	public static Hz B1DownRing(int s, double t0)
+	{
+		var h = new Hz { kind = "B1Down" }; double nextB = Math.Ceiling(BT(t0) + 1);
+		bool on() => net?.boss == true && net.bdown[s] && state == "play";
+		(double x, double y) at() => net.bdpos[s];
+		h.update = (t, dt) =>
+		{
+			if (!on()) { h.dead = true; return; }
+			double bt = BT(t);
+			if (bt >= nextB) { nextB += 2; var c = at(); if (B1CoreR(bt) > 0) hazards.Add(B1Shot(B1X, B1Y, JS.atan2(c.y - B1Y, c.x - B1X), 380, B(bt + 1), SPB)); }
+		};
+		h.hit = (p, t) =>
+		{
+			if (t < t0 + 0.8 || !on() || s == bnMe || bnMeDown) return false; var c = at(); double d = hypot(p.x - c.x, p.y - c.y);
+			if (Math.Abs(d - 44) >= 5 + p.r) return false; return Math.Abs(B1Ang(JS.atan2(p.y - c.y, p.x - c.x) - t * 1.6)) > 0.55;
+		};
+		h.draw = t =>
+		{
+			if (!on()) return; var c = at(); double k = clamp((t - t0) / 0.8, 0, 1), ga = t * 1.6;
+			g.strokeStyle = k < 1 ? L15G(0.3 + 0.4 * k) : PINK; g.lineWidth = 10; if (k >= 1) { g.shadowColor = PINK; g.shadowBlur = 10; }
+			g.beginPath(); g.arc(c.x, c.y, 44, ga + 0.55, ga + TAU - 0.55); g.stroke(); g.shadowBlur = 0;
 		};
 		return h;
 	}
@@ -425,7 +460,7 @@ public static partial class G
 			double TT = T; bool tri = (int)(T - 65.5) % 4 == 3;
 			at(TT - 1.5, () =>
 			{
-				var p = player; double a = JS.atan2(p.y - B1Y, p.x - B1X);
+				var p = B1Aim(TT); double a = JS.atan2(p.y - B1Y, p.x - B1X);
 				add(B1Laser(B1X, B1Y, a, B(TT), 1.5 * SB));
 				if (tri) { add(B1Laser(B1X, B1Y, a + 0.35, B(TT), 1.5 * SB)); add(B1Laser(B1X, B1Y, a - 0.35, B(TT), 1.5 * SB)); }
 			}, rnd: true);
@@ -444,7 +479,7 @@ public static partial class G
 		for (double T = 87; T < 120; T += T < 104 ? 2 : 1)
 		{
 			double TT = T;
-			at(TT - 1.5, () => { var p = player; add(B1Laser(B1X, B1Y, JS.atan2(p.y - B1Y, p.x - B1X), B(TT), 1.5 * SB)); }, rnd: true);
+			at(TT - 1.5, () => { var p = B1Aim(TT); add(B1Laser(B1X, B1Y, JS.atan2(p.y - B1Y, p.x - B1X), B(TT), 1.5 * SB)); }, rnd: true);
 		}
 		// between the arms: four shards a beat out along the middle of each quarter
 		for (double T = 88; T < 120; T += 1)
@@ -461,13 +496,14 @@ public static partial class G
 		for (int w = 0; w < 5; w++)
 		{
 			var (a0, b0) = B1FZ[w]; int ww = w;
-			Func<double, (double, double)> path = ww switch
+			// the k-th standing player's circle: alone the first one; the others mirrored or at the other places
+			Func<int, Func<double, (double, double)>> path = k => ww switch
 			{
-				3 => t => { double k = clamp((t - B(a0)) / (B(b0) - B(a0)), 0, 1); return (1000 - 640 * k, 560 - 300 * k * (1 - k) * 2); },        // it moves
-				4 => t => { double k = clamp((t - B(a0)) / (B(b0) - B(a0)), 0, 1); return (640 + 420 * JS.cos(k * Math.PI * 1.2), 360 + 240 * JS.sin(k * Math.PI * 1.2)); },
-				_ => t => CIR[ww],
+				3 => t => { double q = clamp((t - B(a0)) / (B(b0) - B(a0)), 0, 1), x = 1000 - 640 * q, y = 560 - 300 * q * (1 - q) * 2; return (k % 2 == 1 ? W - x : x, k >= 2 ? H - y : y); },        // it moves
+				4 => t => { double q = clamp((t - B(a0)) / (B(b0) - B(a0)), 0, 1), a = q * Math.PI * 1.2 + k * Math.PI / 2; return (640 + 420 * JS.cos(a), 360 + 240 * JS.sin(a)); },
+				_ => t => CIR[(ww + k) % 4],
 			};
-			at(a0 - 0.2, () => add(B1Circle(path, B(a0), B(b0), ww >= 3 ? 70 : 60)));
+			at(a0 - 0.2, () => B1Circles(path, B(a0), B(b0), ww >= 3 ? 70 : 60));
 		}
 		// on the bass: the floor's tiles, a beat of warning; the core's fans of 5 every 2 beats, turning 72 degrees
 		(double a, double b, int pat)[] ON = { (128, 138, 0), (144, 153, 1), (160, 169, 2) };
@@ -507,12 +543,13 @@ public static partial class G
 		}
 		// the split (b220-252): four pieces go round; in turn one of them shoots three at you; crosses of light every 4 beats
 		at(219, () => add(B1Pieces()));
+		at(221, () => add(B1MarkFx(B(221), B(282))));
 		for (double T = 223.5; T < 251; T += 1)
 		{
 			double TT = T; int i = (int)(T - 223.5) % 4;
 			at(TT - 1.5, () =>
 			{
-				var q = B1PieceAt(i, TT); var p = player; double a = JS.atan2(p.y - q.y, p.x - q.x);
+				var q = B1PieceAt(i, TT); var p = B1Aim(TT); double a = JS.atan2(p.y - q.y, p.x - q.x);
 				for (int s = -1; s <= 1; s++) add(B1Shot(q.x, q.y, a + s * 0.13, 560, B(TT), 1.5 * SB, 9, 3));
 			}, rnd: true);
 		}
@@ -538,14 +575,14 @@ public static partial class G
 		for (double T = 257; T < 282; T += 2)
 		{
 			double TT = T;
-			at(TT - 1.5, () => { var p = player; add(B1Laser(B1X, B1Y, JS.atan2(p.y - B1Y, p.x - B1X), B(TT), 1.5 * SB)); }, rnd: true);
+			at(TT - 1.5, () => { var p = B1Aim(TT); add(B1Laser(B1X, B1Y, JS.atan2(p.y - B1Y, p.x - B1X), B(TT), 1.5 * SB)); }, rnd: true);
 		}
 		{
 			double th = 0;
 			for (double b = 256; b < 282.5; b += 0.5) { double bb = b; th += 0.42; double t0 = th; at(bb - 0.5, () => add(B1Shot(B1X, B1Y, t0, 300, B(bb), 0.5 * SB))); }
 		}
 		// the dip: everything stops, one circle low in the middle
-		at(282.3, () => add(B1Circle(t => (640, 610), B(282.5), B(288), 60)));
+		at(282.3, () => B1Circles(k => t => (640 + (k % 2 == 0 ? 1 : -1) * (k + 1) / 2 * 260 * (k == 0 ? 0 : 1), k >= 2 ? 120 : 610), B(282.5), B(288), 60));
 		// the end (b288-316): the walls close in, a ring every beat with a gap that sways around a turning line
 		at(286, () => add(B1Walls(288, 300, 316, 318, 290, 150)));
 		for (double T = 289; T < 316; T += 1)

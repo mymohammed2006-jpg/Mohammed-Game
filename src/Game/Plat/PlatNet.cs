@@ -72,6 +72,7 @@ public static partial class G
 		{
 			var d = await roomGet(code); if (net != n) return;
 			if (d == null || d.o == null) { netEnd("ما لقيت غرفة بهذا الكود"); return; }
+			if (BOSSLV.Any(b => b.id == d.lv)) { bnJoin(n, d); return; }   // a boss room (UI/BossNet.cs)
 			var RL = PLATS.FirstOrDefault(p => p.id == d.lv);
 			if (RL?.team != null || (RL == null && d.o2 != null && d.o3 == null)) { tnJoin(n, d); return; }   // a room for three
 			if (RL != null && !RL.coop) { vsJoin(n, d); return; }   // versus: 2 to 4 players
@@ -97,6 +98,7 @@ public static partial class G
 		if (n.host && n.code != "" && (n.phase is "make" or "wait" || n.roomOpen)) _ = roomDel(n.code);   // a failed connection keeps its room (both sides' addresses, to see why; the code is free again after 10 minutes)
 		if (why != null) netNote(why);
 		if (why == null || !why.StartsWith("ما قدرنا")) netDiag = null;
+		if (n.boss) { stopMusic(); player = null; hazards = new List<Hz>(); particles = new List<Particle>(); bnMeDown = false; actx.resume(); state = "bossMenu"; return; }
 		if (state.StartsWith("plt") && state != "pltList") { plStopMusic(); player = null; particles = new List<Particle>(); actx.resume(); state = "pltList"; }
 		if (state.StartsWith("tm")) { tmStopMusic(); tm = null; tmMe = tmView = -1; particles = new List<Particle>(); actx.resume(); state = "pltList"; }
 	}
@@ -281,7 +283,7 @@ public static partial class G
 			}
 			if (inp.right && joinDig < 4) joinDig++; if (inp.left && joinDig > 0) joinDig--;
 			if (inp.confirm && joinCode.Length == 5) netJoin(joinCode);
-			else if (inp.pz || inp.back) state = "pltOn";   // Backspace with digits left only deletes one (netKey)
+			else if (inp.pz || inp.back) state = joinBoss ? "bossMenu" : "pltOn";   // Backspace with digits left only deletes one (netKey)
 		}
 		else if (state == "pltRoom")
 		{

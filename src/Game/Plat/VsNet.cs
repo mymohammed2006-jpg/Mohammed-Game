@@ -132,6 +132,7 @@ public static partial class G
 				if (!m.rel) { if (n.host) vsSendB(false, m.d, s); vsSnapGot(m.d, now); continue; }
 				JsonNode j; try { j = JsonNode.Parse(Encoding.UTF8.GetString(m.d)); } catch (Exception) { continue; }
 				string k = S(j?["k"]); int w = j?["w"] is JsonValue wv && wv.TryGetValue<int>(out int wi) ? wi : -1;
+				if (n.boss && bnMsg(k, j, s, m.d, now)) continue;   // the boss mode's own (UI/BossNet.cs)
 				if (k == "hi" && n.host)
 				{
 					n.vnm[s] = S(j["n"]) ?? n.vnm[s]; n.vsk[s] = S(j["s"]) ?? ""; n.vin[s] = true;
@@ -154,6 +155,7 @@ public static partial class G
 			for (int s = 1; s < VS_N; s++) if (n.vsaid[s] && n.vconnAt[s] > 0 && now - n.vping[s] > 1000) { n.vping[s] = now; n.vp[s].Send(new JsonObject { ["k"] = "ping", ["t"] = now }.ToJsonString()); }
 		if (n.host && n.phase == "play" && n.vendAt >= 0 && now - n.vendAt >= VS_GRACE) vsFinal();
 		// where my square is, 30 times a second (seat in byte 1; the maker passes them on)
+		if (n.boss) { bnTick(now); return; }
 		if (n.phase == "play" && player != null && pl != null && now - n.sendAt >= 33)
 		{
 			n.sendAt = now; var q = player; var b = new byte[47]; int o = 0;
@@ -179,7 +181,8 @@ public static partial class G
 		bool inMatch = n.phase == "play" && n.vplay[s];
 		if (inMatch) n.vleft[s] = true;
 		vsSend(new JsonObject { ["k"] = "left", ["w"] = s }); vsRoster(); vsLeftSeen(s);
-		if (inMatch) vsCheckEnd();
+		if (inMatch && n.boss) bnGone(s);
+		else if (inMatch) vsCheckEnd();
 		else if (vsGuests(n) == 0 && n.phase == "lobby") { if (n.roomOpen) netSetPhase("wait"); else netEnd(who + " طلع من الغرفة"); }
 	}
 	static void vsLeftSeen(int s)
@@ -201,7 +204,8 @@ public static partial class G
 	}
 	static void vsStart(double goAt, bool[] play)
 	{
-		var n = net; n.vplay = play; n.vfin = new double[] { -1, -1, -1, -1 }; n.vleft = new bool[VS_N]; n.vwon = new bool[VS_N]; n.vres = null; n.vendAt = -1;
+		var n = net; if (n.boss) { n.vplay = play; n.vleft = new bool[VS_N]; bnStart(goAt); return; }
+		n.vplay = play; n.vfin = new double[] { -1, -1, -1, -1 }; n.vleft = new bool[VS_N]; n.vwon = new bool[VS_N]; n.vres = null; n.vendAt = -1;
 		foreach (var l in n.vsn) l.Clear(); n.vgh = new Player[VS_N]; n.myFin = n.otherFin = -1; n.iWon = false; n.snaps.Clear(); n.ghost = null;
 		int o = vsOthers(n).DefaultIfEmpty(-1).First(); n.other = o >= 0 ? vsName(o) : ""; n.otherSk = o >= 0 ? n.vsk[o] ?? "" : "";   // the PC replay keeps one other square (the first)
 		plStart(n.L, true); pl.introAt = goAt - PL_INTRO; netSetPhase("play");
@@ -302,11 +306,11 @@ public static partial class G
 		if (n.host && (ph == "make" || n.roomOpen))
 		{
 			txt("غرفتك", W / 2, 95, 48, "#fff");
-			txt("عط أصحابك هذا الكود يدخلونه من: البلاتفورم ← أونلاين ← ادخل بكود", W / 2, 150, 24, "rgba(255,255,255,0.7)", 500);
+			txt(n.boss ? "عط أصحابك هذا الكود يدخلونه من: طور الزعيم ← ادخل بكود" : "عط أصحابك هذا الكود يدخلونه من: البلاتفورم ← أونلاين ← ادخل بكود", W / 2, 150, 24, "rgba(255,255,255,0.7)", 500);
 			if (n.roomOpen) codeTxt(n.code, W / 2, 245, 100, RED); else txt("أسوي الغرفة" + dots, W / 2, 245, 36, "rgba(255,255,255,0.7)", 700);
 		}
 		else if (!n.host && ph is "join" or "conn") { txt("أدخل الغرفة", W / 2, 105, 48, "#fff"); txt("جاري الاتصال" + dots, W / 2, 245, 36, "rgba(255,255,255,0.75)", 700); }
-		else { txt("جاهزين؟", W / 2, 95, 48, "#fff"); txt(n.L?.name ?? "", W / 2, 155, 28, RED3, 700); }
+		else { txt("جاهزين؟", W / 2, 95, 48, "#fff"); txt((n.boss ? n.BL?.name : n.L?.name) ?? "", W / 2, 155, 28, RED3, 700); }
 		bool connecting = !n.host && ph is "join" or "conn";
 		for (int i = 0; i < VS_N && !connecting; i++)
 		{
@@ -319,7 +323,7 @@ public static partial class G
 			txt(in_ ? vsName(i) : "أستنى" + dots, x, y + 70, 28, in_ ? "#fff" : "rgba(255,255,255,0.4)", 800);
 			if (i == n.vseat && in_) txt("أنت", x, y + 106, 22, CYAN, 700);
 		}
-		if (!connecting) txt("من ٢ إلى ٤ لاعبين", W / 2, 560, 22, "rgba(255,255,255,0.5)", 500);
+		if (!connecting) txt(n.boss ? "من ٢ إلى ٤ لاعبين، ضد الزعيم مع بعض" : "من ٢ إلى ٤ لاعبين", W / 2, 560, 22, "rgba(255,255,255,0.5)", 500);
 		if (vsCanGo && ph == "lobby") row(new[] { (BTN[kind].confirm, "ابدأ") }, W / 2, 625, 38, "#fff", 30);
 		else if (n.host && !connecting && ph != "make") txt("أستنى أصحابك يدخلون" + dots, W / 2, 625, 28, "rgba(255,255,255,0.75)", 700);
 		else if (!n.host && ph == "lobby") txt($"أستنى {vsName(0)} يبدأ" + dots, W / 2, 625, 28, "rgba(255,255,255,0.75)", 700);

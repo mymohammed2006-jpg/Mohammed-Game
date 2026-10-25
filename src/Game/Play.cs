@@ -191,6 +191,7 @@ public static partial class G
 		p.hp--; hitsTotal++; p.inv = 2.0; p.hurt = 2.0; shake = 16; flash = 0.3;
 		burst(p.x, p.y, CYAN, 22, 380); rumble(220, 0.8, 0.6);
 		sfx(t => { sTone(t, 110, 0.3, "square", 0.18); sNoise(t, 0.25, "lowpass", 900, 0.3); });
+		if (p.hp <= 0 && bnOn) { bnDown(); return; }   // online boss: down, until someone touches it (UI/BossNet.cs)
 		if (p.hp <= 0) { state = "dead"; deaths++; deadAt = performance.now(); deadPct = clamp(songT / B(cur.end), 0, 1); stopMusic(); burst(p.x, p.y, CYAN, 50, 520); rumble(500, 1, 1); }
 	}
 
@@ -227,6 +228,7 @@ public static partial class G
 		var p = player; double m = hypot(mx, my); if (m > 1) { mx /= m; my /= m; }
 		if (m > 0.2) { p.fx = mx / m; p.fy = my / m; }
 		bool dq = now && dashQ; if (now) dashQ = false;
+		if (bnMeDown) { mx = my = 0; m = 0; dq = false; }   // down: it stays where it fell
 		if (dq && p.cd <= 0)
 		{
 			p.dash = 0.18; p.cd = 0.32; p.inv = Math.Max(p.inv, 0.28);
@@ -246,7 +248,7 @@ public static partial class G
 		skinTrailAdd(p);
 
 		stepHazards(t, dt);
-		if (p.inv <= 0) { foreach (var h in hazards) { if (!h.dead && h.hit(p, t)) { damage(); break; } } }
+		if (p.inv <= 0 && !bnMeDown) { foreach (var h in hazards) { if (!h.dead && h.hit(p, t)) { damage(); break; } } }
 		hazards = hazards.Where(h => !h.dead).ToList();
 		recSample(t);
 
@@ -270,6 +272,7 @@ public static partial class G
 			lastGain = ptsOf(easy) - p0; awardXp(); state = "win"; winAt = performance.now();
 			{ double bt0 = BT(t + 0.35), nb = Math.Ceiling(bt0); winSlam = winAt + (B(nb) - t) * 1000; winHit = false; }
 			burst(p.x, p.y, CYAN, 40, 450);
+			if (bnOn) bnFinish();
 		}
 	}
 }

@@ -23,9 +23,9 @@ public static partial class G
 		return e < MENU_LOOP ? e : MENU_DROP + ((e - MENU_LOOP) % (MENU_LOOP - MENU_DROP));
 	}
 
-	static readonly string[] IN_GAME = { "play", "paused", "pauseSet", "dead", "win", "starting", "replay", "rpGap", "rpEnd", "prEnd" };
-	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins", "hcList", "myRp" };
-	static readonly string[] FS_HINT = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "pltPause", "pltSet", "tmPause", "tmSet", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "chal", "skins", "hcList" };
+	static readonly string[] IN_GAME = { "play", "paused", "pauseSet", "dead", "win", "starting", "replay", "rpGap", "rpEnd", "prEnd", "bnWipe" };
+	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins", "hcList", "myRp" };
+	static readonly string[] FS_HINT = { "main", "levels", "modes", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "pltPause", "pltSet", "tmPause", "tmSet", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "chal", "skins", "hcList" };
 
 	public static void draw(double now)
 	{
@@ -70,7 +70,7 @@ public static partial class G
 			}
 			foreach (var q in particles) { g.globalAlpha = Math.Max(0, q.life / q.max); g.fillStyle = q.col; g.fillRect(q.x - q.s / 2, q.y - q.s / 2, q.s, q.s); }
 			g.globalAlpha = 1;
-			drawGhost(); drawPlayer(); g.restore(); drawHUD(); prHUD();
+			drawGhost(); bnDrawOthers(now); if (!bnMeDown) drawPlayer(); g.restore(); drawHUD(); prHUD(); bnHUD(now);
 		}
 		if (state == "paused")
 		{
@@ -96,7 +96,7 @@ public static partial class G
 			}
 			if (now - deadAt > 700)
 			{
-				row(new[] { (K.confirm, pr.on ? "من نقطة التدريب" : "كمّل من آخر حفظ") }, W / 2, H / 2 + 110, 38, "#fff", 30);
+				row(new[] { (K.confirm, pr.on ? "من نقطة التدريب" : cur?.boss == true ? "من البداية" : "كمّل من آخر حفظ") }, W / 2, H / 2 + 110, 38, "#fff", 30);
 				row(pr.on ? (myRpCan() ? new[] { myRpHint(deadAt), (K.back, "التدريب") } : new[] { (K.back, "التدريب") }) : myRpCan() ? new[] { (K.restart, "من بداية المرحلة"), myRpHint(deadAt), (K.back, "القائمة") } : new[] { (K.restart, "من بداية المرحلة"), (K.back, "القائمة") }, W / 2, H / 2 + 170);
 			}
 		}
@@ -126,9 +126,11 @@ public static partial class G
 				txt($"+{ar(cv)} نقطة", W / 2 - 190, H / 2 - 40, 34, gc, 800, "right"); g.globalAlpha = 1;
 			}
 			drawWinXp(now);
-			if (now - Math.Max(winAt + 800, winSlam + 300) > 0) { row(new[] { (K.confirm, "العب مرة ثانية") }, W / 2, H / 2 + 135); row(myRpCan() ? new[] { myRpHint(winAt), (K.back, "المراحل") } : new[] { (K.back, "المراحل") }, W / 2, H / 2 + 190); }
+			if (bnOn) bnWinRows(now);
+			else if (now - Math.Max(winAt + 800, winSlam + 300) > 0) { row(new[] { (K.confirm, "العب مرة ثانية") }, W / 2, H / 2 + 135); row(myRpCan() ? new[] { myRpHint(winAt), (K.back, "المراحل") } : new[] { (K.back, "المراحل") }, W / 2, H / 2 + 190); }
 		}
 		if (state == "win") drawHcNote(now);
+		if (state == "bnWipe") drawBnWipe(now);
 		if (state == "prEnd") drawPrEnd(now);
 		if ((state is "replay" or "rpGap" or "rpEnd") && rp.doc != null) drawRpOverlay(now);
 		if (state == "starting" && audioHint) { overlay(0.4); txt("اضغط على الشاشة مرة وحدة عشان يشتغل الصوت 🔊", W / 2, H / 2, 32, "#fff", 500); }
@@ -146,7 +148,7 @@ public static partial class G
 		zonesFlip();
 	}
 
-	static readonly string[] MENU_MUSIC = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "practice", "news", "chal", "skins", "hcList", "myRp" };
+	static readonly string[] MENU_MUSIC = { "main", "levels", "modes", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "practice", "news", "chal", "skins", "hcList", "myRp" };
 	public static void step(double now, bool nd = false)
 	{
 		double dt = Math.Min(0.05, Math.Max(0, now - last) / 1000); last = now; fdt = dt;
@@ -180,7 +182,10 @@ public static partial class G
 			if (actx.state == "running" && cur.buf != null) { if (startBeat == 0 && introOn) { introOn = false; state = "levelIntro"; introAt = now; player = null; hazards = new List<Hz>(); particles = new List<Particle>(); if (cur.boss) bossSceneMusic(); } else beginRun(startBeat); }
 			else if (now - startReqAt > 500) audioHint = true;
 		}
-		else if (state == "levelIntro") { if (now - introAt > (cur.boss ? BOSS_SCENE * 1000 : 3200)) beginRun(0); }   // a boss level: its scene (UI/BossScene.cs)
+		else if (state == "levelIntro" && !bnOn) { if (now - introAt > (cur.boss ? BOSS_SCENE * 1000 : 3200)) beginRun(0); }   // a boss level: its scene (UI/BossScene.cs)
+		else if (state == "play" && bnOn && inp.pz) bnLeaveKey(now);   // online boss: no pause (the others go on); twice = leave the room
+		else if (state == "bnWipe") { if (inp.back) netEnd(null, true); }
+		else if (state == "levelIntro" && bnOn) { }   // online: UI/BossNet.cs starts it at the same moment on every PC
 		else if (state == "play") { if (inp.pz) pause(); else { updatePlay(pr.on ? dt * spd : dt, inp); if (pr.on) cpMsg = 0; } }
 		else if (state == "paused" && pr.on) prPauseInput(inp);
 		else if (state == "paused")
@@ -198,6 +203,7 @@ public static partial class G
 		}
 		else if (state == "dead" && pr.on) { myRpDeadKey(inp); if (now - deadAt > 700 && inp.confirm) prGo(); else if (inp.back) prToMenu(); }
 		else if (state == "dead") { myRpDeadKey(inp); if (now - deadAt > 700 && inp.confirm) requestStart(checkpoint); else if (now - deadAt > 700 && inp.restart) requestStart(0); else if (inp.back) toMenu(); }
+		else if (state == "win" && bnOn) { myRpWinKey(inp); if (now - winAt > 800 && inp.confirm && vsCanGo) vsGo(); else if (inp.back) netEnd(null, true); }
 		else if (state == "win") { myRpWinKey(inp); if (now - winAt > 800 && inp.confirm) { stopMusic(); requestStart(0); } else if (inp.back) { stopMusic(); player = null; hazards = new List<Hz>(); state = fromList; } }
 		pvUpdate(now);
 		if (pv.src != null || pv.had) { if (menuSrc != null) stopMenu(); }
