@@ -30,7 +30,7 @@ public class DodgeEv
 public static partial class G
 {
 	// the new dodge levels, in the order they come after L11
-	public static readonly string[] DODGE_IDS = { "L12", "L13", "L14", "L15" };
+	public static readonly string[] DODGE_IDS = { "L12", "L13", "L14", "L15", "L16" };
 	// the new friends' levels, in the order they come after F8
 	public static readonly string[] DODGE_FRIENDS = { "F9" };
 
