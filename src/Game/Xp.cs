@@ -14,11 +14,15 @@ public static partial class G
 	public static readonly Dictionary<string, double> XP_MULT = new()
 	{
 		["L1"] = 1.0, ["F6"] = 1.1, ["F1"] = 1.1, ["F2"] = 1.1, ["L2"] = 1.3, ["L11"] = 1.4, ["L3"] = 1.5, ["L9"] = 1.5, ["L4"] = 1.7, ["L10"] = 1.7,
-		["L8"] = 1.8, ["L5"] = 1.8, ["F5"] = 2.4, ["F3"] = 2.5, ["F4"] = 2.5, ["L6"] = 2.7, ["L7"] = 3.1, ["F7"] = 3.2, ["F8"] = 3.3, ["F9"] = 1.8,
+		["L8"] = 1.8, ["L5"] = 1.8, ["F5"] = 2.4, ["F3"] = 2.5, ["F4"] = 2.5, ["L6"] = 2.7, ["L7"] = 3.1, ["F7"] = 3.2, ["F8"] = 3.3, ["F9"] = 1.8, ["F10"] = 1.7, ["F11"] = 1.5,
 		["L12"] = 1.8,   // Hard Spike: the same as L5 (Mohammed, 10-20)
 		["L13"] = 1.8,   // A beat further: the same difficulty as L5
 		["L14"] = 1.8,   // Jump again: the same difficulty as L5 (Mohammed, 10-20)
 		["L15"] = 4.0,   // Abra Macabre: the hardest level, On The Floor x3.3 + 20% (Mohammed, 10-21)
+		["L17"] = 1.8,   // حالف لا ما انام: the same difficulty as L5 (Mohammed, 10-24)
+		["L18"] = 1.8,   // level 18, Awof Al-Dunya: the same difficulty as L5 (Mohammed, 10-24)
+		["L19"] = 1.8,   // عافني وراح: the same difficulty as L5 (Mohammed 20:30 10-24)
+		["L20"] = 4.0,   // New Game: as hard as Abra Macabre
 		["B1"] = 4.0,   // the boss mode's first level (proposed in the plan: like Abra Macabre)
 		["P1"] = 1.5,   // the platformer's first level
 		["P2"] = 2.0,   // the co-op level for three (harder than P1, easier than Link)

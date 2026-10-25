@@ -204,11 +204,12 @@ public static partial class G
 		{
 			txt("اللعبة متوقفة عندك", W / 2, 165, 56, "#fff");
 			txt("الباقين يكملون، ومربعك واقف مكانه", W / 2, 222, 22, "rgba(255,255,255,0.55)", 500);
-			var tl = tmPauseList();
-			for (int i = 0; i < tl.Length; i++)
+			var tl = tmPauseList(); bool six = tl.Length > 4;   // v49: the maker's 6 items sit closer
+			if (hostAsk != 0) drawHostAsk();
+			else for (int i = 0; i < tl.Length; i++)
 			{
-				double y = 310 + i * 80; bool sel = i == pauseSel; int ii = i; zone(W / 2 - 260, y - 34, 520, 68, () => pauseSel = ii);
-				if (sel) { rr(W / 2 - 260, y - 34, 520, 68, 16); g.fillStyle = $"rgba({RGB},0.12)"; g.fill(); g.strokeStyle = RED; g.lineWidth = 2; g.stroke(); }
+				double y = six ? 292 + i * 68 : 310 + i * 80, bh = six ? 60 : 68; bool sel = i == pauseSel; int ii = i; zone(W / 2 - 260, y - bh / 2, 520, bh, () => pauseSel = ii);
+				if (sel) { rr(W / 2 - 260, y - bh / 2, 520, bh, 16); g.fillStyle = $"rgba({RGB},0.12)"; g.fill(); g.strokeStyle = RED; g.lineWidth = 2; g.stroke(); }
 				txt(tl[i], W / 2, y, sel ? 38 : 32, sel ? "#fff" : "rgba(255,255,255,0.5)", 800);
 			}
 		}

@@ -200,9 +200,10 @@ public static partial class G
 		g.restore();
 		if (state == "pltPause")
 		{
-			var PP = online ? PL_PAUSE_ON46 : PL_PAUSE46; bool p7 = PP.Length > 5;   // v46: 7 items (the replay ones) sit closer
+			var PP = online ? plPauseOn() : PL_PAUSE46; bool p7 = PP.Length > 5;   // v46: 7 items (the replay ones) sit closer
 			overlay(0.75); txt("اللعبة متوقفة", W / 2, p7 ? 128 : 150, 56, "#fff");
-			for (int i = 0; i < PP.Length; i++)
+			if (hostAsk != 0) drawHostAsk();
+			else for (int i = 0; i < PP.Length; i++)
 			{
 				double y = p7 ? 228 + i * 66 : 270 + i * 80, bh = p7 ? 58 : 68; bool sel = i == pauseSel; int ii = i; zone(W / 2 - 260, y - bh / 2, 520, bh, () => pauseSel = ii);
 				if (sel) { rr(W / 2 - 260, y - bh / 2, 520, bh, 16); g.fillStyle = $"rgba({RGB},0.12)"; g.fill(); g.strokeStyle = RED; g.lineWidth = 2; g.stroke(); }
@@ -223,8 +224,9 @@ public static partial class G
 			}
 		}
 		if (state == "pltVsEnd") drawVsEnd(now);
-		if (state == "pltVsWait") drawVsWait(now);
-		if (state == "pltWin")
+		if (state == "pltVsWait") { drawVsWait(now); if (hostAsk != 0) drawHostAsk(); }
+		if (state == "pltWin" && rateC != null) overlay(0.7);   // the rating card is open: only the card
+		else if (state == "pltWin")
 		{
 			overlay(0.7); txt("خلّصت المرحلة!", W / 2, H / 2 - 160, 64, "#fff");
 			double ts = now - pl.winAt;

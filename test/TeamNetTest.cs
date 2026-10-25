@@ -14,6 +14,8 @@ using static MG.JS;
 // The host makes the room and writes its code to <outDir>/../code.txt; g1 and g2 type it (start g2 a little later for seat 2).
 // env SCALE: the game clock's speed against the wall clock (default 0.1, this machine is slow); PAGE: the page to start on;
 // DT: the step (default 1/60, like the routes were made); T: game seconds to stop at. A PNG every EVERY frames, state.log every frame.
+// v49 PZ = "sec:item[:yes]" (more than one with ';'): at music second sec, the pause, down to item, Enter (and Enter again for
+// "متأكد؟" when yes = 1).
 public class TeamNetTest
 {
 	string role, outDir, route; Main host; int i, me; bool shot; double t0, endAt = -1; StringBuilder log = new();
@@ -80,6 +82,18 @@ public class TeamNetTest
 		return best < 0 ? null : r.X + best * G.PT + G.PT / 2;
 	}
 	void Press(string k) { press = k; pressN = 3; G.OnKeyDown(k, false); }
+	readonly string[] PZ = System.Environment.GetEnvironmentVariable("PZ") is { Length: > 0 } pz ? pz.Split(';') : null; int pzI, pzStep;
+	void Ev(string m) => File.AppendAllText(Path.Combine(outDir, "events.txt"), m + "\n");
+	void PzStep(double now)
+	{
+		if (PZ == null || pzI >= PZ.Length || press != null || now - stepAt <= 150) return;
+		var f = PZ[pzI].Split(':'); double at = double.Parse(f[0], System.Globalization.CultureInfo.InvariantCulture); int item = int.Parse(f[1]); bool yes = f.Length > 2 && f[2] == "1";
+		if (pzStep == 0 && G.state == "tmPlay" && G.tm != null && G.tm.t >= at) { Press("Escape"); pzStep = 1; stepAt = now; Ev($"pause at {str(G.tm.t)} items {string.Join("|", G.tmPauseList())}"); }
+		else if (pzStep >= 1 && pzStep <= item) { Press("ArrowDown"); pzStep++; stepAt = now; }
+		else if (pzStep == item + 1) { Press("Enter"); pzStep++; stepAt = now; Ev($"picked {item} ask {G.hostAsk} state {G.state}"); }
+		else if (pzStep == item + 2) { if (yes) Press("Enter"); else if (G.state == "tmPause") Press("Escape"); pzStep++; stepAt = now; }
+		else if (pzStep == item + 3) { Ev($"after: state {G.state} ask {G.hostAsk}"); if (G.state == "tmPause") Press("Escape"); pzI++; pzStep = 0; stepAt = now; }
+	}
 	public void Process()
 	{
 		if (shot) { G.gfx.game.GetTexture().GetImage().SavePng(Path.Combine(outDir, $"f{i:D6}.png")); shot = false; }
@@ -102,6 +116,7 @@ public class TeamNetTest
 			else if (step == 12) { Press("Enter"); step = 13; stepAt = now; }
 			else if (step == 3 && ph == "lobby" && G.net.hi.Take(G.net.L.team.players).All(x => x) && now - G.net.phaseAt > 1500) { Press("Enter"); step = 4; stepAt = now; }
 		}
+		PzStep(now);
 		if (G.tm?.won == true && endAt < 0) endAt = now;
 		bool done = t > T || (endAt > 0 && now - endAt > 9000) || (t > 30 && G.state == "pltList");
 		AudioCtx.manualTime = (now - t0) / 1000;
@@ -125,6 +140,7 @@ public class TeamNetTest
 			if (tm.th.Any(s => s.k is "path" or "door")) log.Append(" paths=").Append(string.Concat(tm.th.Where(s => s.k is "path" or "door").Select(s => s.solid ? '1' : '0')));
 			if (tm.doneAt >= 0) log.Append(" DONE");
 			if (tm.restartAt >= 0) log.Append(" RESTART");
+			log.Append(" playT=").Append(str(Math.Round(tm.playT, 2))); if (tm.msgT > 0) log.Append(" msg=").Append(tm.msg?.Replace(' ', '_'));
 		}
 		log.Append('\n');
 		if (draw) { G.gfx.EndFrame(); shot = true; }

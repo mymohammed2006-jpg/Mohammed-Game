@@ -126,7 +126,7 @@ public static partial class G
 		public bool[] stemOn; public Voice[] voices; public List<THail> hail = new(); public long beatN = -1;
 		public List<(double x, double y, double t, int who)> steps = new();   // footprints on the clouds
 		public double[] sx = new double[TM_N], sy = new double[TM_N];
-		public string msg; public double msgT, restartAt = -1, doneAt = -1, pageAt; public int restarts, hits; public bool fromClouds; public int coverTheme;
+		public string msg; public double msgT, restartAt = -1, doneAt = -1, pageAt; public int restarts, hits; public bool fromClouds, hostRs; public int coverTheme;
 		public List<(int k, double at)> taken = new();
 		public int[] flips = new int[TM_N]; public double reveal, chaseX = -999, beat0, swapAt = -9, swapFx = -9; public int swapA = -1, swapB = -1, snapAt = -1; public double snapT = -9, prevBt, wonAt = -1, playT; public bool won;
 		public int[] falls = new int[TM_N]; public string[] names = { "الأحمر", "الأزرق", "الأصفر" };   // the whole level's, for the win screen
@@ -242,7 +242,11 @@ public static partial class G
 		if (g0 != tm.page) { tm.page = g0; tm.P = tm.L.pages[g0]; }
 		var want = tm.P.on ?? tm.L.on;
 		for (int i = 0; i < tm.stemOn.Length; i++) if (tm.stemOn[i] != want[i]) { tm.stemOn[i] = want[i]; tm.voices?[i]?.gain.setTargetAtTime(want[i] ? 1 : 0, actx.currentTime, 0.2); }
-		tmBuild(); tm.msg = "ترجعون لبداية الصفحة"; tm.msgT = 2;
+		bool hr = tm.hostRs; tm.hostRs = false;
+		// v49: the room's maker sent everyone back (someone was stuck): a fall for this PC's square, like the pause's "back to the last
+		// save" (his rule 10:27 10-21), unless it was already down (that fall counted)
+		if (hr && tmMe >= 0 && tmMe < tm.b.Length && tm.b[tmMe] is { down: false }) tm.falls[tmMe]++;
+		tmBuild(); tm.msg = hr ? (tmMe == 0 ? "رجّعت الكل لآخر حفظ" : tnName(0) + " رجّعكم لآخر حفظ") : "ترجعون لبداية الصفحة"; tm.msgT = hr ? 2.6 : 2;
 		sfx(tt => { sTone(tt, 330, 0.25, "square", 0.06); sTone(tt + 0.12, 220, 0.35, "square", 0.06); });
 	}
 

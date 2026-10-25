@@ -92,15 +92,17 @@ public static partial class G
 	static void netEnd(string why, bool tell = false, string byeName = null)
 	{
 		var n = net; if (n == null) return; net = null;
+		var rl = tm != null && tm.won ? ALL_LV().FirstOrDefault(x => x.id == tm.L.id) : null;   // a co-op level won: its rating card on the list (UI/Rate.cs), however the room ended
 		var ps = n.all();
 		if (tell) foreach (var q in ps) q.Send(new JsonObject { ["k"] = "bye", ["n"] = byeName ?? acc?.name ?? "" }.ToJsonString());
 		_ = Task.Run(async () => { await Task.Delay(300); foreach (var q in ps) q.Close(); });
 		if (n.host && n.code != "" && (n.phase is "make" or "wait" || n.roomOpen)) _ = roomDel(n.code);   // a failed connection keeps its room (both sides' addresses, to see why; the code is free again after 10 minutes)
 		if (why != null) netNote(why);
 		if (why == null || !why.StartsWith("ما قدرنا")) netDiag = null;
-		if (n.boss) { stopMusic(); player = null; hazards = new List<Hz>(); particles = new List<Particle>(); bnMeDown = false; actx.resume(); state = "bossMenu"; return; }
+		if (n.boss) { stopMusic(); player = null; hazards = new List<Hz>(); particles = new List<Particle>(); bnMeDown = false; actx.resume(); state = "bossMenu"; if (n.bwon) rateAsk(n.BL, null); return; }   // a won boss room: its rating card
 		if (state.StartsWith("plt") && state != "pltList") { plStopMusic(); player = null; particles = new List<Particle>(); actx.resume(); state = "pltList"; }
 		if (state.StartsWith("tm")) { tmStopMusic(); tm = null; tmMe = tmView = -1; particles = new List<Particle>(); actx.resume(); state = "pltList"; }
+		if (rl != null && state == "pltList") rateAsk(rl, null);
 	}
 
 	// ---------- every frame ----------
@@ -253,6 +255,28 @@ public static partial class G
 	static readonly string[] ON_OPTS = { "سوّي غرفة", "ادخل بكود" };
 	static readonly string[] PL_PAUSE_ON = { "أكمل اللعب", "إعادة من آخر حفظ", "الإعدادات", "اطلع من الغرفة" };
 	static readonly string[] PL_PAUSE_ON46 = { "أكمل اللعب", "إعادة من آخر حفظ", "الإعدادات", "احفظ الريبلاي", "اطلع من الغرفة" };   // v46: save the replay on the PC (watching would leave the room)
+	// v49 (his words 00:05-00:16 10-25, when someone is stuck): versus, the room's maker restarts the whole level for everyone,
+	// the others restart from the level's start alone
+	const string RE_ALL = "إعادة المرحلة كاملة (للكل)", RE_SAVE_ALL = "إعادة من آخر حفظ (للكل)", RE_START = "إعادة من البداية";
+	static readonly string[] PL_PAUSE_VSH = { "أكمل اللعب", "إعادة من آخر حفظ", RE_ALL, "الإعدادات", "احفظ الريبلاي", "اطلع من الغرفة" };
+	static readonly string[] PL_PAUSE_VSG = { "أكمل اللعب", "إعادة من آخر حفظ", RE_START, "الإعدادات", "احفظ الريبلاي", "اطلع من الغرفة" };
+	static string[] plPauseOn() => net?.vs == true ? (net.host ? PL_PAUSE_VSH : PL_PAUSE_VSG) : PL_PAUSE_ON46;
+	// a restart for everyone waits for "متأكد؟" (a press by mistake must not throw the others back): 1 = from the last save, 2 = the whole level
+	public static int hostAsk;
+	static bool hostAskStep(Inp inp, Action<int> yes)
+	{
+		if (hostAsk == 0) return false;
+		if (inp.confirm) { int a = hostAsk; hostAsk = 0; yes(a); }
+		else if (inp.back || inp.pz) hostAsk = 0;
+		return true;
+	}
+	static void drawHostAsk()
+	{
+		overlay(0.6); rr(W / 2 - 330, H / 2 - 130, 660, 260, 22); g.fillStyle = "#1b1428"; g.fill(); g.strokeStyle = RED; g.lineWidth = 2; g.stroke();
+		txt("متأكد؟", W / 2, H / 2 - 70, 52, "#fff");
+		txt(hostAsk == 1 ? "الكل يرجع لآخر حفظ، وتنحسب موتة لكل واحد" : "الكل يرجع لأول المرحلة، وكل شي يتصفّر", W / 2, H / 2 - 5, 26, "rgba(255,255,255,0.8)", 600);
+		var K = BTN[kind]; row(new[] { (K.confirm, "إيه"), (K.back, "لا") }, W / 2, H / 2 + 70, 38, "#fff", 30);
+	}
 	// the code's digits from the keyboard (true = used)
 	static bool netKey(string code)
 	{

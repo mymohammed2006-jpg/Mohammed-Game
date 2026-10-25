@@ -110,7 +110,7 @@ public static partial class G
 	{
 		var n = net; n.bdown = new bool[VS_N]; n.bfin = new string[VS_N]; n.wipeAt = -1; n.leaveArm = -1; n.startAt = goAt; bnMeDown = false;
 		foreach (var l in n.vsn) l.Clear(); n.vgh = new Player[VS_N];
-		var L = n.BL; cur = L; fromList = "boss"; levelTiming(L); hitsTotal = 0; deaths = 0; rec = new RecState(); checkpoint = 0; startBeat = 0;
+		var L = n.BL; cur = L; fromList = "bossMenu"; levelTiming(L); hitsTotal = 0; deaths = 0; rec = new RecState(); checkpoint = 0; startBeat = 0;
 		player = null; hazards = new List<Hz>(); particles = new List<Particle>(); introOn = false;
 		state = "levelIntro"; introAt = goAt; bnSceneMusicAt = goAt; netSetPhase("play");
 		if (bnTestFrom > 0) { introAt = goAt - BOSS_SCENE * 1000; bnSceneMusicAt = -1; }

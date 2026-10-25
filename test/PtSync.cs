@@ -11,7 +11,7 @@ using MG;
 using static MG.JS;
 
 // The platformer's best times going to the player file and back (v46), on the Firebase emulator (auth 9099, firestore 8085),
-// with the v46 rules. Usage: -- --pt-sync <outFile>. Each step waits 21 s of wall time (the rules' gap between two saves).
+// with the v46 rules (v49: online/firestore-v49.rules, P1 at least 2 s). Usage: -- --pt-sync <outFile>. Each step waits 21 s of wall time (the rules' gap between two saves).
 public class PtSync
 {
 	string outFile; Main host; StringBuilder log = new(); int step; double at; bool fails;
@@ -43,10 +43,12 @@ public class PtSync
 		var tv = d?["fields"]?["pt"]?["mapValue"]?["fields"]?["P1"]; double t = tv?["doubleValue"] is JsonNode dv ? dv.GetValue<double>() : -1;
 		return (r, t);
 	}
+	static Level L1() => G.ALL_LV().First(l => l.id == "L1");
+	string L1Doc() => (string)JsonNode.Parse(http.Send(new HttpRequestMessage(HttpMethod.Get, $"http://127.0.0.1:8085/v1/projects/mohammed-game-f7563/databases/(default)/documents/players/{G.acc.uid}") { Headers = { { "Authorization", "Bearer owner" } } }).Content.ReadAsStringAsync().Result)?["fields"]?["n"]?["mapValue"]?["fields"]?["L1"]?["stringValue"];
 	public void Process()
 	{
 		double s = wall.Elapsed.TotalSeconds; performance.manual = 100000 + s * 1000; G.gfx.BeginFrame(); G.step(performance.manual.Value); G.gfx.EndFrame();
-		if (s > 600) { log.Append($"FAIL   stuck at step {step} (syncing {G.syncing}, {G.netState})\n"); fails = true; step = 99; }
+		if (s > 600) { log.Append($"FAIL   stuck at step {step} (syncing {G.syncing}, {G.netState})\nSOME FAILED\n"); File.WriteAllText(outFile, log.ToString()); host.GetTree().Quit(); return; }
 		if (G.syncing || G.acc.dirty || s - at < 22) return;
 		var (r, t) = Doc(); at = s; File.WriteAllText(outFile, log.ToString() + $"(step {step})\n");
 		switch (step++)
@@ -57,7 +59,10 @@ public class PtSync
 			case 3: Ok(r == "S" && t == 60, $"better letter slower: S with 60 ({r} {t})"); P1.lv.best = "A"; G.setBestT(P1.lv, 40); G.acc.dirty = true; G.sync(); break;
 			case 4: Ok(r == "S" && t == 60 && P1.lv.best == "S" && P1.lv.bestT == 60, $"another PC with A 40: takes S 60 from the account ({r} {t}, local {P1.lv.best} {P1.lv.bestT})"); G.setBestT(P1.lv, 58.5); G.acc.dirty = true; G.sync(); break;
 			case 5: Ok(r == "S" && t == 58.5, $"same letter faster on this PC goes up ({r} {t})"); G.setBestT(P1.lv, 70); G.acc.dirty = true; G.sync(); break;
-			case 6: Ok(P1.lv.bestT == 58.5 && t == 58.5, $"account faster than this PC: this PC takes it ({P1.lv.bestT} {t})"); Call("logout"); Ok(P1.lv.best == null && P1.lv.bestT < 0, "logout clears the time"); goto default;
+			case 6: Ok(P1.lv.bestT == 58.5 && t == 58.5, $"account faster than this PC: this PC takes it ({P1.lv.bestT} {t})"); Call("plSaveBest", P1.lv, "S", 5.5); break;
+			case 7: Ok(r == "S" && t == 5.5, $"v49: a run under 6 s (ground dashes) is saved ({r} {t})"); G.setBestT(P1.lv, 1.5); L1().best = "B"; G.acc.dirty = true; G.sync(); break;
+			case 8: Ok(t == 5.5 && L1Doc() == "B" && G.netState == "ok", $"v49: a time the server refuses (1.5 s) does not stop the other levels: L1 B saved, time stays 5.5 ({L1Doc()} {t}, {G.netState})"); G.sync(); break;
+			case 9: Ok(t == 5.5 && P1.lv.bestT == 1.5 && G.netState == "err", $"v49: a refused time alone stays on this PC only ({t}, local {P1.lv.bestT}, {G.netState})"); G.acc.dirty = false; Call("logout"); Ok(P1.lv.best == null && P1.lv.bestT < 0, "logout clears the time"); goto default;
 			default: log.Append(fails ? "SOME FAILED\n" : "ALL OK\n"); File.WriteAllText(outFile, log.ToString()); host.GetTree().Quit(); break;
 		}
 	}
