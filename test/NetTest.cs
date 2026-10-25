@@ -16,6 +16,8 @@ using static MG.JS;
 // players the host waits for before it starts; FIN = play seconds at which this one is put through the gate (no route finishes P1);
 // LEAVE = play seconds at which this one leaves from the pause; BEST=0 = this one never finished the level (versus stays locked);
 // T = wall-game seconds to stop at (default 40). At the end: result.txt (the places, won / lost, the times).
+// v49 PZ = "sec:item[:yes]" at play second sec: the pause, down to item, Enter (and Enter again for "متأكد؟" when yes = 1);
+// WAITRE = sec: through the gate at FIN, then the maker's restart for everyone (R, then Enter) sec game seconds later.
 public class NetTest
 {
 	string role, outDir, route; Main host; int i; bool shot; double t0, playAt = -1, endAt = -1; StringBuilder log = new();
@@ -58,6 +60,7 @@ public class NetTest
 	}
 	static double Env(string k, double d) => double.TryParse(System.Environment.GetEnvironmentVariable(k), out var v) ? v : d;
 	readonly int NP = (int)Env("NP", 2); readonly double FIN = Env("FIN", -1), LEAVE = Env("LEAVE", -1), TMAX = Env("T", 40); bool finDone; int leaveStep;
+	readonly string PZ = System.Environment.GetEnvironmentVariable("PZ") is { Length: > 0 } pz ? pz : null; int pzStep; readonly double WAITRE = Env("WAITRE", -1); int wrStep; double waitAt = -1;
 	void Press(string k) { press = k; pressN = 3; G.OnKeyDown(k, false); }
 	readonly System.Diagnostics.Stopwatch wall = new(); static readonly double SCALE = double.TryParse(System.Environment.GetEnvironmentVariable("SCALE"), out var sc) ? sc : 0.1;
 	public void Process()
@@ -87,6 +90,21 @@ public class NetTest
 		if (playAt >= 0 && LEAVE > 0 && leaveStep == 0 && G.state == "pltPlay" && G.pl.t >= LEAVE && press == null) { Press("Escape"); leaveStep = 1; stepAt = now; }
 		else if (leaveStep == 1 && press == null && now - stepAt > 150) { Press("ArrowUp"); leaveStep = 2; stepAt = now; }
 		else if (leaveStep == 2 && press == null && now - stepAt > 150) { Press("Enter"); leaveStep = 3; }
+		if (PZ != null && press == null && now - stepAt > 150)
+		{
+			var f = PZ.Split(':'); double at = double.Parse(f[0], System.Globalization.CultureInfo.InvariantCulture); int item = int.Parse(f[1]); bool yes = f.Length > 2 && f[2] == "1";
+			if (pzStep == 0 && G.state == "pltPlay" && G.pl.t >= at) { Press("Escape"); pzStep = 1; stepAt = now; File.AppendAllText(Path.Combine(outDir, "events.txt"), $"pause at {str(G.pl.t)}\n"); }
+			else if (pzStep >= 1 && pzStep <= item) { Press("ArrowDown"); pzStep++; stepAt = now; }
+			else if (pzStep == item + 1) { Press("Enter"); pzStep++; stepAt = now; File.AppendAllText(Path.Combine(outDir, "events.txt"), $"picked {item} ask {G.hostAsk} state {G.state}\n"); }
+			else if (pzStep == item + 2 && yes) { Press("Enter"); pzStep++; stepAt = now; }
+			else if (pzStep == item + 3 && G.state == "pltPause") { Press("Escape"); pzStep++; stepAt = now; }
+		}
+		if (WAITRE > 0 && press == null && now - stepAt > 150)
+		{
+			if (G.state == "pltVsWait" && waitAt < 0) waitAt = now;
+			if (wrStep == 0 && G.state == "pltVsWait" && now - waitAt >= WAITRE * 1000) { Press("KeyR"); wrStep = 1; stepAt = now; File.AppendAllText(Path.Combine(outDir, "events.txt"), $"wait restart at {str(G.pl.t)}\n"); }
+			else if (wrStep == 1) { File.AppendAllText(Path.Combine(outDir, "events.txt"), $"ask {G.hostAsk}\n"); Press("Enter"); wrStep = 2; stepAt = now; }
+		}
 		if (G.state == "pltVsEnd" && endAt < 0)
 		{
 			endAt = now; var n = G.net;
@@ -100,14 +118,15 @@ public class NetTest
 			G.keys["ArrowLeft"] = k.Contains('L'); G.keys["ArrowRight"] = k.Contains('R'); G.keys["ArrowUp"] = k.Contains('U'); G.keys["ArrowDown"] = k.Contains('D');
 			G.keys["Space"] = k.Contains('J'); G.keys["ShiftLeft"] = dashNow; G.keys["Enter"] = k.Contains('E');
 		}
-		else if (G.state == "pltVsEnd") foreach (var kk in new[] { "ArrowLeft", "ArrowRight", "Space", "ShiftLeft" }) G.keys[kk] = false;
+		else if (G.state is "pltVsEnd" or "pltPause" or "pltVsWait") foreach (var kk in new[] { "ArrowLeft", "ArrowRight", "Space", "ShiftLeft" }) G.keys[kk] = false;   // a held jump (Space) is a held confirm in the menus
 		// after the result: the guest leaves, the host sees it on its list
 		if (endAt > 0 && role == "guest" && NP <= 2 && now - endAt > 3000 && G.state == "pltVsEnd" && press == null) Press("Backspace");
 		bool done = t > TMAX || (endAt > 0 && now - endAt > 6000 && G.state == "pltList") || (endAt > 0 && now - endAt > 9000) || (leaveStep == 3 && G.state == "pltList" && now - stepAt > 3000);
 		AudioCtx.manualTime = (now - t0) / 1000; G.gfx.BeginFrame(); G.step(now);
 		var p = G.player;
 		log.Append(i).Append(' ').Append(str(Math.Round(t, 3))).Append(' ').Append(G.state).Append(' ').Append(G.net?.phase ?? "-").Append(' ')
-			.Append(p != null ? str(Math.Round(p.x)) + "," + str(Math.Round(p.y)) : "-").Append(' ').Append(G.net != null ? str(Math.Round(G.net.rtt)) : "-").Append(' ').Append(G.net?.vs == true ? G.net.vsn.Sum(l => l.Count) : G.net?.snaps.Count ?? 0).Append(' ').Append(p?.hp ?? -1).Append(G.pl?.down == true ? " down" : "").Append(G.pl?.atGate == true ? " gate" : "").Append('\n');
+			.Append(p != null ? str(Math.Round(p.x)) + "," + str(Math.Round(p.y)) : "-").Append(' ').Append(G.net != null ? str(Math.Round(G.net.rtt)) : "-").Append(' ').Append(G.net?.vs == true ? G.net.vsn.Sum(l => l.Count) : G.net?.snaps.Count ?? 0).Append(' ').Append(p?.hp ?? -1).Append(G.pl?.down == true ? " down" : "").Append(G.pl?.atGate == true ? " gate" : "")
+			.Append(G.pl != null ? $" t={str(Math.Round(G.pl.t, 2))} ps={G.pauseSel} ask={G.hostAsk} ent={(G.keys.TryGetValue("Enter", out var ek) && ek ? 1 : 0)} got={G.pl.got.Count} d={G.deaths} vm={G.net?.vm} fin={(G.net?.vs == true ? string.Join("/", G.net.vfin.Select(x => str(x))) : "")} msg={(G.pl.msgT > 0 ? G.pl.msg?.Replace(' ', '_') : "")}" : "").Append('\n');
 		if (i % 10 == 0) shot = true;
 		G.gfx.EndFrame();
 		if (done) { File.WriteAllText(Path.Combine(outDir, "state.log"), log.ToString()); host.GetTree().Quit(); }

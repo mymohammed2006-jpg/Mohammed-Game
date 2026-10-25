@@ -265,7 +265,7 @@ public static partial class G
 		}
 		else if (state == "pltPlay")
 		{
-			if (inp.pz) { state = "pltPause"; pauseSel = 0; if (!online) actx.suspend(); return true; }   // online: the other player keeps going
+			if (inp.pz) { state = "pltPause"; pauseSel = 0; hostAsk = 0; if (!online) actx.suspend(); return true; }   // online: the other player keeps going
 			if (inp.jump) pl.jumpQ = true; if (inp.pdash) pl.dashQ = true; pl.jumpHeld = inp.jumpHeld;
 			double target = actx.currentTime - pl.startWhen;
 			if (target - pl.t > SIM_MAX) { pl.n += (long)Math.Floor((target - SIM_MAX - pl.t) / STEP); pl.t = -0.12 + pl.n * STEP; }
@@ -280,11 +280,15 @@ public static partial class G
 		}
 		else if (state == "pltPause" && online)
 		{
-			int pn = PL_PAUSE_ON46.Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
+			if (hostAskStep(inp, a => { if (state == "pltPause") vsRestartAll(); })) return true;
+			var PP = plPauseOn(); int pn = PP.Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
+			string it = PP[Math.Clamp(pauseSel, 0, pn - 1)];
 			if (inp.pz || inp.back || (inp.confirm && pauseSel == 0)) state = "pltPlay";
 			else if (inp.confirm && pauseSel == 1) { if (!pl.down) deaths++; plRespawn(); }   // a death (his words 10:27 10-21); co-op down already counted it
-			else if (inp.confirm && pauseSel == 2) { state = "pltSet"; setSel = 0; }
-			else if (inp.confirm && pauseSel == 3) plRpSave("mid", null);   // v46
+			else if (inp.confirm && it == RE_ALL) hostAsk = 2;
+			else if (inp.confirm && it == RE_START) vsSelfRestart();
+			else if (inp.confirm && it == "الإعدادات") { state = "pltSet"; setSel = 0; }
+			else if (inp.confirm && it == "احفظ الريبلاي") plRpSave("mid", null);   // v46
 			else if (inp.confirm) netEnd(null, true);
 		}
 		else if (state == "pltPause")

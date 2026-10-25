@@ -29,7 +29,7 @@ public static partial class G
 		public List<TSnap>[] ts = { new(), new(), new() }; public List<(double at, double x, double y)> hist = new();
 		public List<(string k, JsonNode j)> later = new();
 		public byte[] world; public bool worldNew;   // guests: the maker's last word on the things the three move by standing on them (type 3)   // events from a page build this PC hasn't reached yet (it is a little behind)
-		public double goAt;
+		public double goAt; public bool tre;   // v49: this start is the maker's restart of the whole level (everyone sees a line)
 		public List<Peer> all() => team ? tp.Where(p => p != null).ToList() : vs ? vp.Where(p => p != null).ToList() : peer != null ? new List<Peer> { peer } : new List<Peer>();
 	}
 	const double TN_DELAY = 100;                // ms: the others are drawn this far in the past
@@ -262,7 +262,7 @@ public static partial class G
 				}
 			case "st": tmSnapStep(w, D("x"), D("y"), D("u")); break;
 			case "sl": { var s = tm.th.FirstOrDefault(q => q.k == "slot" && (int)q.d.a == I("i") && !q.on); if (s != null) tmPlace(s); break; }
-			case "rs": if (tm.restartAt < 0 && tm.doneAt < 0) { tm.restartAt = D("t"); flash = 0.3; } break;
+			case "rs": if (tm.restartAt < 0 && tm.doneAt < 0) { tm.restartAt = D("t"); tm.hostRs = I("h") == 1; flash = 0.3; } break;
 			case "pd": if (tm.doneAt < 0 && tm.restartAt < 0) { if (tm.P.mic) tmMicWin(); else tmPageDone(D("t")); } break;
 			case "tb": if (tm.snapAt < 0) tmTether(I("p")); break;
 			case "sh": if (tm.spkN != null && w < tm.b.Length) tmShieldTo(w); break;   // the radio: the one who took the shield
@@ -312,7 +312,7 @@ public static partial class G
 				}
 				else if (k == "ping") p.Send(new JsonObject { ["k"] = "pong", ["t"] = j["t"]?.GetValue<double>() ?? 0 }.ToJsonString());
 				else if (k == "pong") { double r = now - (j["t"]?.GetValue<double>() ?? now); n.rt[s] = n.rt[s] < 0 ? r : n.rt[s] * 0.7 + r * 0.3; }
-				else if (k == "go" && !n.host) tnStart(now + (j["d"]?.GetValue<double>() ?? NET_GO));
+				else if (k == "go" && !n.host) { n.tre = j["re"]?.GetValue<bool>() ?? false; tnStart(now + (j["d"]?.GetValue<double>() ?? NET_GO)); }
 				else if (k == "bye") { if (over) continue; string who = S(j["n"]) ?? tnName(s); netEnd(who + " طلع من الغرفة", n.host, who); return; }
 				else { if (n.host && TN_FWD.Contains(k)) tnSendB(true, m.d, s); tnEvent(k, j); }
 			}
@@ -327,29 +327,39 @@ public static partial class G
 
 	// ---------- the start ----------
 	static bool tnReady => net != null && net.hi.Take(tnN).All(h => h);
-	static void tnGo()
+	static void tnGo(bool re = false)
 	{
-		var n = net; if (n == null || !n.host || !tnReady) return;
-		for (int s = 1; s < tnN; s++) n.tp[s].Send(new JsonObject { ["k"] = "go", ["d"] = NET_GO - Math.Max(0, n.rt[s]) / 2 }.ToJsonString());
+		var n = net; if (n == null || !n.host || !tnReady) return; n.tre = re;
+		for (int s = 1; s < tnN; s++) n.tp[s].Send(new JsonObject { ["k"] = "go", ["d"] = NET_GO - Math.Max(0, n.rt[s]) / 2, ["re"] = re }.ToJsonString());
 		tnStart(performance.now() + NET_GO);
+	}
+	// v49 (his words 00:05 10-25, when they get stuck): the room's maker, from the pause, sends everyone back to the page's start
+	// (the last save, like a wipe; a fall for each) or starts the whole level again (everything back to nothing, S possible again)
+	static void tnHostRs()
+	{
+		if (tm == null || tm.won || tm.restartAt >= 0 || tm.doneAt >= 0) return;
+		tm.restartAt = tm.t + 0.9; tm.hostRs = true; flash = 0.3; tnTell("rs", new() { ["t"] = tm.restartAt, ["h"] = 1 });
 	}
 	static void tnStart(double goAt)
 	{
 		var n = net; n.goAt = goAt; foreach (var l in n.ts) l.Clear(); n.hist.Clear(); n.later.Clear(); n.world = null;
-		netSetPhase("play"); state = "tmIntro"; stopMenu(); ensureAudio(); particles = new List<Particle>(); tmStopMusic(); tm = null;
+		netSetPhase("play"); state = "tmIntro"; stopMenu(); ensureAudio(); particles = new List<Particle>(); tmStopMusic(); tm = null; hostAsk = 0;
 	}
 	static void tnBegin()
 	{
 		var n = net; tmMe = tmView = n.seat; tmStopMusic(); tm = null;
 		tmStart(n.L.team, Math.Clamp(tnPage0, 0, n.L.team.pages.Count - 1));
 		for (int i = 0; i < TM_N; i++) tm.names[i] = tnName(i);
+		foreach (var l in n.ts) l.Clear();   // a restart: the squares from before it (sent during the countdown) are not drawn
+		if (n.tre) { tm.msg = n.host ? "عدت المرحلة للكل" : tnName(0) + " عاد المرحلة للكل"; tm.msgT = 2.6; n.tre = false; }
 		state = "tmPlay"; tmRecStart();   // v46: what this screen shows, for "احفظ الريبلاي" (Plat/TeamRp.cs)
 	}
 
 	// ---------- the level on this PC ----------
 	static readonly string[] TM_PAUSE = { "أكمل اللعب", "الإعدادات", "اطلع من الغرفة" };
 	static readonly string[] TM_PAUSE46 = { "أكمل اللعب", "الإعدادات", "احفظ الريبلاي", "اطلع من الغرفة" };   // v46: save only (watching would leave the others, his words 19:09 10-22)
-	public static string[] tmPauseList() => classicUi ? TM_PAUSE : TM_PAUSE46;
+	static readonly string[] TM_PAUSE_H = { "أكمل اللعب", RE_SAVE_ALL, RE_ALL, "الإعدادات", "احفظ الريبلاي", "اطلع من الغرفة" };   // v49: the room's maker
+	public static string[] tmPauseList() => classicUi ? TM_PAUSE : net?.host == true ? TM_PAUSE_H : TM_PAUSE46;
 	static bool tnStep(Inp inp, double now)
 	{
 		var n = net; if (n == null || !n.team) { tmStopMusic(); tm = null; tmMe = tmView = -1; state = "pltList"; return true; }
@@ -357,14 +367,18 @@ public static partial class G
 		if (tm == null) return true;
 		bool play = state == "tmPlay", opened = false;
 		if (play && tm.won) { tmRpKey(inp); if (inp.back || (inp.confirm && tm.t - tm.wonAt > 7.3)) { netEnd(null, true); return true; } }
-		else if (play && inp.pz) { state = "tmPause"; pauseSel = 0; play = false; }   // online: the others keep going (so does this square, standing)
+		else if (play && inp.pz) { state = "tmPause"; pauseSel = 0; hostAsk = 0; play = false; }   // online: the others keep going (so does this square, standing)
 		else if (play) { if (inp.jump) tm.jumpQ = true; if (inp.pdash) tm.dashQ = true; tm.jumpHeld = inp.jumpHeld; }
+		else if (state == "tmPause" && hostAskStep(inp, a => { if (a == 1) { tnHostRs(); state = "tmPlay"; } else tnGo(true); })) { }
 		else if (state == "tmPause")
 		{
-			int pn = tmPauseList().Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
+			var tl = tmPauseList(); int pn = tl.Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
+			string it = tl[Math.Clamp(pauseSel, 0, pn - 1)];
 			if (inp.pz || inp.back || (inp.confirm && pauseSel == 0)) state = "tmPlay";
-			else if (inp.confirm && pauseSel == 1) { state = "tmSet"; setSel = 0; opened = true; }
-			else if (inp.confirm && pn > 3 && pauseSel == 2) tmRpSave("mid");
+			else if (inp.confirm && it == RE_SAVE_ALL) hostAsk = 1;
+			else if (inp.confirm && it == RE_ALL) hostAsk = 2;
+			else if (inp.confirm && it == "الإعدادات") { state = "tmSet"; setSel = 0; opened = true; }
+			else if (inp.confirm && it == "احفظ الريبلاي") tmRpSave("mid");
 			else if (inp.confirm) { netEnd(null, true); return true; }
 		}
 		if (!play) { tm.jumpQ = tm.dashQ = tm.jumpHeld = false; }

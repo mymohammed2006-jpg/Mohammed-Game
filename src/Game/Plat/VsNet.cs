@@ -29,6 +29,8 @@ public static partial class G
 		public List<Snap>[] vsn = { new(), new(), new(), new() }; public Player[] vgh = new Player[VS_N];
 		public int[] vres;                 // the end: the seats in place order
 		public double vendAt = -1, madeAt;  // the maker: when the end was reached (it is sent VS_GRACE later); when the room was made
+		public int vm;                     // v49: which start this is (a gate reached before the maker restarted everyone doesn't count in the new one)
+		public bool vre;                   // v49: this start is the maker's restart (the others see a line)
 	}
 	static readonly string VS_LOCK = "خلّص المرحلة لحالك أول عشان يفتح لك وضع الضد";
 	static string vsName(int s) => net?.vnm[s] is { Length: > 0 } x ? x : "";
@@ -141,7 +143,8 @@ public static partial class G
 				else if (k == "ro" && !n.host) for (int i = 0; i < VS_N; i++) { n.vnm[i] = S(j["n"]?[i]) ?? n.vnm[i]; n.vsk[i] = S(j["s"]?[i]) ?? ""; n.vin[i] = j["i"]?[i]?.GetValue<bool>() ?? false; }
 				else if (k == "ping") p.Send(new JsonObject { ["k"] = "pong", ["t"] = j["t"]?.GetValue<double>() ?? 0 }.ToJsonString());
 				else if (k == "pong") { double r = now - (j["t"]?.GetValue<double>() ?? now); n.vrt[s] = n.vrt[s] < 0 ? r : n.vrt[s] * 0.7 + r * 0.3; }
-				else if (k == "go" && !n.host) vsStart(now + (j["d"]?.GetValue<double>() ?? NET_GO), Enumerable.Range(0, VS_N).Select(i => j["p"]?[i]?.GetValue<bool>() ?? false).ToArray());
+				else if (k == "go" && !n.host) { n.vm = j["m"]?.GetValue<int>() ?? 0; n.vre = j["re"]?.GetValue<bool>() ?? false; vsStart(now + (j["d"]?.GetValue<double>() ?? NET_GO), Enumerable.Range(0, VS_N).Select(i => j["p"]?[i]?.GetValue<bool>() ?? false).ToArray()); }
+				else if (k == "fin" && n.host && j["m"] is JsonValue mv && mv.TryGetValue<int>(out int mi) && mi != n.vm) { }   // from before the maker's restart
 				else if (k == "fin") { if (n.host) vsFin(s, j["t"]?.GetValue<double>() ?? 0); else if (w >= 0 && w < VS_N) vsFinSeen(w, j["t"]?.GetValue<double>() ?? 0); }
 				else if (k == "left" && !n.host && w >= 0 && w < VS_N) { n.vleft[w] = n.vplay[w] && n.phase == "play"; n.vin[w] = false; vsLeftSeen(w); }
 				else if (k == "end" && !n.host) vsEndGot(j);
@@ -190,21 +193,37 @@ public static partial class G
 
 	// ---------- the match ----------
 	static bool vsCanGo => net != null && net.host && net.phase is "lobby" or "end" && vsGuests(net) > 0;
-	static void vsGo()
+	static void vsGo(bool re = false)
 	{
-		var n = net; if (!vsCanGo) return;
+		var n = net; if (!vsCanGo && !(re && vsCanRe)) return;
 		if (n.roomOpen) { n.roomOpen = false; _ = roomDel(n.code); }   // nobody new comes in once it starts
 		for (int s = 1; s < VS_N; s++) if (n.vconnAt[s] >= 0 && !n.vin[s] && n.vp[s] != null && !n.vsaid[s]) { n.vp[s].Close(); n.vconnAt[s] = -1; }
-		var play = n.vin.ToArray();
-		for (int s = 1; s < VS_N; s++) if (n.vin[s]) n.vp[s].Send(new JsonObject { ["k"] = "go", ["d"] = NET_GO - Math.Max(0, n.vrt[s]) / 2, ["p"] = jArr(play) }.ToJsonString());
+		var play = n.vin.ToArray(); n.vm++; n.vre = re;
+		for (int s = 1; s < VS_N; s++) if (n.vin[s]) n.vp[s].Send(new JsonObject { ["k"] = "go", ["d"] = NET_GO - Math.Max(0, n.vrt[s]) / 2, ["p"] = jArr(play), ["m"] = n.vm, ["re"] = re }.ToJsonString());
 		vsStart(performance.now() + NET_GO, play);
+	}
+	// v49: the maker, in the middle of the match (from the pause, or through the gate watching): everyone back to the start, a new match
+	static bool vsCanRe => net != null && net.vs && net.host && net.phase == "play" && net.vendAt < 0 && vsGuests(net) > 0;
+	static void vsRestartAll() => vsGo(true);
+	// v49: the others, from the pause: back to the level's start alone. The pieces, the save and the deaths go back to nothing; the
+	// match's clock goes on (it is a race: the time to the gate still counts from the match's start), and the others keep playing
+	static void vsSelfRestart()
+	{
+		pl.got.Clear(); pl.taken.Clear(); pl.hasCp = false; cpMsg = 0;
+		var on = pl.L.on;
+		for (int i = 0; i < pl.stemOn.Length; i++) if (pl.stemOn[i] != on[i]) { pl.stemOn[i] = on[i]; pl.voices?[i]?.gain.setTargetAtTime(on[i] ? 1 : 0, actx.currentTime, 0.2); }
+		for (int y = 0; y < pl.h; y++) for (int x = 0; x < pl.w; x++) if (pl.m[y][x] == 'S') { pl.cx = x * PT + PT / 2; pl.cy = (y + 1) * PT - P_HALF; }
+		deaths = 0; hitsTotal = 0;
+		plRespawn(); plRecStart();   // the replay starts again from here (the pieces taken before are gone)
+		pl.msg = "رجعت لبداية المرحلة"; pl.msgT = 2.2;
 	}
 	static void vsStart(double goAt, bool[] play)
 	{
 		var n = net; n.vplay = play; n.vfin = new double[] { -1, -1, -1, -1 }; n.vleft = new bool[VS_N]; n.vwon = new bool[VS_N]; n.vres = null; n.vendAt = -1;
 		foreach (var l in n.vsn) l.Clear(); n.vgh = new Player[VS_N]; n.myFin = n.otherFin = -1; n.iWon = false; n.snaps.Clear(); n.ghost = null;
 		int o = vsOthers(n).DefaultIfEmpty(-1).First(); n.other = o >= 0 ? vsName(o) : ""; n.otherSk = o >= 0 ? n.vsk[o] ?? "" : "";   // the PC replay keeps one other square (the first)
-		plStart(n.L, true); pl.introAt = goAt - PL_INTRO; netSetPhase("play");
+		plStart(n.L, true); pl.introAt = goAt - PL_INTRO; netSetPhase("play"); hostAsk = 0;
+		if (n.vre) { pl.msg = n.host ? "عدت المرحلة للكل" : vsName(0) + " عاد المرحلة للكل"; pl.msgT = 2.6; }
 	}
 	// through the gate: this one watches the others until the end
 	static void vsMeFin()
@@ -212,7 +231,7 @@ public static partial class G
 		var n = net; double t = tRound(pl.t); n.myFin = t; pl.atGate = true; pl.msgT = 0; state = "pltVsWait";
 		burst(player.x, player.y, CYAN, 40, 450); shake = 8; rumble(140, 0.6, 0.4);
 		sfx(tt => { sTone(tt, 784, 0.15, "triangle", 0.12); sTone(tt + 0.1, 1047, 0.2, "triangle", 0.1); });
-		if (n.host) vsFin(0, t); else { n.vfin[n.vseat] = t; n.peer.Send(new JsonObject { ["k"] = "fin", ["t"] = t }.ToJsonString()); }
+		if (n.host) vsFin(0, t); else { n.vfin[n.vseat] = t; n.peer.Send(new JsonObject { ["k"] = "fin", ["t"] = t, ["m"] = n.vm }.ToJsonString()); }
 	}
 	// the maker: seat s reached the gate at music time t
 	static void vsFin(int s, double t)
@@ -285,7 +304,13 @@ public static partial class G
 	{
 		var n = net;
 		if (state == "pltRoom") { if (inp.confirm && vsCanGo && n.phase == "lobby") vsGo(); else if (inp.back || inp.pz) netEnd(null, true); }
-		else if (state == "pltVsWait") { pl.msgT -= dt; if (inp.back) netEnd(null, true); }
+		else if (state == "pltVsWait")
+		{
+			pl.msgT -= dt;
+			if (hostAskStep(inp, a => { if (state == "pltVsWait") vsRestartAll(); })) { }
+			else if (inp.restart && vsCanRe) hostAsk = 2;   // v49: the maker through the gate can still restart everyone (the others stuck)
+			else if (inp.back) netEnd(null, true);
+		}
 		else if (state == "pltVsEnd")
 		{
 			if (pl != null) plRpKey(inp, n.endAt, n.iWon ? "vsWin" : "vsLose", null);
@@ -334,7 +359,7 @@ public static partial class G
 		var left = vsOthers(n).Where(s => n.vfin[s] < 0 && !n.vleft[s]).Select(vsName).ToList();
 		string dots = new string('.', 1 + (int)Math.Floor(now / 400) % 3);
 		txt(left.Count > 0 ? "أستنى الباقين: " + string.Join("، ", left) + dots : "أستنى النتيجة" + dots, W / 2, H - 66, 24, "rgba(255,255,255,0.75)", 600);
-		row(new[] { (BTN[kind].back, "اطلع من الغرفة") }, W / 2, H - 26, 20, "rgba(255,255,255,0.55)", 16);
+		row(vsCanRe ? new[] { (BTN[kind].restart, RE_ALL), (BTN[kind].back, "اطلع من الغرفة") } : new[] { (BTN[kind].back, "اطلع من الغرفة") }, W / 2, H - 26, 20, "rgba(255,255,255,0.55)", 16);
 	}
 	// the end: won or lost, then the places with each one's time
 	static void drawVsEndN(double now)
