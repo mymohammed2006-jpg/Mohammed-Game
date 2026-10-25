@@ -35,7 +35,7 @@ public static partial class G
 	public static void drawBossScene(double now)
 	{
 		double s = (now - introAt) / 1000, bt = s * 130 / 60, pu = JS.exp(-(bt % 1) * 5);
-		int shot = Math.Min(5, (int)(s / 2.8)); double u = s - shot * 2.8;   // u: seconds into the shot
+		if (s < 0) s = 0; int shot = Math.Min(5, (int)(s / 2.8)); double u = s - shot * 2.8;   // u: seconds into the shot
 		double sp = pulse; pulse = pu;
 		// the room (as in the level)
 		var gr = g.createRadialGradient(W / 2, H / 2, 60, W / 2, H / 2, 780); gr.addColorStop(0, "#1a0718"); gr.addColorStop(1, "#05020a"); g.fillStyle = gr; g.fillRect(0, 0, W, H);

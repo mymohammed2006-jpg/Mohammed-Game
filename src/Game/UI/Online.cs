@@ -320,6 +320,7 @@ public static partial class G
 	// after a win: the replay waits in a queue (it goes online with the sync)
 	public static void rpWin(string r)
 	{
+		if (bnOn) { lastRec = null; rec = null; return; }   // online against the boss: the circles, the mark and the touches came from the others, so no replay
 		lastRec = rec;   // the win screen can still save it on the PC (v46)
 		if (rec == null || rec.segs.Count == 0) return; var L = cur; string m = easy ? "e" : "n", best = easy ? L.bestE : L.best; rec.cur = null;
 		if (best != null && Array.IndexOf(RANKS, r) > Array.IndexOf(RANKS, best)) { rec = null; return; }

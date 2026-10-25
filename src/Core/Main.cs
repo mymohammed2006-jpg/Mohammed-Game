@@ -16,6 +16,7 @@ public partial class Main : Node
 	UiRun uiRun;
 	VsShots vsShots;
 	PtSync ptSync;            // --pt-sync: the platformer's best times to the account and back, on the emulator (test/PtSync.cs)          // --vs-shots: pictures of the v46 time and versus screens (test/VsShots.cs)
+	BossNetTest bossNet;      // --boss-net: up to four copies against the boss online (test/BossNetTest.cs)
 	NetTest netTest;          // --net-test: two copies of the game online on the Firebase emulator (test/NetTest.cs)
 	TeamNetTest teamNet;      // --team-net: three copies of the game on the co-op level (test/TeamNetTest.cs)
 	TeamBotNet teamBotNet;    // --team-bot-net: the same bots online, three copies of the game (test/TeamBotNet.cs, a test tool)
@@ -47,6 +48,7 @@ public partial class Main : Node
 			if (args[i] == "--dodge") { G.DodgeTool(args, i + 1); GetTree().Quit(); return; }   // test/DodgeTool.cs
 			if (args[i] == "--team-run") teamTest = TeamTest.FromArgs(args, i + 1);
 			if (args[i] == "--net-test") netTest = NetTest.FromArgs(args, i + 1);
+			if (args[i] == "--boss-net") bossNet = BossNetTest.FromArgs(args, i + 1);
 			if (args[i] == "--vs-shots") vsShots = VsShots.FromArgs(args, i + 1);
 			if (args[i] == "--pt-sync") ptSync = PtSync.FromArgs(args, i + 1);
 			if (args[i] == "--team-net") teamNet = TeamNetTest.FromArgs(args, i + 1);
@@ -69,6 +71,7 @@ public partial class Main : Node
 		if (teamBotNet != null) { teamBotNet.Start(this); return; }
 		if (teamTest != null) { teamTest.Start(this); return; }
 		if (netTest != null) { netTest.Start(this); return; }
+		if (bossNet != null) { bossNet.Start(this); return; }
 		if (vsShots != null) { vsShots.Start(this); return; }
 		if (ptSync != null) { ptSync.Start(this); return; }
 		if (teamNet != null) { teamNet.Start(this); return; }
@@ -119,7 +122,7 @@ public partial class Main : Node
 
 	public override void _Input(InputEvent e)
 	{
-		if (restartTest != null || botRun != null || uiRun != null || pvRun != null || platTest != null || teamTest != null || teamBot != null || teamBotNet != null || netTest != null || vsShots != null || ptSync != null || teamNet != null || canvasTestOut != null) return;
+		if (restartTest != null || botRun != null || uiRun != null || pvRun != null || platTest != null || teamTest != null || teamBot != null || teamBotNet != null || netTest != null || bossNet != null || vsShots != null || ptSync != null || teamNet != null || canvasTestOut != null) return;
 		if (upd != null && upd.state != "done") return;
 		if (e is InputEventKey k)
 		{
@@ -169,6 +172,7 @@ public partial class Main : Node
 		if (teamBotNet != null) { teamBotNet.Process(); return; }
 		if (teamTest != null) { teamTest.Process(); return; }
 		if (netTest != null) { netTest.Process(); return; }
+		if (bossNet != null) { bossNet.Process(); return; }
 		if (vsShots != null) { vsShots.Process(); return; }
 		if (ptSync != null) { ptSync.Process(); return; }
 		if (teamNet != null) { teamNet.Process(); return; }

@@ -12,6 +12,8 @@ public static partial class G
 	public static readonly string[] BOSS_IDS = { "B1" };
 	public static readonly List<Level> BOSSLV = new();
 	public const int BOSS_HP = 3;
+	public static int bnTestHp;   // tests only (test/BossNetTest.cs): fewer hearts
+	public static double bnTestFrom;   // tests only: online starts at this beat, no scene
 	static void AddBossLevels()
 	{
 		foreach (var id in BOSS_IDS)

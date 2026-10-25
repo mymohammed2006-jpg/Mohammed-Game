@@ -207,7 +207,7 @@ public static partial class G
 	}
 
 	// ---------- the save buttons on the win and lose screens ----------
-	static bool myRpCan() => !classicUi;
+	static bool myRpCan() => !classicUi && !bnOn;   // not online against the boss: that run needs the others to play back
 	static bool myRpDone(double at) => myRpSavedFor == at;
 	// the win screen: rpWin already let go of the recording, lastRec has it
 	static void myRpWinKey(Inp inp) { if (myRpCan() && inp.sq && !myRpDone(winAt) && now0() - winAt > 800 && myRpSave(lastRec, "win", lastRank)) myRpSavedFor = winAt; }

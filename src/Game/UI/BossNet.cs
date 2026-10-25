@@ -112,18 +112,19 @@ public static partial class G
 		var L = n.BL; cur = L; fromList = "boss"; levelTiming(L); hitsTotal = 0; deaths = 0; rec = new RecState(); checkpoint = 0; startBeat = 0;
 		player = null; hazards = new List<Hz>(); particles = new List<Particle>(); introOn = false;
 		state = "levelIntro"; introAt = goAt; bnSceneMusicAt = goAt; netSetPhase("play");
+		if (bnTestFrom > 0) { introAt = goAt - BOSS_SCENE * 1000; bnSceneMusicAt = -1; }
 	}
 	static double bnSceneMusicAt = -1;
 	// everyone down: the same new start on every PC (no scene)
 	static void bnWipe(double at)
 	{
-		var n = net; if (n == null) return; n.wipeAt = at; n.bdown = new bool[VS_N]; bnMeDown = false;
+		var n = net; if (n == null) return; n.wipeAt = at; n.bdown = new bool[VS_N]; bnMeDown = false; bnMsgT = 0;
 		if (state == "play") { stopMusic(); state = "bnWipe"; deadAt = performance.now(); }
 	}
 	static void bnRestart()
 	{
 		var n = net; n.wipeAt = -1; foreach (var l in n.vsn) l.Clear();
-		hitsTotal = 0; deaths = 0; rec = new RecState(); checkpoint = 0; startBeat = 0; beginRun(0);
+		hitsTotal = 0; deaths = 0; rec = new RecState(); checkpoint = 0; startBeat = 0; beginRun(bnTestFrom);
 	}
 	// my hearts ran out
 	public static void bnDown()
@@ -177,7 +178,7 @@ public static partial class G
 	{
 		var n = net; if (n.phase != "play") return;
 		if (state == "levelIntro" && bnSceneMusicAt > 0 && now >= bnSceneMusicAt) { bnSceneMusicAt = -1; bossSceneMusic(); }
-		if (state == "levelIntro" && now - introAt > BOSS_SCENE * 1000) { beginRun(0); return; }
+		if (state == "levelIntro" && now - introAt > BOSS_SCENE * 1000) { beginRun(bnTestFrom); return; }
 		if (state == "bnWipe" && n.wipeAt >= 0 && now >= n.wipeAt) { bnRestart(); return; }
 		if (state != "play" || player == null) return;
 		if (now - n.sendAt >= 33)
@@ -219,7 +220,7 @@ public static partial class G
 		if (now - Math.Max(winAt + 800, winSlam + 300) <= 0) return;
 		var K = BTN[kind];
 		if (vsCanGo) row(new[] { (K.confirm, "العب مرة ثانية"), (K.back, "اطلع من الغرفة") }, W / 2, H - 34);
-		else { txt(n.host ? "كل اللي معك طلعوا من الغرفة" : $"أستنى {vsName(0)} يبدأ مرة ثانية", W / 2, H - 74, 24, "rgba(255,255,255,0.75)", 700); row(new[] { (K.back, "اطلع من الغرفة") }, W / 2, H - 34); }
+		else { txt(n.host ? "كل اللي معك طلعوا من الغرفة" : $"استنى {vsName(0)} يبدأ مرة ثانية", W / 2, H - 74, 24, "rgba(255,255,255,0.75)", 700); row(new[] { (K.back, "اطلع من الغرفة") }, W / 2, H - 34); }
 	}
 
 	// ---------- drawing ----------
@@ -254,7 +255,7 @@ public static partial class G
 			for (int k = 0; k < maxHp(cur); k++) { double hx = x - k * 20; if (k < hp) { g.fillStyle = BN_COL[s]; g.fillRect(hx - 7, y - 7, 14, 14); } else { g.strokeStyle = BN_COL[s]; g.globalAlpha = 0.35; g.lineWidth = 2; g.strokeRect(hx - 6, y - 6, 12, 12); g.globalAlpha = 1; } }
 			txt(n.bdown[s] ? vsName(s) + " (طايح)" : vsName(s), x - maxHp(cur) * 20 - 8, y + 1, 18, n.bdown[s] ? "rgba(255,255,255,0.5)" : "#fff", 700, "right");
 		}
-		if (bnMeDown) txt("طحت! أستنى أحد يلمسك عشان ترجع", W / 2, 120, 32, "#fff", 800);
+		if (bnMeDown) txt("طحت! استنى أحد يلمسك عشان ترجع", W / 2, 120, 32, "#fff", 800);
 		else if (bnMsgT > 0 && bnMsgS != null) { g.globalAlpha = clamp(bnMsgT / 0.4, 0, 1); txt(bnMsgS, W / 2, 120, 30, "#fff", 800); g.globalAlpha = 1; }
 		if (n.leaveArm > 0 && now - n.leaveArm < 2500) txt("اضغط مرة ثانية عشان تطلع من الغرفة", W / 2, H - 70, 26, "rgba(255,255,255,0.85)", 700);
 	}
