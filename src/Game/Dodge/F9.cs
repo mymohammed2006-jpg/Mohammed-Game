@@ -104,7 +104,7 @@ public static partial class G
 	// part 1 the city at night, 2 the sea at sunset, 3 under the ground (the coffin)
 	public static Hz F9Stage(int part, double t0, double t1)
 	{
-		var h = new Hz { kind = "F9Stage" };
+		var h = new Hz { kind = "F9Stage", veil = true };
 		h.update = (t, dt) => { if (t > t1 + 1) h.dead = true; };
 		h.draw = t =>
 		{
@@ -177,7 +177,7 @@ public static partial class G
 			if (act || wk > 0 || fade > 0)
 			{
 				bool fl = false; foreach (var ta in tas) if (t >= ta && t < ta + 0.05) fl = true;
-				g.fillStyle = act ? (fl ? "#fff" : F9P(0.78)) : wk > 0 ? F9Y(0.06 + 0.16 * wk) : F9P(0.5 * fade);
+				g.fillStyle = act ? (fl ? PINKW : F9P(0.78)) : wk > 0 ? F9Y(0.06 + 0.16 * wk) : F9P(0.5 * fade);
 				g.beginPath(); g.moveTo(x - F9ConeW(F9LY, sc), F9LY); g.lineTo(x + F9ConeW(F9LY, sc), F9LY); g.lineTo(x + F9ConeW(H, sc), H); g.lineTo(x - F9ConeW(H, sc), H); g.closePath(); g.fill();
 				if (!act && wk > 0) { g.strokeStyle = F9G(0.3 + 0.4 * wk); g.lineWidth = 2; g.setLineDash(new double[] { 9, 8 }); g.stroke(); g.setLineDash(new double[0]); }
 			}
@@ -218,7 +218,7 @@ public static partial class G
 				else
 				{
 					double f = bt < t0 + on ? 1 : 1 - (bt - t0 - on) / 0.3; g.fillStyle = F9P(0.7 * f); g.fillRect(x - F9SP, y - F9SP, F9FW + 2 * F9SP, F9FH + 2 * F9SP);   // the light around it hurts too: clearly pink
-					g.fillStyle = bt < t0 + 0.07 ? "#fff" : F9P(0.95 * f); g.fillRect(x, y, F9FW, F9FH);
+					g.fillStyle = bt < t0 + 0.07 ? PINKW : F9P(0.95 * f); g.fillRect(x, y, F9FW, F9FH);
 					g.fillStyle = $"rgba(70,0,22,{str(0.6 * f)})"; circle(x + F9FW / 2, y + 26, 11); g.fillRect(x + F9FW / 2 - 15, y + 38, 30, F9FH - 38);
 				}
 			}
@@ -275,7 +275,7 @@ public static partial class G
 			for (double x = ox - PX; x < W; x += PX)
 			{
 				if (t < ta) { g.fillStyle = F9Y(0.08 + 0.3 * k); g.fillRect(x, y - HH / 2, WW, HH); g.strokeStyle = F9G(0.3 + 0.5 * k); g.lineWidth = 2; g.strokeRect(x + 1, y - HH / 2 + 1, WW - 2, HH - 2); }
-				else { double f = t < ta + on ? 1 : 1 - (t - ta - on) / 0.3; g.fillStyle = t < ta + 0.05 ? "#fff" : F9P(0.9 * f); g.fillRect(x, y - HH / 2, WW, HH); }
+				else { double f = t < ta + on ? 1 : 1 - (t - ta - on) / 0.3; g.fillStyle = t < ta + 0.05 ? PINKW : F9P(0.9 * f); g.fillRect(x, y - HH / 2, WW, HH); }
 			}
 		};
 		h.hit = (p, t) =>
@@ -432,7 +432,7 @@ public static partial class G
 			g.save(); g.translate(x + dir * w / 2, BY); g.rotate(an + Math.PI / 2);
 			// local: the tower goes up from (0,0) to (0,-len), w wide away from dir (the corner it turns on is the origin)
 			double lx = dir > 0 ? -w : 0;
-			g.fillStyle = act ? (t < tf + 0.05 ? "#fff" : PINK) : "#151726"; g.fillRect(lx, -len, w, len);
+			g.fillStyle = act ? (t < tf + 0.05 ? PINKW : PINK) : "#151726"; g.fillRect(lx, -len, w, len);
 			if (!act) { g.strokeStyle = "rgba(255,198,96,0.4)"; g.lineWidth = 2; g.strokeRect(lx, -len, w, len); }
 			for (double yy = -len + 16; yy < -14; yy += 24) for (int c = 0; c < 3; c++) if (F9h((int)yy * 5 + c + (int)x) > 0.35) { g.fillStyle = act ? "rgba(90,0,30,0.5)" : F9Y(0.6); g.fillRect(lx + 12 + c * (w - 24) / 3, yy, 14, 12); }
 			g.restore(); g.restore();
@@ -512,7 +512,7 @@ public static partial class G
 				return;
 			}
 			double R = Math.Min((t - ta) * sp, rmax), f = 1 - F9k(t, te, te + 0.15); if (f <= 0) return;   // full pink while it hurts (till te)
-			g.strokeStyle = t < ta + 0.05 ? "#fff" : F9P(0.9 * f); g.lineWidth = th; g.beginPath(); g.arc(x, y, Math.Max(1, R), ga + gw / 2, ga - gw / 2 + TAU); g.stroke();
+			g.strokeStyle = t < ta + 0.05 ? PINKW : F9P(0.9 * f); g.lineWidth = th; g.beginPath(); g.arc(x, y, Math.Max(1, R), ga + gw / 2, ga - gw / 2 + TAU); g.stroke();
 		};
 		h.hit = (p, t) =>
 		{
@@ -622,7 +622,7 @@ public static partial class G
 			double a = Math.Min(F9k(t, tw, tw + 0.8), 1 - F9k(t, te, te + 0.8)); if (a <= 0) return; double an = F9CofAng(BT(t)); bool act = t >= ta && t < te;
 			g.save(); g.globalAlpha = a;
 			// outside: the earth, pink when it kills
-			g.fillStyle = act ? F9P(0.42) : F9G(0.08); g.beginPath(); g.rect(0, 0, W, H);
+			g.fillStyle = act ? F9P(0.6) : F9G(0.08); g.beginPath(); g.rect(0, 0, W, H);
 			var p0 = F9ToScreen(F9CX[0], F9CY[0], an); g.moveTo(p0.x, p0.y); for (int i = n - 1; i >= 1; i--) { var q = F9ToScreen(F9CX[i], F9CY[i], an); g.lineTo(q.x, q.y); } g.closePath(); g.fill();
 			// inside: F9CoffinWood (a place, under the skull)
 			g.strokeStyle = act ? PINK : F9G(0.6); g.lineWidth = act ? 12 : 3; g.beginPath(); for (int i = 0; i < n; i++) { var q = F9ToScreen(F9CX[i], F9CY[i], an); if (i == 0) g.moveTo(q.x, q.y); else g.lineTo(q.x, q.y); } g.closePath(); g.stroke();
@@ -672,7 +672,7 @@ public static partial class G
 			if (t < tw) return; double bt = BT(t), an = F9CofAng(bt), d = depth(bt), f = 1 - F9k(t, te, te + 0.4); var w0 = F9ToScreen(lx, ly, an); var w1 = F9ToScreen(lx + ca * len, ly + sa * len, an);
 			if (d < len) F9Dash(w0.x, w0.y, w1.x, w1.y, F9G(0.6 * f));
 			if (d <= 0) return; var tip = F9ToScreen(lx + ca * d, ly + sa * d, an);
-			g.strokeStyle = bt < hb[0] + 0.1 ? "#fff" : F9P(f); g.lineWidth = nw; g.beginPath(); g.moveTo(w0.x, w0.y); g.lineTo(tip.x, tip.y); g.stroke();
+			g.strokeStyle = bt < hb[0] + 0.1 ? PINKW : F9P(f); g.lineWidth = nw; g.beginPath(); g.moveTo(w0.x, w0.y); g.lineTo(tip.x, tip.y); g.stroke();
 			g.fillStyle = F9P(f); circle(w0.x, w0.y, nw * 1.3);
 		};
 		h.hit = (p, t) =>
@@ -711,7 +711,7 @@ public static partial class G
 			if (t < tw) return; double f = 1 - F9k(t, te, te + 0.4);
 			if (t < ta) { double k = F9k(t, tw, ta); g.strokeStyle = F9G(0.3 + 0.5 * k); g.lineWidth = 2; g.setLineDash(new double[] { 8, 8 }); g.beginPath(); g.arc(x, y, R, 0, TAU); g.stroke(); g.setLineDash(new double[0]); g.fillStyle = F9G(0.05 + 0.08 * k); g.fillRect(x - R, 0, R * 2, y); }
 			if (t < t0) return; double yy = cy(t);
-			g.fillStyle = t >= ta && t < ta + 0.05 ? "#fff" : F9P(0.92 * f); g.beginPath();
+			g.fillStyle = t >= ta && t < ta + 0.05 ? PINKW : F9P(0.92 * f); g.beginPath();
 			for (int i = 0; i < 10; i++) { double a = i * TAU / 10, rr = R * (0.86 + 0.14 * F9h(i + (int)x)); if (i == 0) g.moveTo(x + JS.cos(a) * rr, yy + JS.sin(a) * rr); else g.lineTo(x + JS.cos(a) * rr, yy + JS.sin(a) * rr); }
 			g.closePath(); g.fill(); g.fillStyle = $"rgba(80,0,26,{str(0.4 * f)})"; circle(x - R * 0.3, yy - R * 0.2, R * 0.18); circle(x + R * 0.25, yy + R * 0.2, R * 0.14);
 		};
@@ -754,7 +754,7 @@ public static partial class G
 					g.fillStyle = F9P(0.3 + 0.6 * k); circle(e.Item1, e.Item2, 10 + 6 * k); continue;
 				}
 				double an = ang(e.Item3, e.Item4, t), f = 1 - F9k(t, te, te + 0.3), nx = -JS.sin(an) * bw, ny = JS.cos(an) * bw;
-				g.fillStyle = t < ta + 0.05 ? "#fff" : F9P(0.88 * f); g.beginPath(); g.moveTo(e.Item1 + nx * 0.4, e.Item2 + ny * 0.4); g.lineTo(e.Item1 + JS.cos(an) * LEN + nx, e.Item2 + JS.sin(an) * LEN + ny); g.lineTo(e.Item1 + JS.cos(an) * LEN - nx, e.Item2 + JS.sin(an) * LEN - ny); g.lineTo(e.Item1 - nx * 0.4, e.Item2 - ny * 0.4); g.closePath(); g.fill();
+				g.fillStyle = t < ta + 0.05 ? PINKW : F9P(0.88 * f); g.beginPath(); g.moveTo(e.Item1 + nx * 0.4, e.Item2 + ny * 0.4); g.lineTo(e.Item1 + JS.cos(an) * LEN + nx, e.Item2 + JS.sin(an) * LEN + ny); g.lineTo(e.Item1 + JS.cos(an) * LEN - nx, e.Item2 + JS.sin(an) * LEN - ny); g.lineTo(e.Item1 - nx * 0.4, e.Item2 - ny * 0.4); g.closePath(); g.fill();
 				g.fillStyle = PINK; circle(e.Item1, e.Item2, 16);
 			}
 		};
@@ -786,7 +786,7 @@ public static partial class G
 				g.stroke(); g.setLineDash(new double[0]); return;
 			}
 			double f = t < ta + hold ? 1 : 1 - (t - ta - hold) / 0.3;
-			g.strokeStyle = t < ta + 0.05 ? "#fff" : F9P(0.95 * f); g.lineWidth = w; g.lineJoin = "round"; g.beginPath(); g.moveTo(xs[0], ys[0]); for (int i = 1; i < n; i++) g.lineTo(xs[i], ys[i]); g.stroke();
+			g.strokeStyle = t < ta + 0.05 ? PINKW : F9P(0.95 * f); g.lineWidth = w; g.lineJoin = "round"; g.beginPath(); g.moveTo(xs[0], ys[0]); for (int i = 1; i < n; i++) g.lineTo(xs[i], ys[i]); g.stroke();
 			g.strokeStyle = $"rgba(40,0,12,{str(0.6 * f)})"; g.lineWidth = Math.Max(1, w * 0.25); g.stroke(); g.lineJoin = "miter";
 		};
 		h.hit = (p, t) =>

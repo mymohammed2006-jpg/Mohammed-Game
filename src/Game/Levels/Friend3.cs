@@ -41,7 +41,7 @@ public static partial class G
 		double rot = 0, ph = rnd() * TAU; double? t0 = null; double rs = (rnd() < 0.5 ? -1 : 1) * (1.5 + rnd());
 		var h = new Hz { x = x, y = y };
 		h.update = (t, dt) => { if (t0 == null) t0 = t; h.x += (vx + JS.sin((t - t0.Value) * 3 + ph) * 60) * dt; h.y += vy * dt; rot += rs * dt; if (h.y > H + 120 || h.x < -150 || h.x > W + 150 || h.y < -200) h.dead = true; };
-		h.draw = t => { g.save(); g.translate(h.x, h.y); g.rotate(rot); g.shadowColor = PINK; g.shadowBlur = 12; g.fillStyle = PINK; g.fillRect(-w / 2, -hh / 2, w, hh); g.shadowBlur = 0; g.fillStyle = "#000"; g.fillRect(-w / 2, -hh / 2, w, hh * 0.22); g.font = $"800 {str(hh * 0.42)}px {FONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(num, 0, hh * 0.12); g.restore(); };
+		h.draw = t => { g.save(); g.translate(h.x, h.y); g.rotate(rot); g.shadowColor = PINK; g.shadowBlur = 12; g.fillStyle = PINK; g.fillRect(-w / 2, -hh / 2, w, hh); g.shadowBlur = 0; g.fillStyle = "#8f1a43"; g.fillRect(-w / 2, -hh / 2, w, hh * 0.22); g.font = $"800 {str(hh * 0.42)}px {FONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(num, 0, hh * 0.12); g.restore(); };
 		h.hit = (p, t) => obbHit(p.x, p.y, p.r, h.x, h.y, w / 2, hh / 2, rot);
 		return h;
 	}
@@ -53,7 +53,7 @@ public static partial class G
 		h.draw = t =>
 		{
 			double k = clamp((t - tw) / (ta - tw), 0, 1); g.save(); g.translate(x, y); g.font = $"800 {str(s)}px {FONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "rtl";
-			if (t < ta) { g.globalAlpha = 0.2 + 0.4 * k; g.fillStyle = PINK; g.scale(1.4 - 0.4 * k, 1.4 - 0.4 * k); g.fillText("؟", 0, 0); } else { g.shadowColor = PINK; g.shadowBlur = 20; g.fillStyle = (t - ta) < 0.08 ? "#fff" : PINK; g.scale(1 + 0.08 * pulse, 1 + 0.08 * pulse); g.fillText("؟", 0, 0); }
+			if (t < ta) { g.globalAlpha = 0.2 + 0.4 * k; g.fillStyle = PINK; g.scale(1.4 - 0.4 * k, 1.4 - 0.4 * k); g.fillText("؟", 0, 0); } else { g.fillStyle = "rgba(255,42,109,0.5)"; circle(0, 0, s * 0.3); g.strokeStyle = PINK; g.lineWidth = 3; g.beginPath(); g.arc(0, 0, s * 0.3, 0, TAU); g.stroke(); g.shadowColor = PINK; g.shadowBlur = 20; g.fillStyle = (t - ta) < 0.08 ? PINKW : PINK; g.scale(1 + 0.08 * pulse, 1 + 0.08 * pulse); g.fillText("؟", 0, 0); }   /* 10-25: a pink ring shows the round part that hurts */
 			g.restore(); g.globalAlpha = 1;
 		};
 		h.hit = (p, t) => t >= ta && hypot(p.x - x, p.y - y) < s * 0.3 + p.r;
@@ -144,7 +144,7 @@ public static partial class G
 	public static Hz NumShot(double x, double y, double vx, double vy, string txt)
 	{
 		var b = Bullet(x, y, vx, vy, 14);
-		b.draw = t => { g.save(); g.translate(b.x, b.y); g.shadowColor = PINK; g.shadowBlur = 12; g.fillStyle = PINK; g.font = $"800 34px {FONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(txt, 0, 2); g.restore(); };
+		b.draw = t => { g.save(); g.translate(b.x, b.y); g.fillStyle = "rgba(255,42,109,0.45)"; circle(0, 0, 14); g.shadowColor = PINK; g.shadowBlur = 12; g.fillStyle = PINK; g.font = $"800 34px {FONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(txt, 0, 2); g.restore(); };
 		return b;
 	}
 	public static Hz GreatClock(double ts, double te, Tier T)
@@ -175,7 +175,7 @@ public static partial class G
 		h.draw = t =>
 		{
 			double a = clamp((t - ts) / (SPB * 3), 0, 1); bool live = t >= ts + SPB * 4; g.save(); g.translate(cx, cy); g.globalAlpha = live ? 1 : 0.4 + 0.4 * a;
-			g.fillStyle = "#0b0b0f"; circle(0, 0, R); g.strokeStyle = PINK; g.lineWidth = 12; if (live) { g.shadowColor = PINK; g.shadowBlur = 24; }
+			g.fillStyle = live ? "#a3184a" : "#0b0b0f"; circle(0, 0, R); g.strokeStyle = PINK; g.lineWidth = 12;   /* 10-25: the face hurts, so it is pink while it hurts (it was black) */ if (live) { g.shadowColor = PINK; g.shadowBlur = 24; }
 			g.beginPath(); g.arc(0, 0, R * (1 + 0.03 * pulse), 0, TAU); g.stroke(); g.shadowBlur = 0;
 			g.font = $"800 26px {FONT}"; g.textAlign = "center"; g.textBaseline = "middle"; for (int i = 0; i < 12; i++) { double na = -Math.PI / 2 + i * TAU / 12; bool rec = t - shotAt[i] < 0.5; g.fillStyle = rec ? "rgba(255,255,255,0.15)" : GREY + "0.8)"; g.fillText(AR_NUM[i], JS.cos(na) * (R - 28), JS.sin(na) * (R - 28) + 2); }
 			g.strokeStyle = PINK; g.lineCap = "round"; g.shadowColor = PINK; g.shadowBlur = live ? 18 : 0; g.lineWidth = 12; g.beginPath(); g.moveTo(0, 0); g.lineTo(JS.cos(mA) * L, JS.sin(mA) * L); g.stroke();

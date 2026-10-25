@@ -39,7 +39,7 @@ public static partial class G
 	{
 		if (w < 2 || h < 2) return;
 		g.save(); g.globalAlpha = alpha;
-		g.fillStyle = white ? "#fff" : k >= 1 ? PINK : $"rgba({str(70 + 185 * k)},{str(64 - 22 * k)},{str(78 + 31 * k)},1)";
+		g.fillStyle = white ? PINKW : k >= 1 ? PINK : $"rgba({str(70 + 185 * k)},{str(64 - 22 * k)},{str(78 + 31 * k)},1)";
 		g.fillRect(x, y, w, h);
 		if (!white)
 		{
@@ -202,7 +202,7 @@ public static partial class G
 				return;
 			}
 			double u = t - ta, al = u < hold ? 1 : Math.Max(0, 1 - (u - hold) / 0.3); bool wh = u < 0.05;
-			g.save(); g.globalAlpha = al; g.fillStyle = wh ? "#fff" : PINK; g.fillRect(G0.x0, y + 4, G0.W, G0.ch - 8); g.fillRect(x + 4, G0.y0, G0.cw - 8, G0.H);
+			g.save(); g.globalAlpha = al; g.fillStyle = wh ? PINKW : PINK; g.fillRect(G0.x0, y + 4, G0.W, G0.ch - 8); g.fillRect(x + 4, G0.y0, G0.cw - 8, G0.H);
 			g.fillStyle = "rgba(70,0,20,0.45)"; g.fillRect(G0.x0, y + G0.ch / 2 - 6, G0.W, 12); g.fillRect(x + G0.cw / 2 - 6, G0.y0, 12, G0.H); g.restore();
 		};
 		h.hit = (p, t) =>
@@ -246,10 +246,10 @@ public static partial class G
 				double s = shut(j, t); bool wh = t >= hs[j] && t < hs[j] + 0.05;
 				double l = gx[j] - gw / 2, r = gx[j] + gw / 2; double rest = 26;
 				double lw = rest + (l - rest) * s, rw = rest + (W - r - rest) * s;
-				string col = s >= 1 ? PINK : $"rgba(120,104,120,{str(0.6 + 0.4 * s)})";   // (a slam every beat: no white walls, only a white edge)
+				string col = s >= 1 || (t >= hs[j] - 0.03 && t < hs[j] + hold) ? PINK : $"rgba(120,104,120,{str(0.6 + 0.4 * s)})";   // (a slam every beat: no white walls, only a white edge)
 				g.fillStyle = col; g.fillRect(0, 0, lw, H); g.fillRect(W - rw, 0, rw, H);
 				// teeth on the crushing edge
-				g.fillStyle = wh ? "#fff" : col; g.beginPath(); for (double y = 0; y < H; y += 48) { g.moveTo(lw, y); g.lineTo(lw + 16, y + 24); g.lineTo(lw, y + 48); g.moveTo(W - rw, y); g.lineTo(W - rw - 16, y + 24); g.lineTo(W - rw, y + 48); } g.fill();
+				g.fillStyle = wh ? PINKW : col; g.beginPath(); for (double y = 0; y < H; y += 48) { g.moveTo(lw, y); g.lineTo(lw + 16, y + 24); g.lineTo(lw, y + 48); g.moveTo(W - rw, y); g.lineTo(W - rw - 16, y + 24); g.lineTo(W - rw, y + 48); } g.fill();
 				if (md[j] > 0)
 				{
 					double tp = gy[j] - gh / 2, bt = gy[j] + gh / 2; double th = rest + (tp - rest) * s, bh = rest + (H - bt - rest) * s;
@@ -395,6 +395,7 @@ public static partial class G
 				{
 					// falling: the tile tips over (squashes toward its bottom edge) and kills
 					double u = (t - f) / hold; double hh = (G0.ch - 10) * (1 - 0.75 * u);
+					g.fillStyle = H1P(0.45); g.fillRect(x + 2, y + 2, G0.cw - 4, G0.ch - 4);
 					H1Sq(x + 5, y + G0.ch - 5 - hh, G0.cw - 10, hh, 1, t - f < 0.05);
 					continue;
 				}
@@ -459,7 +460,7 @@ public static partial class G
 			{
 				if (t < tj[j] || t >= tj[j] + hold + 0.2) continue; double u = t - tj[j], al = u < hold ? 1 : 1 - (u - hold) / 0.2;
 				double x0 = Math.Max(G0.x0, G0.X(cs[j] - 1)), y0 = Math.Max(G0.y0, G0.Y(rs[j] - 1)), x1 = Math.Min(G0.x0 + G0.W, G0.X(cs[j] + 2)), y1 = Math.Min(G0.y0 + G0.H, G0.Y(rs[j] + 2));
-				g.globalAlpha = a * al; g.fillStyle = u < 0.05 ? "#fff" : PINK; g.fillRect(x0 + 3, y0 + 3, x1 - x0 - 6, y1 - y0 - 6);
+				g.globalAlpha = al; g.fillStyle = u < 0.05 ? PINKW : PINK; g.fillRect(x0 + 3, y0 + 3, x1 - x0 - 6, y1 - y0 - 6);
 				g.strokeStyle = "rgba(70,0,20,0.5)"; g.lineWidth = 4; g.strokeRect(G0.X(cs[j]) + 8, G0.Y(rs[j]) + 8, G0.cw - 16, G0.ch - 16); g.globalAlpha = a;
 			}
 			// the next landing
@@ -479,8 +480,8 @@ public static partial class G
 			var c = at(t);
 			if (c.y > -200)
 			{
-				double s = c.air ? 74 : 64; H1Sq(c.x - s / 2, c.y - s / 2, s, s, 1);
-				g.fillStyle = "rgba(20,0,6,0.85)"; g.beginPath(); g.moveTo(c.x - s * 0.2, c.y - s * 0.35); g.lineTo(c.x + s * 0.3, c.y - s * 0.1); g.lineTo(c.x + s * 0.05, c.y + s * 0.05); g.lineTo(c.x - s * 0.1, c.y + s * 0.35); g.lineTo(c.x - s * 0.3, c.y + s * 0.35); g.closePath(); g.fill();
+				double s = c.air ? 74 : 64; if (t >= tj[0]) g.globalAlpha = 1 - H1k(t, te - 0.1, te); H1Sq(c.x - s / 2, c.y - s / 2, s, s, 1);
+				g.fillStyle = "rgba(143,26,67,0.9)"; g.beginPath(); g.moveTo(c.x - s * 0.2, c.y - s * 0.35); g.lineTo(c.x + s * 0.3, c.y - s * 0.1); g.lineTo(c.x + s * 0.05, c.y + s * 0.05); g.lineTo(c.x - s * 0.1, c.y + s * 0.35); g.lineTo(c.x - s * 0.3, c.y + s * 0.35); g.closePath(); g.fill();
 			}
 			g.restore();
 		};
@@ -492,7 +493,7 @@ public static partial class G
 				double x0 = Math.Max(G0.x0, G0.X(cs[k] - 1)), y0 = Math.Max(G0.y0, G0.Y(rs[k] - 1)), x1 = Math.Min(G0.x0 + G0.W, G0.X(cs[k] + 2)), y1 = Math.Min(G0.y0 + G0.H, G0.Y(rs[k] + 2));
 				if (H1In(p, x0, y0, x1, y1)) return true;
 			}
-			if (t < tj[0]) return false; var c = at(t);
+			if (t < tj[0] || t >= te - 0.1) return false; var c = at(t);
 			return !c.air && H1In(p, c.x - 32, c.y - 32, c.x + 32, c.y + 32);
 		};
 		return h;
@@ -624,7 +625,7 @@ public static partial class G
 			for (int i = 0; i < cr.Length; i++)
 			{
 				if (t >= ctm[i] - SPB && t < ctm[i]) { double w = H1k(t, ctm[i] - SPB, ctm[i]); g.strokeStyle = $"rgba(255,255,255,{str(0.3 + 0.6 * w)})"; g.lineWidth = 3 + 3 * w; g.strokeRect(G0.x0 + 2, Math.Max(G0.y0, G0.Y(cr[i] - 1)) + 2, G0.W - 4, G0.Y(cr[i]) + G0.ch - Math.Max(G0.y0, G0.Y(cr[i] - 1)) - 4); }
-				if (t >= ctm[i] && t < ctm[i] + hold + 0.2) { double u = t - ctm[i]; g.globalAlpha = a * (u < hold ? 1 : 1 - (u - hold) / 0.2); g.fillStyle = u < 0.05 ? "#fff" : PINK; g.fillRect(G0.x0, Math.Max(G0.y0, G0.Y(cr[i] - 1)), G0.W, G0.Y(cr[i]) + G0.ch - Math.Max(G0.y0, G0.Y(cr[i] - 1))); g.globalAlpha = a; }
+				if (t >= ctm[i] && t < ctm[i] + hold + 0.2) { double u = t - ctm[i]; g.globalAlpha = a * (u < hold ? 1 : 1 - (u - hold) / 0.2); g.fillStyle = u < 0.05 ? PINKW : PINK; g.fillRect(G0.x0, Math.Max(G0.y0, G0.Y(cr[i] - 1)), G0.W, G0.Y(cr[i]) + G0.ch - Math.Max(G0.y0, G0.Y(cr[i] - 1))); g.globalAlpha = a; }
 			}
 			g.restore();
 		};
@@ -641,7 +642,7 @@ public static partial class G
 	// part 1: big gears turning behind, 2: the clock face ring and its ticks, 3: the hands closing on midnight
 	public static Hz H1Stage(int part, double t0, double t1)
 	{
-		var h = new Hz { kind = "H1Stage" };
+		var h = new Hz { kind = "H1Stage", veil = true };
 		h.update = (t, dt) => { if (t > t1 + 1) h.dead = true; };
 		h.draw = t =>
 		{

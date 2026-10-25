@@ -26,7 +26,7 @@ public static partial class G
 		var h = new Hz { x = x, y = y };
 		h.update = (t, dt) => { h.x += vx * dt; h.y += vy * dt; rot += side * dt * 2; if (h.x < -150 || h.x > W + 150 || h.y < -150 || h.y > H + 150) h.dead = true; };
 		h.draw = t => { g.save(); g.translate(h.x, h.y); g.rotate(rot); g.shadowColor = PINK; g.shadowBlur = 14; g.fillStyle = PINK; halfPath(s * (1 + 0.1 * pulse), side); g.fill(); g.restore(); };
-		h.hit = (p, t) => hypot(p.x - h.x - side * 0.35 * s, p.y - h.y + 0.1 * s) < 0.5 * s + p.r - 2;
+		h.hit = (p, t) => { double ox = side * 0.35 * s, oy = -0.1 * s, c = JS.cos(rot), sn = JS.sin(rot); return hypot(p.x - h.x - (ox * c - oy * sn), p.y - h.y - (ox * sn + oy * c)) < 0.5 * s + p.r - 2; };   // 10-25: the circle turns with the half heart (it stayed put while the heart spun)
 		return h;
 	}
 
@@ -41,7 +41,7 @@ public static partial class G
 			if (t < ta) { double k = clamp((t - tw) / (ta - tw), 0, 1); g.save(); g.scale(1.5 - 0.5 * k, 1.5 - 0.5 * k); heartPath(s); g.restore(); g.fillStyle = $"rgba(255,42,109,{str(0.06 + 0.2 * k)})"; g.fill(); g.strokeStyle = "rgba(255,42,109,0.8)"; g.lineWidth = 2; heartPath(s); g.stroke(); }
 			else
 			{
-				double k = 1 + 0.1 * pulse; g.scale(k, k); g.shadowColor = PINK; g.shadowBlur = 22; g.fillStyle = (t - ta) < 0.08 ? "#fff" : PINK; heartPath(s); g.fill(); g.shadowBlur = 0;
+				double k = 1 + 0.1 * pulse; g.scale(k, k); g.shadowColor = PINK; g.shadowBlur = 22; g.fillStyle = (t - ta) < 0.08 ? PINKW : PINK; heartPath(s); g.fill(); g.shadowBlur = 0;
 				double q = clamp((t - ta) / (tc - ta), 0, 1); if (q > 0.4) { g.strokeStyle = "#000"; g.lineWidth = 3; g.beginPath(); g.moveTo(0, -0.35 * s); g.lineTo(-0.08 * s, -0.1 * s); g.lineTo(0.07 * s, 0.15 * s * (q > 0.75 ? 1 : 0.4)); if (q > 0.75) g.lineTo(-0.05 * s, 0.45 * s); g.stroke(); }
 			}
 			g.restore();
@@ -65,7 +65,7 @@ public static partial class G
 				g.fillStyle = "rgba(255,42,109,0.9)"; if (v) { g.fillRect(a - 2, 0, 4, H); g.fillRect(b - 2, 0, 4, H); } else { g.fillRect(0, a - 2, W, 4); g.fillRect(0, b - 2, W, 4); }
 				return;
 			}
-			g.save(); g.shadowColor = PINK; g.shadowBlur = 20; g.fillStyle = (t - ta) < 0.1 ? "#fff" : PINK; rect(0, a * k); rect(ext - (ext - b) * k, ext); g.restore();
+			g.save(); g.shadowColor = PINK; g.shadowBlur = 20; g.fillStyle = (t - ta) < 0.1 ? PINKW : PINK; rect(0, a * k); rect(ext - (ext - b) * k, ext); g.restore();
 		};
 		h.hit = (p, t) => { if (cl(t) < 0.9 || t >= te) return false; double q = v ? p.x : p.y; return q - p.r < a || q + p.r > b; };
 		return h;
@@ -80,7 +80,7 @@ public static partial class G
 		{
 			g.save(); g.translate(px, py); g.rotate(ang);
 			if (t < ta) { double k = clamp((t - tw) / (ta - tw), 0, 1); g.strokeStyle = $"rgba(255,42,109,{str(0.2 + 0.5 * k)})"; g.lineWidth = 2; for (double d = -L; d < L; d += 34) g.strokeRect(d, -5, 22, 10); }
-			else { g.shadowColor = PINK; g.shadowBlur = 14; g.strokeStyle = (t - ta) < 0.08 ? "#fff" : PINK; g.lineWidth = 6; for (double d = -L; d < L; d += 34) { rr(d, -8, 26, 16, 7); g.stroke(); } }
+			else { g.shadowColor = PINK; g.shadowBlur = 14; g.strokeStyle = (t - ta) < 0.08 ? PINKW : PINK; g.lineWidth = 6; for (double d = -L; d < L; d += 34) { rr(d, -8, 26, 16, 7); g.stroke(); } }
 			g.restore();
 		};
 		h.hit = (p, t) => { if (t < ta || t >= te) return false; return segDist(p.x, p.y, A, Bp) < 9 + p.r; };
@@ -178,7 +178,7 @@ public static partial class G
 		h.draw = t =>
 		{
 			double k = clamp((t - tw) / (tl - tw), 0, 1), y = -90 + (ty + 90) * k * k; g.fillStyle = $"rgba(255,42,109,{str(0.08 + 0.2 * k)})"; g.beginPath(); g.ellipse(x, ty, 90 * (1.4 - 0.4 * k), 26 * (1.4 - 0.4 * k), 0, 0, TAU); g.fill();
-			g.save(); g.translate(x, y); g.rotate(Math.PI / 2); g.shadowColor = PINK; g.shadowBlur = 24; g.fillStyle = PINK; g.beginPath(); g.arc(0, 0, 38, Math.PI / 2, -Math.PI / 2); g.lineTo(-70, 0); g.closePath(); g.fill(); g.restore();
+			g.save(); g.translate(x, y); g.rotate(Math.PI / 2); g.shadowColor = PINK; g.shadowBlur = 24; g.fillStyle = PINK; g.beginPath(); g.arc(0, 0, 38, -Math.PI / 2, Math.PI / 2); g.lineTo(-70, 0); g.closePath(); g.fill(); g.restore();
 		};
 		h.hit = (p, t) => { double k = clamp((t - tw) / (tl - tw), 0, 1), y = -90 + (ty + 90) * k * k; return hypot(p.x - x, p.y - y) < 36 + p.r; };
 		return h;

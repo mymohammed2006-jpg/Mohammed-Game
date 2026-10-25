@@ -23,7 +23,7 @@ public static partial class G
 			double op = t < ta ? clamp((t - tw) / (ta - tw), 0, 1) : t < te ? 1 : clamp(1 - (t - te) / 0.3, 0, 1);
 			g.save(); g.translate(x, y); g.save(); g.rotate(ang);
 			if (t < ta) { g.fillStyle = $"rgba(255,42,109,{str(0.05 + 0.13 * op)})"; g.fillRect(0, -bw / 2, len, bw); g.fillStyle = $"rgba(255,42,109,{str(0.15 + 0.5 * op)})"; g.fillRect(0, -1.5, len, 3); }
-			else if (t < te) { double fl = Math.Max(0, 1 - (t - ta) / 0.12), ww = bw * (1 + 0.12 * pulse); g.shadowColor = PINK; g.shadowBlur = 24; g.fillStyle = PINK; g.fillRect(0, -ww / 2, len, ww); if (fl > 0) { g.globalAlpha = fl; g.fillStyle = "#fff"; g.fillRect(0, -ww / 2, len, ww); } }
+			else if (t < te) { double fl = Math.Max(0, 1 - (t - ta) / 0.12), ww = bw * (1 + 0.12 * pulse); g.shadowColor = PINK; g.shadowBlur = 24; g.fillStyle = PINK; g.fillRect(0, -ww / 2, len, ww); if (fl > 0) { g.globalAlpha = fl; g.fillStyle = PINKW; g.fillRect(0, -ww / 2, len, ww); } }
 			g.restore();
 			if (!hide)
 			{
@@ -75,7 +75,7 @@ public static partial class G
 		h.draw = t =>
 		{
 			if (t < t0) { double k = clamp((t - tw) / (t0 - tw), 0, 1); g.strokeStyle = PINK; g.globalAlpha = 0.6; g.lineWidth = 3; g.beginPath(); g.arc(h.x, h.y, 40 * (1 - k) + 15, 0, TAU); g.stroke(); g.globalAlpha = 0.3; g.fillStyle = PINK; circle(h.x, h.y, 15 * k); g.globalAlpha = 1; return; }
-			double left = t1 - t; bool bl = left < 0.6 && Math.Floor(left * 14) % 2 == 0; g.fillStyle = "rgba(255,42,109,0.25)"; circle(h.x, h.y, 27 * (1 + 0.2 * pulse)); g.fillStyle = bl ? "#fff" : PINK; circle(h.x, h.y, 15 * (1 + 0.15 * pulse));
+			double left = t1 - t; bool bl = left < 0.6 && Math.Floor(left * 14) % 2 == 0; g.fillStyle = "rgba(255,42,109,0.25)"; circle(h.x, h.y, 27 * (1 + 0.2 * pulse)); g.fillStyle = bl ? PINKW : PINK; circle(h.x, h.y, 15 * (1 + 0.15 * pulse));
 		};
 		h.hit = (p, t) => t >= t0 && hypot(p.x - h.x, p.y - h.y) < 15 + p.r - 1;
 		return h;
@@ -115,7 +115,7 @@ public static partial class G
 		h.draw = t =>
 		{
 			if (t < ta) { double k = clamp((t - tw) / (ta - tw), 0, 1); g.fillStyle = $"rgba(255,42,109,{str(0.06 + 0.2 * k)})"; shape(1.6 - 0.6 * k); }
-			else { g.save(); g.shadowColor = PINK; g.shadowBlur = 24; g.fillStyle = (t - ta) < 0.08 ? "#fff" : PINK; shape(1); g.restore(); }
+			else { g.save(); g.shadowColor = PINK; g.shadowBlur = 24; g.fillStyle = (t - ta) < 0.08 ? PINKW : PINK; shape(1); g.restore(); }
 		};
 		h.hit = (p, t) => t >= ta && t < ta + stay && Math.Abs(p.x - x) < w / 2 + p.r && Math.Abs(p.y - y) < hh / 2 + p.r;
 		return h;

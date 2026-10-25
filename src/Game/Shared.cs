@@ -129,7 +129,7 @@ public static partial class G
 		{
 			g.save(); g.translate(ax, ay); g.rotate(ang);
 			if (t < ta) { double k = clamp((t - tw) / (ta - tw), 0, 1); g.fillStyle = $"rgba(255,42,109,{str(0.15 + 0.5 * k)})"; for (double d = 0; d < L; d += 28) g.fillRect(d, -1.5, 15, 3); }
-			else if (t < te) { double q = pr_(t); g.shadowColor = PINK; g.shadowBlur = 22; g.fillStyle = q < 1 ? "#fff" : PINK; blade(L * q, w * (1 + 0.15 * pulse)); }
+			else if (t < te) { double q = pr_(t); g.shadowColor = PINK; g.shadowBlur = 22; g.fillStyle = q < 1 ? PINKW : PINK; g.save(); g.beginPath(); g.rect(0, -w, L * q, 2 * w); g.clip(); blade(L, w * (1 + 0.15 * pulse)); g.fillRect(0, -3.5, L, 7); g.restore(); }   // 10-25: drawn as the blade that hurts (full shape as it cuts in, and its thin ends)
 			else { double k = Math.Max(0, 1 - (t - te) / 0.25); g.globalAlpha = k; g.fillStyle = PINK; blade(L, w * k); }
 			g.restore();
 		};
@@ -167,7 +167,7 @@ public static partial class G
 				double k = clamp((t - tw) / (ta - tw), 0, 1); g.fillStyle = $"rgba(255,42,109,{str(0.04 + 0.12 * k)})"; g.fillRect(0, 0, W, y0); g.fillRect(0, y1, W, H - y1); g.fillRect(0, y0, x0, y1 - y0); g.fillRect(x1, y0, W - x1, y1 - y0);
 				g.strokeStyle = "rgba(255,42,109,0.9)"; g.lineWidth = 3; g.setLineDash(new double[] { 12, 8 }); g.strokeRect(x0, y0, x1 - x0, y1 - y0); g.setLineDash(new double[0]); return;
 			}
-			double kk = cl(t); g.save(); g.shadowColor = PINK; g.shadowBlur = 18; g.fillStyle = (t - ta) < 0.1 ? "#fff" : PINK;
+			double kk = cl(t); g.save(); g.shadowColor = PINK; g.shadowBlur = 18; g.fillStyle = (t - ta) < 0.1 ? PINKW : PINK;
 			g.fillRect(0, 0, W, y0 * kk); g.fillRect(0, H - (H - y1) * kk, W, (H - y1) * kk); g.fillRect(0, 0, x0 * kk, H); g.fillRect(W - (W - x1) * kk, 0, (W - x1) * kk, H); g.restore();
 		};
 		h.hit = (p, t) => { if (cl(t) < 0.9 || t >= te) return false; return p.x - p.r < x0 || p.x + p.r > x1 || p.y - p.r < y0 || p.y + p.r > y1; };

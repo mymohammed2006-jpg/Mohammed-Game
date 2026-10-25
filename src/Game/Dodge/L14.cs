@@ -60,7 +60,7 @@ public static partial class G
 	// the steel ball look: pink ball and a white shine (white for a moment when it hits a wall)
 	static void L14BallDraw(double x, double y, double r, bool flashW)
 	{
-		g.save(); g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = flashW ? "#fff" : PINK; circle(x, y, r * (1 + 0.1 * pulse)); g.shadowBlur = 0;
+		g.save(); g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = flashW ? PINKW : PINK; circle(x, y, r * (1 + 0.1 * pulse)); g.shadowBlur = 0;
 		g.fillStyle = "rgba(255,255,255,0.55)"; circle(x - r * 0.35, y - r * 0.35, r * 0.28); g.restore();
 	}
 
@@ -72,7 +72,7 @@ public static partial class G
 		public bool hit(Player p, double t) { if (t < t0 || t > t0 + dur * 0.9) return false; double u = (t - t0) / dur; return Math.Abs(hypot(p.x - x, p.y - y) - rad(t)) < th * (1 - 0.4 * u) / 2 + p.r - 2; }
 		public void draw(double t)
 		{
-			if (t < t0 || t > t0 + dur) return; double u = (t - t0) / dur; g.save(); g.globalAlpha = Math.Max(0, 1 - u * u); g.strokeStyle = u < 0.08 ? "#fff" : PINK; g.shadowColor = PINK; g.shadowBlur = 12;
+			if (t < t0 || t > t0 + dur) return; double u = (t - t0) / dur; g.save(); g.globalAlpha = Math.Max(0, 1 - u * u); g.strokeStyle = u < 0.08 ? PINKW : PINK; g.shadowColor = PINK; g.shadowBlur = 12;
 			g.lineWidth = th * (1 - 0.4 * u); g.beginPath(); g.arc(x, y, rad(t), 0, TAU); g.stroke(); g.restore();
 		}
 	}
@@ -126,7 +126,7 @@ public static partial class G
 			}
 			foreach (var r in rings) r.draw(t);
 			double s = t > te ? Math.Max(0, 1 - (t - te) / 0.25) : bump(t), rr2 = R * s; if (rr2 <= 0) return;
-			g.save(); g.shadowColor = PINK; g.shadowBlur = 22; g.fillStyle = t - ta < 0.07 ? "#fff" : PINK; circle(x, y, rr2); g.shadowBlur = 0;
+			g.save(); g.shadowColor = PINK; g.shadowBlur = 22; g.fillStyle = t - ta < 0.07 ? PINKW : PINK; circle(x, y, rr2); g.shadowBlur = 0;
 			g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = 5; g.beginPath(); g.arc(x, y, rr2 * 0.68, 0, TAU); g.stroke();
 			g.fillStyle = "rgba(255,255,255,0.8)"; g.translate(x, y); g.rotate(t * 1.5); poly(5, rr2 * 0.28); g.restore();
 		};
@@ -149,7 +149,7 @@ public static partial class G
 				if (isGap(i)) continue; double x = i * cw + 3, w = cw - 6;
 				if (t < ta) { double k = clamp((t - tw) / (ta - tw), 0, 1); g.fillStyle = $"rgba(255,42,109,{str(0.04 + 0.12 * k)})"; g.fillRect(x, H * (1 - k), w, H * k); g.fillStyle = "rgba(255,42,109,0.85)"; g.fillRect(x, H * (1 - k), w, 3); continue; }
 				double hh = ht(i, t); if (hh <= 0) continue;
-				g.save(); g.shadowColor = PINK; g.shadowBlur = 14; g.fillStyle = t - ta < 0.07 ? "#fff" : PINK; g.fillRect(x, H - hh, w, hh); g.shadowBlur = 0;
+				g.save(); g.shadowColor = PINK; g.shadowBlur = 14; g.fillStyle = t - ta < 0.07 ? PINKW : PINK; g.fillRect(x, H - hh, w, hh); g.shadowBlur = 0;
 				g.fillStyle = "rgba(0,0,0,0.3)"; g.fillRect(x + w * 0.3, H - hh + 16, w * 0.4, Math.Max(0, hh - 32)); g.restore();
 			}
 		};
@@ -167,7 +167,7 @@ public static partial class G
 			if (t < tw) return;
 			if (t < ta) { double k = clamp((t - tw) / (ta - tw), 0, 1); g.fillStyle = $"rgba(255,42,109,{str(0.05 + 0.13 * k)})"; g.fillRect(x - w / 2, 0, w, H); g.strokeStyle = GREY + str(0.3 + 0.5 * k) + ")"; g.lineWidth = 2; g.strokeRect(x - w / 2 + 4, 4, w - 8, H - 8); return; }
 			double a = t > te ? Math.Max(0, 1 - (t - te) / 0.15) : 1; if (a <= 0) return;
-			g.save(); g.globalAlpha = a; g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = t - ta < 0.06 ? "#fff" : PINK; g.fillRect(x - w / 2 + 3, 0, w - 6, H); g.shadowBlur = 0;
+			g.save(); g.globalAlpha = a; g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = t - ta < 0.06 ? PINKW : PINK; g.fillRect(x - w / 2 + 3, 0, w - 6, H); g.shadowBlur = 0;
 			g.fillStyle = "rgba(0,0,0,0.28)"; double o = ((t - ta) * 900) % 60; for (double y = -60 + o; y < H; y += 60) g.fillRect(x - w / 2 + 3, y, w - 6, 18); g.restore();
 		};
 		h.hit = (p, t) => t >= ta && t < te && Math.Abs(p.x - x) < w / 2 - 3 + p.r - 1;
@@ -231,7 +231,7 @@ public static partial class G
 		{
 			if (t < tw) return; var P = pts(t);
 			if (t < ts) { double k = clamp((t - tw) / (ts - tw), 0, 1); g.fillStyle = $"rgba(255,42,109,{str(0.05 + 0.15 * k)})"; g.strokeStyle = GREY + str(0.3 + 0.5 * k) + ")"; g.lineWidth = 3; }
-			else { double a = t > te ? Math.Max(0, 1 - (t - te) / 0.3) : 1; g.globalAlpha = a; g.fillStyle = sw(t) > 1.4 ? "#fff" : PINK; g.shadowColor = PINK; g.shadowBlur = 18; }
+			else { double a = t > te ? Math.Max(0, 1 - (t - te) / 0.3) : 1; g.globalAlpha = a; g.fillStyle = sw(t) > 1.4 ? PINKW : PINK; g.shadowColor = PINK; g.shadowBlur = 18; }
 			g.beginPath(); g.moveTo(P[0].x, P[0].y); g.lineTo(P[1].x, P[1].y); g.lineTo(P[2].x, P[2].y); g.closePath(); g.fill(); if (t < ts) g.stroke();
 			g.shadowBlur = 0; g.globalAlpha = 1;
 		};

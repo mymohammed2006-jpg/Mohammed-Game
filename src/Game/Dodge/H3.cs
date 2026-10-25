@@ -64,7 +64,7 @@ public static partial class G
 	// part 1: the dark nursery, 2: the mystery box's light, 3: the nightmare (red, the wallpaper bleeds)
 	public static Hz H3Stage(int part, double t0, double t1)
 	{
-		var h = new Hz { kind = "H3Stage" };
+		var h = new Hz { kind = "H3Stage", veil = true };
 		h.update = (t, dt) => { if (t > t1 + 1) h.dead = true; };
 		h.draw = t =>
 		{
@@ -104,7 +104,7 @@ public static partial class G
 				if (hy < 0) { double q = H3k(t, tn[i] - tin - wn, tn[i] - tin); g.fillStyle = H3G(0.04 + 0.16 * q); g.fillRect(x + 4, 0, H3_CW - 8, H); H3Dash(x + H3_CW / 2, 0, x + H3_CW / 2, H * q, H3G(0.3 + 0.5 * q), 2); continue; }
 				double y0 = hy - len; bool wh = hy < 40;
 				g.fillStyle = H3P(0.12); g.fillRect(x + 4, Math.Max(0, y0 - 60), H3_CW - 8, Math.Min(H, hy) - Math.Max(0, y0 - 60));
-				g.shadowColor = PINK; g.shadowBlur = 12; g.fillStyle = wh ? "#fff" : PINK; g.fillRect(x + 6, y0, H3_CW - 12, len); g.shadowBlur = 0;
+				g.shadowColor = PINK; g.shadowBlur = 12; g.fillStyle = wh ? PINKW : PINK; g.fillRect(x + 6, y0, H3_CW - 12, len); g.shadowBlur = 0;
 				g.fillStyle = "rgba(255,240,245,0.55)"; g.fillRect(x + 12, y0 + 6, 6, len - 12);
 				g.fillStyle = "rgba(40,0,12,0.5)"; g.beginPath(); g.moveTo(x + 6, hy); g.lineTo(x + H3_CW / 2, hy + 18); g.lineTo(x + H3_CW - 6, hy); g.closePath(); g.fill();
 			}
@@ -136,7 +136,7 @@ public static partial class G
 	static double H3Wrap(double v, double s) { double m = v % s; if (m < 0) m += s; return m; }
 	public static Hz H3Rain(double[] tl, double[] par, double s, double R, double ox, double oy, double vx, double vy, double wn, double hold)
 	{
-		var h = new Hz { kind = "H3Rain" }; double te = tl.Length > 0 ? tl[^1] + hold : 0;
+		var h = new Hz { kind = "H3Rain", layer = -1 }; double te = tl.Length > 0 ? tl[^1] + hold : 0;
 		(double gx, double gy) org(int k) => (ox + vx * tl[k] + H3_PAR[(int)par[k]][0] * s, oy + vy * tl[k] + H3_PAR[(int)par[k]][1] * s);
 		h.update = (t, dt) => { if (t > te + 0.6) h.dead = true; };
 		h.draw = t =>
@@ -155,7 +155,7 @@ public static partial class G
 						// the bear coming down (from above: small and high)
 						if (q > 0.55) H3Bear(x, y - (1 - q) * 260, R * 0.25 * q, 0, H3F(0.5 * q), false);
 					}
-					else if (u < hold) { double sq = u < 0.06 ? 1.25 - u * 4 : 1; g.fillStyle = H3P(0.18); circle(x, y, R); H3Bear(x, y, R * 0.62 * sq, (x * 0.013 + y * 0.007) % 0.6 - 0.3, u < 0.04 ? "#ff8fb0" : PINK); }
+					else if (u < hold) { double sq = u < 0.06 ? 1.25 - u * 4 : 1; g.fillStyle = H3P(0.5); circle(x, y, R); H3Bear(x, y, R * 0.62 * sq, (x * 0.013 + y * 0.007) % 0.6 - 0.3, u < 0.04 ? "#ff8fb0" : PINK); }
 					else { double f = 1 - (u - hold) / 0.35; H3Bear(x, y, R * 0.55, 0.4, H3F(0.2 * f), false); }
 				}
 			}
@@ -203,7 +203,8 @@ public static partial class G
 					continue;
 				}
 				double v = pos(k, t), f = u > sd ? 1 - (u - sd) / 0.12 : 1;
-				g.save(); g.globalAlpha = f; g.shadowColor = PINK; g.shadowBlur = 18; line(v, u < 0.03 ? "#fff" : PINK, th, false); g.shadowBlur = 0;
+				g.save(); g.globalAlpha = f; g.shadowColor = PINK; g.shadowBlur = 18; line(v, u < 0.03 ? PINKW : PINK, th, false); g.shadowBlur = 0;
+				if (u <= sd) { double v1 = pos(k, t - 1.0 / 60); line((v + v1) / 2, H3P(0.6), Math.Abs(v - v1) + th, false); }   // what it swept this frame (it kills too)
 				// a motion smear behind it
 				double back = dir[k] > 0 ? -1 : 1; g.fillStyle = H3P(0.18); if (axis == 0) g.fillRect(0, Math.Min(v, v + back * 70), W, 70); else g.fillRect(Math.Min(v, v + back * 70), 0, 70, H);
 				g.restore();
@@ -320,7 +321,7 @@ public static partial class G
 			for (int s = 0; s < n; s++)
 			{
 				double a0 = -Math.PI / 2 + s * sw;
-				if (bl && s != safe) { g.fillStyle = t - tb < 0.05 ? "#fff" : PINK; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, 1500, a0, a0 + sw); g.closePath(); g.fill(); continue; }
+				if (bl && s != safe) { g.fillStyle = t - tb < 0.05 ? PINKW : PINK; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, 1500, a0, a0 + sw); g.closePath(); g.fill(); continue; }
 				if (stop && !bl && t < tb) { double q = H3k(t, tk[^1], tb); if (s != safe) { g.fillStyle = H3P(0.06 + 0.3 * q); g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, 1500, a0, a0 + sw); g.closePath(); g.fill(); } }
 				g.strokeStyle = H3G(0.35); g.lineWidth = 2; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + JS.cos(a0) * 1500, cy + JS.sin(a0) * 1500); g.stroke();
 			}
@@ -328,8 +329,8 @@ public static partial class G
 			double pa = cur(t); g.strokeStyle = stop ? "#fff" : "rgba(160,200,255,0.9)"; g.lineWidth = 6; g.beginPath(); g.moveTo(cx + JS.cos(pa) * bR, cy + JS.sin(pa) * bR); g.lineTo(cx + JS.cos(pa) * (bR + 120), cy + JS.sin(pa) * (bR + 120)); g.stroke();
 			g.fillStyle = stop ? "#fff" : "rgba(160,200,255,0.9)"; g.beginPath(); g.moveTo(cx + JS.cos(pa) * (bR + 140), cy + JS.sin(pa) * (bR + 140)); g.lineTo(cx + JS.cos(pa + 0.12) * (bR + 110), cy + JS.sin(pa + 0.12) * (bR + 110)); g.lineTo(cx + JS.cos(pa - 0.12) * (bR + 110), cy + JS.sin(pa - 0.12) * (bR + 110)); g.closePath(); g.fill();
 			// the box
-			g.save(); g.translate(cx, cy); g.rotate(0.05 * JS.sin(t * 9)); g.fillStyle = "#5a3a22"; g.fillRect(-bR * 0.9, -bR * 0.65, bR * 1.8, bR * 1.3); g.strokeStyle = PINK; g.lineWidth = 4; g.strokeRect(-bR * 0.9, -bR * 0.65, bR * 1.8, bR * 1.3);
-			g.fillStyle = "rgba(160,200,255,0.9)"; g.fillRect(-bR * 0.9, -bR * 0.12, bR * 1.8, bR * 0.24); g.restore();
+			g.save(); g.translate(cx, cy); g.rotate(0.05 * JS.sin(t * 9)); g.fillStyle = PINK; g.fillRect(-bR * 0.9, -bR * 0.65, bR * 1.8, bR * 1.3); g.strokeStyle = "#ff9ec0"; g.lineWidth = 4; g.strokeRect(-bR * 0.9, -bR * 0.65, bR * 1.8, bR * 1.3);   /* 10-25: the box hurts, so it is pink (it was brown) */
+			g.fillStyle = "rgba(60,0,20,0.5)"; g.fillRect(-bR * 0.9, -bR * 0.12, bR * 1.8, bR * 0.24); g.restore();
 			g.restore();
 		};
 		h.hit = (p, t) =>
@@ -371,7 +372,7 @@ public static partial class G
 				if (t < nd.t0 || t >= nd.t1) continue;
 				var p = at(nd, t); double rot = nd.a + Math.PI / 2 + (nd.d % 2 == 0 ? 0.3 : -0.3);
 				g.fillStyle = H3P(0.2); circle(p.x, p.y, nd.r * 1.25);
-				H3Bear(p.x, p.y, nd.r, rot, t - nd.t0 < 0.05 ? "#fff" : PINK);
+				H3Bear(p.x, p.y, nd.r, rot, t - nd.t0 < 0.05 ? PINKW : PINK);
 				// the torn edge
 				if (nd.d > 0) { g.strokeStyle = "rgba(255,235,240,0.7)"; g.lineWidth = 2; g.beginPath(); g.moveTo(p.x - nd.r * 0.8, p.y); for (int i = 0; i < 6; i++) g.lineTo(p.x - nd.r * 0.8 + i * nd.r * 0.32, p.y + (i % 2 == 0 ? -5 : 5)); g.stroke(); }
 			}
@@ -409,8 +410,8 @@ public static partial class G
 			{
 				double bb = ba + sg * o, ex = px + JS.cos(bb) * L, ey = py + JS.sin(bb) * L;
 				if (!on) { H3Dash(px, py, ex, ey, lk ? "rgba(255,240,245,0.9)" : H3G(0.3 + 0.4 * q), lk ? 3 : 2); continue; }
-				g.save(); g.translate(px, py); g.rotate(bb); g.shadowColor = PINK; g.shadowBlur = 14; g.fillStyle = shut && t - tc - cd < 0.05 ? "#fff" : PINK;
-				g.beginPath(); g.moveTo(0, -w / 2); g.lineTo(L, -w * 0.15); g.lineTo(L + 20, 0); g.lineTo(L, w * 0.15); g.lineTo(0, w / 2); g.closePath(); g.fill(); g.shadowBlur = 0; g.restore();
+				g.save(); g.translate(px, py); g.rotate(bb); g.shadowColor = PINK; g.shadowBlur = 14; g.fillStyle = shut && t - tc - cd < 0.05 ? PINKW : PINK;
+				g.beginPath(); g.moveTo(0, -w / 2); g.lineTo(L, -w * 0.45); g.lineTo(L + 20, 0); g.lineTo(L, w * 0.45); g.lineTo(0, w / 2); g.closePath(); g.fill(); g.shadowBlur = 0; g.restore();
 			}
 			// the handles and the screw
 			g.strokeStyle = on ? PINK : H3G(0.5 + 0.4 * q); g.lineWidth = 6; foreach (var sg in new[] { -1.0, 1.0 }) { double hx = px + JS.cos(ang + sg * (o + 0.35)) * 60, hy = py + JS.sin(ang + sg * (o + 0.35)) * 60; g.beginPath(); g.arc(hx, hy, 26, 0, TAU); g.stroke(); }
@@ -457,7 +458,7 @@ public static partial class G
 				for (int j = 0; j < (int)np[i]; j++)
 				{
 					double an = th + j * TAU / np[i], x = cx + JS.cos(an) * rr[i], y = cy + JS.sin(an) * rr[i];
-					if (dn0) { g.fillStyle = H3P(0.25); circle(x, y, R); g.fillStyle = u < 0.04 ? "#fff" : PINK; circle(x, y, R * 0.62); g.fillStyle = "rgba(255,235,240,0.9)"; g.fillRect(x - 3, y - R, 6, R * 2); continue; }
+					if (dn0) { g.fillStyle = H3P(0.25); circle(x, y, R); g.fillStyle = u < 0.04 ? PINKW : PINK; circle(x, y, R * 0.62); g.fillStyle = "rgba(255,235,240,0.9)"; g.fillRect(x - 3, y - R, 6, R * 2); continue; }
 					if (nextMine && t >= ta - hs && t < te - hs) { g.fillStyle = $"rgba(0,0,0,{str(0.2 + 0.4 * q)})"; circle(x, y, R * (0.4 + 0.6 * q)); g.strokeStyle = H3G(0.2 + 0.6 * q); g.lineWidth = 2; g.beginPath(); g.arc(x, y, R * (0.4 + 0.6 * q), 0, TAU); g.stroke(); }
 					// the pole, up
 					g.fillStyle = "rgba(220,200,160,0.55)"; circle(x, y, 7); g.fillStyle = "rgba(200,170,120,0.35)"; g.beginPath(); g.ellipse(x, y, R * 0.5, R * 0.3, an, 0, TAU); g.fill();
@@ -540,7 +541,7 @@ public static partial class G
 			double px = c.Item1, py = c.Item2;
 			for (int j = i; j < Math.Min(S.Count - 1, i + 2); j++) { var e = S[j + 1]; H3Dash(px, py, e.x, e.y, H3G(j == i ? 0.25 + 0.5 * q : 0.25), 2); px = e.x; py = e.y; }
 			if (t < t0) { H3TopDraw(x, y, R * (0.5 + 0.5 * q), t * 8, H3F(0.4 + 0.5 * q)); return; }
-			g.fillStyle = H3P(0.2); circle(c.Item1, c.Item2, R * 1.3); H3TopDraw(c.Item1, c.Item2, R, t * 22, t - t0 < 0.05 ? "#fff" : PINK);
+			g.fillStyle = H3P(0.2); circle(c.Item1, c.Item2, R * 1.3); H3TopDraw(c.Item1, c.Item2, R, t * 22, t - t0 < 0.05 ? PINKW : PINK);
 		};
 		h.hit = (p, t) => { if (t < t0) return false; var c = at(t); double rr = R + p.r - 2; return (p.x - c.x) * (p.x - c.x) + (p.y - c.y) * (p.y - c.y) < rr * rr; };
 		return h;

@@ -41,7 +41,7 @@ public static partial class G
 			g.save(); g.translate(P.x + jx, P.y + jy);
 			g.shadowColor = PINK; g.shadowBlur = ch ? 50 : 34; g.fillStyle = PINK; g.save(); g.rotate(t * (ch ? 3 : 0.8)); poly(6, 70 * s); g.restore();
 			g.shadowBlur = 0; g.fillStyle = ARENA; g.save(); g.rotate(-t * 1.6); poly(3, 36 * s); g.restore();
-			g.fillStyle = ch ? "#fff" : PINK; circle(0, 0, 9 + 5 * pulse);
+			g.fillStyle = ch ? PINKW : PINK; circle(0, 0, 9 + 5 * pulse);
 			g.globalAlpha = 0.5; g.strokeStyle = PINK; g.lineWidth = 2; g.save(); g.rotate(-t * 0.5); for (int i = 0; i < 4; i++) { g.rotate(TAU / 4); g.strokeRect(92, -7, 14, 14); } g.restore();
 			g.restore();
 		};

@@ -324,7 +324,7 @@ public static partial class G
 					double k = clamp((t - tw) / (ta - tw), 0, 1); g.restore(); g.strokeStyle = $"rgba(255,42,109,{str(0.15 + 0.3 * k)})"; g.lineWidth = 3; g.setLineDash(new double[] { 8, 10 }); g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); g.setLineDash(new double[] { });
 					g.save(); g.translate(x, size * 0.45); g.fillStyle = $"rgba(255,42,109,{str(0.1 + 0.25 * k)})"; g.font = $"{str(size)}px {TFONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(ch, 0, 0); g.restore(); return;
 				}
-				double f = fl(t); g.scale(1, f); g.fillStyle = "rgba(255,42,109,0.22)"; g.fillRect(-hw - 8, -hh - 8, 2 * hw + 16, 2 * hh + 16); g.fillStyle = PINK; g.fillText(ch, 0, size * 0.04); g.restore();
+				double f = fl(t); g.scale(1, f); g.fillStyle = "rgba(255,42,109,0.5)"; g.fillRect(-hw - 8, -hh - 8, 2 * hw + 16, 2 * hh + 16);   /* 10-25: the whole box hurts, so it is clearly pink (was 0.22) */ g.fillStyle = PINK; g.fillText(ch, 0, size * 0.04); g.restore();
 			};
 			h.hit = (p, t) => { if (t < ta) return false; return Math.Abs(p.x - x) < hw + p.r - 2 && Math.Abs(p.y - y(t)) < hh * Math.Max(0.3, Math.Abs(fl(t))) + p.r - 2; };
 			return h;
@@ -418,7 +418,7 @@ public static partial class G
 			{
 				if (t < tw) return; g.save(); g.translate(x, y); g.rotate(ang);
 				if (t < ta) { double k = clamp((t - tw) / (ta - tw), 0, 1); shape(); g.fillStyle = $"rgba(255,42,109,{str(0.05 + 0.15 * k)})"; g.fill(); g.strokeStyle = $"rgba(255,42,109,{str(0.2 + 0.4 * k)})"; g.lineWidth = 2; g.setLineDash(new double[] { 8, 6 }); g.stroke(); g.setLineDash(new double[] { }); }
-				else { double e = t - ta, sc = 1 + 0.25 * JS.exp(-e * 20), a = t < te ? 1 : Math.Max(0, 1 - (t - te) / 0.35); g.globalAlpha = a; g.scale(sc, sc); shape(); g.fillStyle = e < 0.06 ? "#fff" : PINK; g.fill(); g.strokeStyle = "rgba(255,255,255,0.5)"; g.lineWidth = 3; g.stroke(); g.globalAlpha = 1; }
+				else { double e = t - ta, sc = 1 + 0.25 * JS.exp(-e * 20), a = t < te ? 1 : Math.Max(0, 1 - (t - te) / 0.35); g.globalAlpha = a; g.scale(sc, sc); shape(); g.fillStyle = e < 0.06 ? PINKW : PINK; g.fill(); g.strokeStyle = "rgba(255,255,255,0.5)"; g.lineWidth = 3; g.stroke(); g.globalAlpha = 1; }
 				g.restore();
 			};
 			h.hit = (p, t) =>
@@ -448,7 +448,7 @@ public static partial class G
 					g.fillStyle = $"rgba(255,42,109,{str(0.2 + 0.3 * k)})"; for (int j = 0; j < 4; j++) { double ax = o.dir > 0 ? 40 + j * 40 : W - 40 - j * 40; g.beginPath(); g.moveTo(ax + o.dir * 14, y); g.lineTo(ax - o.dir * 8, y - 14); g.lineTo(ax - o.dir * 8, y + 14); g.closePath(); g.fill(); }
 				}
 				if (t < o.ta) return; double x0 = bx(t); g.globalAlpha = fade; g.font = $"{str(o.size)}px {TFONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr";
-				for (int i = 0; i < N; i++) { char ch = o.s[i]; if (ch == ' ') continue; double cx = x0 + i * adv + adv / 2; if (cx < -60 || cx > W + 60) continue; g.fillStyle = "rgba(255,42,109,0.2)"; g.fillRect(cx - hw - 5, y - hh - 5, 2 * hw + 10, 2 * hh + 10); g.fillStyle = PINK; g.fillText(ch.ToString(), cx, y + o.size * 0.04); }
+				for (int i = 0; i < N; i++) { char ch = o.s[i]; if (ch == ' ') continue; double cx = x0 + i * adv + adv / 2; if (cx < -60 || cx > W + 60) continue; g.fillStyle = "rgba(255,42,109,0.5)"; g.fillRect(cx - hw - 5, y - hh - 5, 2 * hw + 10, 2 * hh + 10); g.fillStyle = PINK; g.fillText(ch.ToString(), cx, y + o.size * 0.04); }
 				g.globalAlpha = 1;
 			};
 			h.hit = (p, t) =>
@@ -477,7 +477,7 @@ public static partial class G
 					if (t < f.ta) { double k = clamp((t - f.tw) / (f.ta - f.tw), 0, 1); g.fillStyle = $"rgba(255,42,109,{str(0.05 + 0.2 * k)})"; g.fill("evenodd"); }
 					else if (t < f.te)
 					{
-						g.fillStyle = t - f.ta < 0.06 ? "#fff" : PINK; g.globalAlpha = 0.92; g.fill("evenodd"); g.globalAlpha = 1;
+						g.fillStyle = t - f.ta < 0.06 ? PINKW : PINK; g.globalAlpha = 0.92; g.fill("evenodd"); g.globalAlpha = 1;
 						g.fillStyle = "rgba(255,255,255,0.35)"; double ph = (t - f.ta) * 600; for (double y = -40; y < H + 40; y += 60) for (double x = -40 + ((y / 60) % 2) * 30; x < W + 40; x += 60) { double xx = x + ph % 60; circle(xx, y, 6); }
 					}
 					else { g.globalAlpha = Math.Max(0, 1 - (t - f.te) / 0.25) * 0.9; g.fillStyle = PINK; g.fill("evenodd"); g.globalAlpha = 1; }
@@ -509,7 +509,7 @@ public static partial class G
 					g.translate(px, py); g.font = $"{str(size)}px {TFONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr";
 					g.strokeStyle = $"rgba(255,42,109,{str(0.25 + 0.5 * k)})"; g.lineWidth = 2; g.setLineDash(new double[] { 8, 6 }); g.strokeRect(-hw, -hh, 2 * hw, 2 * hh); g.setLineDash(new double[] { }); g.fillStyle = $"rgba(255,42,109,{str(0.08 + 0.18 * k)})"; g.fillText(ch, 0, size * 0.04);
 				}
-				else { g.translate(x, y); g.font = $"{str(size)}px {TFONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; double e = t - ta, sc = 1 + 0.5 * JS.exp(-e * 22), a = t < te ? 1 : Math.Max(0, 1 - (t - te) / 0.3); g.globalAlpha = a; g.scale(sc, sc); g.fillStyle = "rgba(255,42,109,0.25)"; g.fillRect(-hw - 6, -hh - 6, 2 * hw + 12, 2 * hh + 12); g.fillStyle = e < 0.06 ? "#fff" : PINK; g.fillText(ch, 0, size * 0.04); g.globalAlpha = 1; }
+				else { g.translate(x, y); g.font = $"{str(size)}px {TFONT}"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; double e = t - ta, sc = 1 + 0.5 * JS.exp(-e * 22), a = t < te ? 1 : Math.Max(0, 1 - (t - te) / 0.3); g.globalAlpha = a; g.scale(sc, sc); g.fillStyle = "rgba(255,42,109,0.5)"; g.fillRect(-hw - 6, -hh - 6, 2 * hw + 12, 2 * hh + 12); g.fillStyle = e < 0.06 ? PINKW : PINK; g.fillText(ch, 0, size * 0.04); g.globalAlpha = 1; }
 				g.restore();
 			};
 			h.hit = (p, t) => t >= ta && t < te && Math.Abs(p.x - x) < hw + p.r - 2 && Math.Abs(p.y - y) < hh + p.r - 2;
@@ -573,7 +573,7 @@ public static partial class G
 				{
 					double ta = tas[i]; if (t < Math.Max(apps[i], ta - 0.75) || t > ta + dur + 0.3) continue; var rg = reg(ds[i]); double rx = rg[0], ry = rg[1], rw = rg[2], rh = rg[3];
 					if (t < ta) { double k = clamp((t - Math.Max(apps[i], ta - 0.75)) / 0.75, 0, 1); g.fillStyle = $"rgba(255,42,109,{str(0.05 + 0.2 * k)})"; g.fillRect(rx, ry, rw, rh); }
-					else { double a = t < ta + dur ? 1 : Math.Max(0, 1 - (t - ta - dur) / 0.3); g.globalAlpha = a * 0.92; g.fillStyle = t - ta < 0.06 ? "#fff" : PINK; g.fillRect(rx, ry, rw, rh); g.globalAlpha = 1; }
+					else { double a = t < ta + dur ? 1 : Math.Max(0, 1 - (t - ta - dur) / 0.3); g.globalAlpha = a * 0.92; g.fillStyle = t - ta < 0.06 ? PINKW : PINK; g.fillRect(rx, ry, rw, rh); g.globalAlpha = 1; }
 				}
 				int curI = n; for (int i = 0; i < n; i++) if (t < tas[i] + dur) { curI = i; break; }
 				for (int i = 0; i < n; i++)
@@ -802,7 +802,7 @@ public static partial class G
 					double k = clamp((t - tw) / ((ta - tw) * 0.5), 0, 1), q = clamp((t - tw) / (ta - tw), 0, 1); g.strokeStyle = $"rgba(255,42,109,{str(0.18 + 0.35 * q)})"; g.lineWidth = 2; g.setLineDash(new double[] { 12, 8 }); g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 + c * len * k, y1 + s * len * k); g.stroke(); g.setLineDash(new double[] { });
 					g.fillStyle = $"rgba(255,42,109,{str(0.03 + 0.08 * q)})"; g.save(); g.translate(x1, y1); g.rotate(a); g.fillRect(0, -w / 2, len * k, w); g.restore(); return;
 				}
-				double f = t < te ? 1 : Math.Max(0, 1 - (t - te) / 0.3), e = t - ta; g.globalAlpha = f; g.save(); g.translate(x1, y1); g.rotate(a); g.fillStyle = "rgba(255,42,109,0.25)"; g.fillRect(0, -w / 2 - 10, len, w + 20); g.fillStyle = e < 0.06 ? "#fff" : PINK; g.fillRect(0, -w / 2, len, w); g.restore(); g.globalAlpha = 1;
+				double f = t < te ? 1 : Math.Max(0, 1 - (t - te) / 0.3), e = t - ta; g.globalAlpha = f; g.save(); g.translate(x1, y1); g.rotate(a); g.fillStyle = "rgba(255,42,109,0.25)"; g.fillRect(0, -w / 2 - 10, len, w + 20); g.fillStyle = e < 0.06 ? PINKW : PINK; g.fillRect(0, -w / 2, len, w); g.restore(); g.globalAlpha = 1;
 			};
 			h.hit = (p, t) => { if (t < ta || t >= te) return false; double dx = p.x - x1, dy = p.y - y1, pr = dx * c + dy * s; if (pr < 0 || pr > len) return false; return Math.Abs(-dx * s + dy * c) < w / 2 + p.r - 2; };
 			return h;

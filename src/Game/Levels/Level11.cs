@@ -90,7 +90,7 @@ public static partial class G
 	// a roller coaster car (grey people inside with raised hands)
 	static void L11car(double x, double y, double a, bool front, double wht)
 	{
-		g.save(); g.translate(x, y); g.rotate(a); g.shadowColor = wht > 0.5 ? "#fff" : PINK; g.shadowBlur = 14; g.fillStyle = wht > 0 ? $"rgb(255,{str(42 + 213 * wht)},{str(109 + 146 * wht)})" : PINK;
+		g.save(); g.translate(x, y); g.rotate(a); g.shadowColor = wht > 0.5 ? PINKW : PINK; g.shadowBlur = 14; g.fillStyle = wht > 0 ? $"rgb(255,{str(42 + 116 * wht)},{str(109 + 83 * wht)})" : PINK;   // 10-25: heats up to light pink, not white (it hurts)
 		g.beginPath(); g.roundRect(-24, -15, 48, 30, 8); g.fill(); if (front) { g.beginPath(); g.moveTo(24, -15); g.lineTo(34, 0); g.lineTo(24, 15); g.fill(); }
 		g.shadowBlur = 0; g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(-16, -9, 32, 18); g.fillStyle = GREY + "0.85)"; circle(-7, -1, 5); circle(7, 1, 5); g.strokeStyle = GREY + "0.85)"; g.lineWidth = 2.5; g.beginPath(); g.moveTo(-7, -4); g.lineTo(-11, -15); g.moveTo(7, -2); g.lineTo(11, -14); g.stroke();
 		if (front) { g.fillStyle = "#fff"; circle(28, 0, 3.5); }
@@ -101,7 +101,7 @@ public static partial class G
 	static void L11sprite(string kind, double x, double y, double an, double r, double t, int c, L11RO o)
 	{
 		if (kind == "comet") { g.save(); g.translate(x, y); g.rotate(an); g.shadowColor = PINK; g.shadowBlur = 18; g.fillStyle = PINK; g.beginPath(); g.moveTo(0, -r); g.quadraticCurveTo(-r * 3, -r * 0.7, -r * 6, 0); g.quadraticCurveTo(-r * 3, r * 0.7, 0, r); g.arc(0, 0, r, Math.PI / 2, -Math.PI / 2, true); g.fill(); g.shadowBlur = 0; g.fillStyle = "rgba(255,255,255,0.4)"; circle(r * 0.2, -r * 0.2, r * 0.35); g.restore(); return; }
-		if (kind == "key") { L11keyShape(x, y, t * 11 + c, r); return; }
+		if (kind == "key") { g.fillStyle = "rgba(255,42,109,0.45)"; circle(x, y, r * 0.9); L11keyShape(x, y, t * 11 + c, r); return; }   // 10-25: a pink disc shows the round part that hurts
 		if (kind == "car") { if (o.big) { g.save(); g.translate(x, y); g.rotate(an); g.scale(1.4, 1.55); L11car(0, 0, 0, c == 0, 0); g.restore(); return; } L11car(x, y, an, c == 0, o.wht != null ? o.wht(t) : 0); return; }
 		if (kind == "heart") { L11boat(x, y, an, r); return; }
 		if (kind == "link") { g.save(); g.translate(x, y); g.rotate(an); g.strokeStyle = PINK; g.lineWidth = 7; g.shadowColor = PINK; g.shadowBlur = 10; g.beginPath(); g.ellipse(0, 0, r * 1.3, r * 0.7, 0, 0, TAU); g.stroke(); g.restore(); return; }
@@ -355,7 +355,7 @@ public static partial class G
 		h.hit = (p, t) =>
 		{
 			if (t < td) return false; if (t < tl) { return hypot(p.x - x, p.y - Y(t)) < 15 + p.r - 3; }
-			double e = t - tl; if (e > (easy ? 0.4 : 0.7)) return false; foreach (var s in new double[] { -1, 1 }) { double sx = x + s * (30 + e * 260); if (Math.Abs(p.x - sx) < 14 + p.r - 3 && p.y > yl - 12 - p.r + 3) return true; }
+			double e = t - tl; if (e > (easy ? 0.4 : 0.7)) return false; foreach (var s in new double[] { -1, 1 }) { double sx = x + s * (30 + e * 260); if (Math.Abs(p.x - sx) < 14 + p.r - 3 && p.y > yl - 12 - p.r + 3 && p.y < yl + 12 + p.r - 3) return true; }   // 10-25: only the spike itself (it hurt all the way down the screen)
 			return false;
 		};
 		return h;
@@ -522,8 +522,19 @@ public static partial class G
 					g.shadowBlur = 0; g.fillStyle = "rgba(255,255,255,0.4)"; for (double qq = 0; qq < l; qq += w * 0.9) g.fillRect(70 + qq + 4, -w / 2 + 4, w * 0.3, w * 0.25); g.restore();
 				}
 			}
-			g.globalAlpha = a; g.fillStyle = GREY + "0.4)"; g.fillRect(cx - 70, cy - 70, 140, 140); g.fillStyle = GREY + "0.55)"; foreach (var (dx, dy) in new[] { (-70.0, -70.0), (70.0, -70.0), (-70.0, 70.0), (70.0, 70.0) }) circle(cx + dx, cy + dy, 26);
-			g.fillStyle = PINK; g.shadowColor = PINK; g.shadowBlur = 12; g.beginPath(); g.moveTo(cx, cy - 40); g.lineTo(cx + 30, cy - 28); g.lineTo(cx, cy - 16); g.fill(); g.fillRect(cx - 2, cy - 40, 4, 50); g.restore();
+			g.globalAlpha = a;
+			if (t >= t0 && t < t1 - 0.3)
+			{
+				// 10-25: the keep hurts, so while it hurts it is pink (it was grey); the towers on its corners don't hurt
+				g.fillStyle = GREY + "0.55)"; foreach (var (dx, dy) in new[] { (-70.0, -70.0), (70.0, -70.0), (-70.0, 70.0), (70.0, 70.0) }) circle(cx + dx, cy + dy, 26);
+				g.shadowColor = PINK; g.shadowBlur = 14; g.fillStyle = PINK; g.fillRect(cx - 70, cy - 70, 140, 140); g.shadowBlur = 0;
+				g.fillStyle = "rgba(60,0,20,0.7)"; g.beginPath(); g.moveTo(cx, cy - 40); g.lineTo(cx + 30, cy - 28); g.lineTo(cx, cy - 16); g.fill(); g.fillRect(cx - 2, cy - 40, 4, 50); g.restore();
+			}
+			else
+			{
+				g.fillStyle = GREY + "0.4)"; g.fillRect(cx - 70, cy - 70, 140, 140); g.fillStyle = GREY + "0.55)"; foreach (var (dx, dy) in new[] { (-70.0, -70.0), (70.0, -70.0), (-70.0, 70.0), (70.0, 70.0) }) circle(cx + dx, cy + dy, 26);
+				g.fillStyle = PINK; g.shadowColor = PINK; g.shadowBlur = 12; g.beginPath(); g.moveTo(cx, cy - 40); g.lineTo(cx + 30, cy - 28); g.lineTo(cx, cy - 16); g.fill(); g.fillRect(cx - 2, cy - 40, 4, 50); g.restore();
+			}
 		};
 		h.hit = (p, t) =>
 		{
@@ -717,7 +728,7 @@ public static partial class G
 		h.update = (t, dt) => { if (t > t1) h.dead = true; };
 		h.draw = t =>
 		{
-			if (t < tw) return; double al = Math.Min(1, Math.Min((t - tw) / 0.5, (t1 - t) / 0.5)); g.save(); g.globalAlpha = al;
+			if (t < tw) return; double al = Math.Min(1, Math.Min((t - tw) / 0.5, (t1 - t) / 0.1)); g.save(); g.globalAlpha = al;   // 10-25: stays solid while it hurts
 			if (t < t0) { double k = L11wk(t, tw, t0); g.strokeStyle = $"rgba(255,42,109,{str(0.2 + 0.5 * k)})"; g.lineWidth = 2; L11dash(true); g.beginPath(); g.arc(px, py, L, Math.PI / 2 - amps[amps.Length - 1], Math.PI / 2 + amps[amps.Length - 1]); g.stroke(); L11dash(false); }
 			var (hx, hy, ha) = hull(t); g.strokeStyle = PINK; g.shadowColor = PINK; g.shadowBlur = 12; g.lineWidth = 10; foreach (var s in new double[] { -1, 1 }) { double ex = hx + JS.cos(ha) * s * 120, ey = hy + JS.sin(ha) * s * 120; g.beginPath(); g.moveTo(px, py); g.lineTo(ex, ey); g.stroke(); }
 			g.save(); g.translate(hx, hy); g.rotate(ha); g.fillStyle = PINK; g.beginPath(); g.moveTo(-180, -30); g.lineTo(180, -30); g.lineTo(150, 20); g.quadraticCurveTo(0, 60, -150, 20); g.closePath(); g.fill(); g.shadowBlur = 0; g.fillStyle = "rgba(0,0,0,0.3)"; for (int i = -3; i <= 3; i++) circle(i * 42, -6, 8); g.fillStyle = GREY + "0.8)"; for (int i = -4; i <= 4; i++) { circle(i * 36, -40, 7); }
@@ -725,7 +736,7 @@ public static partial class G
 		};
 		h.hit = (p, t) =>
 		{
-			if (t < t0) return false; var (hx, hy, ha) = hull(t); if (obbHit(p.x, p.y, p.r - 3, hx, hy + JS.cos(ha) * 0, 170, 32, ha)) return true;
+			if (t < t0 || t > t1 - 0.1) return false; var (hx, hy, ha) = hull(t); if (obbHit(p.x, p.y, p.r - 3, hx, hy + JS.cos(ha) * 0, 170, 32, ha)) return true;
 			foreach (var s in new double[] { -1, 1 }) { double ex = hx + JS.cos(ha) * s * 120, ey = hy + JS.sin(ha) * s * 120, dx = ex - px, dy = ey - py, u = clamp(((p.x - px) * dx + (p.y - py) * dy) / (dx * dx + dy * dy), 0, 1); if (hypot(p.x - px - dx * u, p.y - py - dy * u) < 5 + p.r - 3) return true; }
 			return false;
 		};

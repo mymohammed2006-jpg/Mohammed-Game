@@ -34,7 +34,7 @@ public static partial class G
 			}
 			else
 			{
-				g.rotate(rot(t)); double l = len(t); g.shadowColor = PINK; g.shadowBlur = 18; g.fillStyle = (t - ta) < 0.08 ? "#fff" : PINK;
+				g.rotate(rot(t)); double l = len(t); g.shadowColor = PINK; g.shadowBlur = 18; g.fillStyle = (t - ta) < 0.08 ? PINKW : PINK;
 				for (int i = 0; i < n; i++) { g.save(); g.rotate(i * TAU / n); g.beginPath(); g.ellipse(l / 2, 0, l / 2, pw / 2 * (1 + 0.12 * pulse), 0, 0, TAU); g.fill(); g.restore(); }
 				g.shadowBlur = 0; g.fillStyle = "#000"; circle(0, 0, 12);
 			}
@@ -83,7 +83,7 @@ public static partial class G
 				{
 					if (!bad(i, j)) continue; double x = i * cw, y = j * ch;
 					if (t < ta) { g.fillStyle = $"rgba(255,42,109,{str(a)})"; g.fillRect(x + 3, y + 3, cw - 6, ch - 6); g.strokeStyle = "rgba(255,42,109,0.7)"; g.lineWidth = 2; g.strokeRect(x + 10, y + 10, cw - 20, ch - 20); }
-					else { g.globalAlpha = a; g.fillStyle = (t - ta) < 0.07 ? "#fff" : PINK; double s = t < te ? 0.92 + 0.08 * pulse : a; g.fillRect(x + cw * (1 - s) / 2, y + ch * (1 - s) / 2, cw * s, ch * s); g.globalAlpha = 1; }
+					else { g.globalAlpha = a; g.fillStyle = (t - ta) < 0.07 ? PINKW : PINK; double s = t < te ? 0.92 + 0.08 * pulse : a; g.fillRect(x + cw * (1 - s) / 2, y + ch * (1 - s) / 2, cw * s, ch * s); g.globalAlpha = 1; }
 				}
 		};
 		h.hit = (p, t) =>

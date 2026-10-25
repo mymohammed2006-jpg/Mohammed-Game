@@ -98,7 +98,7 @@ public static partial class G
 				double L = len * ext(t);
 				if (L > 4)
 				{
-					bool wh = (t - ta) < 0.08; g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = wh ? "#fff" : PINK;
+					bool wh = (t - ta) < 0.08; g.fillStyle = "rgba(255,42,109,0.45)"; g.fillRect(0, -hw, L, hw * 2); g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = wh ? PINKW : PINK;
 					g.fillRect(-10, -hw * 0.7, Math.Max(0, L - hw * 2.2 + 10), hw * 1.4);
 					rr(L - hw * 2.6, -hw, hw * 1.8, hw * 2, hw * 0.55); g.fill();
 					rr(L - hw * 1.2, -hw, hw * 1.2, hw * 0.7, hw * 0.33); g.fill();
@@ -132,7 +132,7 @@ public static partial class G
 				g.globalAlpha = 0.15 + 0.5 * k; g.fillStyle = PINK; g.save(); g.scale(k, k); heartPath(s * 0.9); g.fill(); g.restore();
 				g.globalAlpha = k; for (int i = -1; i <= 1; i++) { double fh = (8 + 14 * k) * (1 + 0.25 * JS.sin(t * 25 + i * 2)); g.beginPath(); g.moveTo(i * s * 0.35 - 6, -s * 0.45); g.quadraticCurveTo(i * s * 0.35, -s * 0.45 - fh * 2, i * s * 0.35 + 6, -s * 0.45); g.fill(); }
 			}
-			else { double k = (t - ta) / 0.3; g.globalAlpha = Math.Max(0, 1 - k); g.fillStyle = k < 0.3 ? "#fff" : PINK; heartPath(s * (0.9 + k)); g.fill(); }
+			else { double k = (t - ta) / 0.3; g.globalAlpha = Math.Max(0, 1 - k); g.fillStyle = k < 0.3 ? PINKW : PINK; heartPath(s * (0.9 + k)); g.fill(); }
 			g.restore(); g.globalAlpha = 1;
 		};
 		h.hit = (p, t) => t >= ta && t < ta + 0.12 && hypot(p.x - x, p.y - y) < s * 0.85 + p.r;
@@ -159,13 +159,19 @@ public static partial class G
 			}
 			else
 			{
-				double e = ext(t), dy = (1 - e) * hh; bool wh = (t - ta) < 0.08; g.save(); g.translate(0, -dy); g.shadowColor = PINK; g.shadowBlur = 18; g.fillStyle = wh ? "#fff" : PINK;
+				double e = ext(t), dy = (1 - e) * hh; bool wh = (t - ta) < 0.08; g.save(); g.translate(0, -dy); g.shadowColor = PINK; g.shadowBlur = 18; g.fillStyle = wh ? PINKW : PINK;
 				g.fillRect(x - w * 0.32, H - hh, w * 0.64, hh - 34); rr(x - w / 2, H - 40, w, 40, 14); g.fill(); g.shadowBlur = 0; g.fillStyle = "#000"; g.fillRect(x - w * 0.32, H - hh * 0.55, w * 0.64, 4); g.restore();
 				if (e >= 1 && t < te + 0.1) { double k = clamp((t - ta) / 0.35, 0, 1); g.globalAlpha = Math.Max(0, 1 - k); g.strokeStyle = PINK; g.lineWidth = 3; g.beginPath(); g.ellipse(x, H - 4, w * 0.6 + k * w, 10 + k * 12, 0, Math.PI, TAU); g.stroke(); g.globalAlpha = 1; }
 			}
 			g.restore();
 		};
-		h.hit = (p, t) => { if (t < ta || ext(t) < 0.5) return false; double y0 = top ? 0 : H - hh, y1 = top ? hh : H; return Math.Abs(p.x - x) < w / 2 + p.r - 2 && p.y + p.r > y0 + 2 && p.y - p.r < y1 - 2; };
+		h.hit = (p, t) =>
+		{
+			// 10-25: hurts where the pillar is drawn (the stem and the foot, and they slide with it); it hurt the full box before
+			if (t < ta || ext(t) < 0.5) return false; double dy = (1 - ext(t)) * hh, py = top ? H - p.y : p.y, ax = Math.Abs(p.x - x);
+			if (ax < w / 2 + p.r - 2 && py + p.r > H - 40 - dy + 2 && py - p.r < H - dy - 2) return true;
+			return ax < w * 0.32 + p.r - 2 && py + p.r > H - hh - dy + 2 && py - p.r < H - 34 - dy - 2;
+		};
 		return h;
 	}
 
@@ -313,7 +319,7 @@ public static partial class G
 			g.shadowColor = PINK; g.shadowBlur = ch ? 50 : 30; g.fillStyle = PINK; circle(0, 0, 66 * s); g.shadowBlur = 0;
 			double lk = player != null ? JS.atan2(player.y - P.y, player.x - P.x) : Math.PI / 2, ex2 = JS.cos(lk) * 5, ey2 = JS.sin(lk) * 5;
 			g.fillStyle = "#000"; foreach (var sx in new double[] { -1, 1 }) { g.beginPath(); g.ellipse(sx * 24 * s, -14 * s, 12 * s, (ang ? 8 : 11) * s, 0, 0, TAU); g.fill(); }
-			g.fillStyle = ch ? "#fff" : PINK; foreach (var sx in new double[] { -1, 1 }) circle(sx * 24 * s + ex2, -14 * s + ey2, 4.5 * s);
+			g.fillStyle = ch ? PINKW : PINK; foreach (var sx in new double[] { -1, 1 }) circle(sx * 24 * s + ex2, -14 * s + ey2, 4.5 * s);
 			g.strokeStyle = "#000"; g.lineWidth = 5 * s; g.lineCap = "round"; foreach (var sx in new double[] { -1, 1 }) { g.beginPath(); g.moveTo(sx * 38 * s, (ang ? -34 : -30) * s); g.lineTo(sx * 12 * s, (ang ? -26 : -32) * s); g.stroke(); }
 			double mh = (6 + 22 * Math.Max(mo, ch ? 0.8 : 0)) * s; g.fillStyle = "#000"; g.beginPath(); g.ellipse(0, 26 * s, 24 * s, mh * 0.5 + 2, 0, 0, TAU); g.fill();
 			g.restore(); g.lineCap = "butt";

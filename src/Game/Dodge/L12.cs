@@ -64,7 +64,7 @@ public static partial class G
 					continue;
 				}
 				double s = L12stab(t, ta[i], te[i]); if (s <= 0) continue;
-				g.save(); g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = t - ta[i] < 0.07 ? "#fff" : PINK; L12teeth(e, a, b, d * s * (1 + 0.06 * pulse)); g.restore();
+				g.save(); g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = t - ta[i] < 0.07 ? PINKW : PINK; L12teeth(e, a, b, d * s * (1 + 0.06 * pulse)); g.restore();
 			}
 		};
 		h.hit = (p, t) =>
@@ -110,7 +110,7 @@ public static partial class G
 			}
 			double dd = dep(t); if (dd <= 0) return; bool fl = t - ta < 0.05;
 			var r0 = L12pt(e, a, 0); var r1 = L12pt(e, b, dd);
-			g.save(); g.shadowColor = PINK; g.shadowBlur = 20; g.fillStyle = fl ? "#fff" : PINK;
+			g.save(); g.shadowColor = PINK; g.shadowBlur = 20; g.fillStyle = fl ? PINKW : PINK;
 			g.fillRect(Math.Min(r0.x, r1.x), Math.Min(r0.y, r1.y), Math.Abs(r1.x - r0.x), Math.Abs(r1.y - r0.y));
 			// the teeth on its face
 			g.translate(0, 0); g.beginPath(); int n = Math.Max(1, (int)round((b - a) / 44)); double w = (b - a) / n;
@@ -158,7 +158,7 @@ public static partial class G
 				double k = clamp((t - tw) / (ta - tw), 0, 1); g.fillStyle = $"rgba(255,42,109,{str(0.05 + 0.12 * k)})"; shape(len, w);
 				g.fillStyle = L12G + str(0.4 + 0.5 * k) + ")"; shape(16 + 40 * k, w * 0.7); return;
 			}
-			double l = L(t); if (l <= 0) return; g.save(); g.shadowColor = PINK; g.shadowBlur = 18; g.fillStyle = t - ta < 0.08 ? "#fff" : PINK; shape(l, w * (1 + 0.1 * pulse)); g.restore();
+			double l = L(t); if (l <= 0) return; g.save(); g.shadowColor = PINK; g.shadowBlur = 18; g.fillStyle = t - ta < 0.08 ? PINKW : PINK; shape(l, w * (1 + 0.1 * pulse)); g.restore();
 		};
 		h.hit = (p, t) =>
 		{
@@ -285,7 +285,7 @@ public static partial class G
 				double k = clamp((t - tw) / (t0 - tw), 0, 1); g.strokeStyle = $"rgba(255,42,109,{str(0.1 + 0.3 * k)})"; g.lineWidth = 2; g.beginPath(); g.arc(x, y, R * 0.72, 0, TAU); g.stroke();
 				g.fillStyle = L12G + str(0.4 + 0.5 * k) + ")"; star(10 + 14 * k); return;
 			}
-			double r = rad(t); if (r <= 1) return; g.save(); g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = t - t0 < 0.06 ? "#fff" : PINK; star(r * (1 + 0.05 * pulse)); g.restore();
+			double r = rad(t); if (r <= 1) return; g.save(); g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = t - t0 < 0.06 ? PINKW : PINK; star(r * (1 + 0.05 * pulse)); g.restore();
 		};
 		h.hit = (p, t) => { double r = rad(t); return r > 4 && hypot(p.x - x, p.y - y) < r * 0.62 + p.r - 3; };
 		return h;
@@ -388,7 +388,7 @@ public static partial class G
 				if (t < r.tw || t >= r.t0) continue; double k = clamp((t - r.tw) / (r.t0 - r.tw), 0, 1); g.strokeStyle = $"rgba(255,42,109,{str(0.15 + 0.45 * k)})"; g.lineWidth = 3; g.setLineDash(new double[] { 10, 12 });
 				g.beginPath(); g.moveTo(r.pts[0], r.pts[1]); for (int i = 2; i + 1 < r.pts.Length; i += 2) g.lineTo(r.pts[i], r.pts[i + 1]); g.stroke(); g.setLineDash(new double[0]);
 			}
-			g.save(); g.translate(q.x + jx, q.y); g.globalAlpha = live ? 1 : 0.45; g.shadowColor = PINK; g.shadowBlur = ch > 0 ? 40 : 22; g.fillStyle = ch > 0.5 ? "#fff" : PINK;
+			g.save(); g.translate(q.x + jx, q.y); g.globalAlpha = live ? 1 : 0.45; g.shadowColor = PINK; g.shadowBlur = ch > 0 ? 40 : 22; g.fillStyle = ch > 0.5 ? PINKW : PINK;
 			if (q.ball)
 			{
 				// curled up: a spiked ball spinning

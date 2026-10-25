@@ -16,7 +16,9 @@ public class Hz
 	public int z;   // the drawing layer: < 0 under the others (a floor), > 0 over them; 0 = in the order they came (every level before B1)
 	public Action<double, double> update = (t, dt) => { };
 	public Action<double> draw = t => { };
-	public Func<Player, double, bool> hit = (p, t) => false;
+	public static readonly Func<Player, double, bool> NoHit = (p, t) => false;
+	public Func<Player, double, bool> hit = NoHit;
+	public bool hurts => !ReferenceEquals(hit, NoHit); public bool veil; public int layer;   // 10-25: what can hurt is drawn after a veil (a dark curtain or the room) so it is never covered; layer < 0 draws first of those
 	// set by the main loop (stepHazards / fireEvents / easy mode)
 	public string rid;
 	public int? rs;
@@ -73,6 +75,7 @@ public static partial class G
 		return lo + (t - BEATS[lo]) / (BEATS[lo + 1] - BEATS[lo]);
 	}
 
+	public const string PINKW = "#ff9ec0";   // the hit flash: light pink (his words 10-25: everything that hurts is pink)
 	public const string PINK = "#ff2a6d", CYAN = "#2de2e6", ARENA = "#000";
 	public const string FONT = "\"Tajawal\",\"Segoe UI\",Tahoma,sans-serif";
 	public const string TFONT = "\"Audiowide\",\"Segoe UI\",sans-serif";
@@ -181,7 +184,7 @@ public static partial class G
 				double k = Math.Min(1, (t - o.ta) / 0.06), fl = Math.Max(0, 1 - (t - o.ta) / 0.15);
 				double ww = (o.tile ? o.w : o.w * (0.5 + 0.5 * k) * (1 + 0.12 * pulse)); double ll = o.tile ? o.len * (0.85 + 0.15 * k) : o.len;
 				g.shadowColor = PINK; g.shadowBlur = 24; g.fillStyle = PINK; g.fillRect(-ll / 2, -ww / 2, ll, ww);
-				if (fl > 0) { g.globalAlpha = fl; g.fillStyle = "#fff"; g.fillRect(-ll / 2, -ww / 2, ll, ww); }
+				if (fl > 0) { g.globalAlpha = fl; g.fillStyle = PINKW; g.fillRect(-ll / 2, -ww / 2, ll, ww); }
 			}
 			else { double k = 1 - (t - o.te) / 0.25; g.globalAlpha = Math.Max(0, k); g.fillStyle = PINK; double ww = o.w * Math.Max(0, k); g.fillRect(-o.len / 2, -ww / 2, o.len, ww); }
 			g.restore();
@@ -206,7 +209,7 @@ public static partial class G
 		h.draw = t =>
 		{
 			if (t < th) { double k = clamp((t - tw) / (th - tw), 0, 1); g.strokeStyle = PINK; g.lineWidth = 3; g.globalAlpha = 0.7; g.beginPath(); g.arc(x, y, 42, 0, TAU); g.stroke(); g.globalAlpha = 0.3; g.fillStyle = PINK; circle(x, y, 42 * k); g.globalAlpha = 1; circle(x, y, 6 + 4 * pulse); }
-			else { double k = (t - th) / 0.25; g.globalAlpha = Math.Max(0, 1 - k); g.fillStyle = k < 0.3 ? "#fff" : PINK; circle(x, y, 46 + 40 * k); g.globalAlpha = 1; }
+			else { double k = (t - th) / 0.25; g.globalAlpha = Math.Max(0, 1 - k); g.fillStyle = k < 0.3 ? PINKW : PINK; circle(x, y, 46 + 40 * k); g.globalAlpha = 1; }
 		};
 		h.hit = (p, t) => t >= th && t < th + 0.12 && hypot(p.x - x, p.y - y) < 44 + p.r;
 		return h;
