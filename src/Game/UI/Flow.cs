@@ -81,6 +81,7 @@ public static partial class G
 		else if (state == "points") drawPoints(now);
 		else if (state == "account") drawAccount(now);
 		else if (state == "board") drawBoard(now);
+		else if (state == "ratings") drawRatings(now);
 		else if (state == "chal") drawChal(now);
 		else if (state == "skins") drawSkins(now);
 		else if (state == "profile") drawProfile(now);

@@ -97,6 +97,7 @@ public static partial class G
 
 	static Dictionary<string, bool> prev = new();
 	public static bool padsDisabled;   // tests
+	public static string kindForce;    // tests: the button pictures of this controller
 	public static bool usingPad;       // the last thing touched was a controller (the mouse pointer hides)
 	public static Inp readInput()
 	{
@@ -125,6 +126,7 @@ public static partial class G
 				if (b(0)) confirm = true; if (b(9)) pz = true; if (b(1)) back = true; if (b(3) || b(8)) restart = true; if (b(2)) sq = true; if (b(4)) l1 = true; if (b(5)) r1 = true;
 			}
 		if (padAny) usingPad = true;
+		if (kindForce != null) kind = kindForce;
 		var cur_ = new Dictionary<string, bool>
 		{
 			["dash"] = dash, ["confirm"] = confirm, ["pz"] = pz, ["back"] = back, ["restart"] = restart, ["sq"] = sq, ["l1"] = l1, ["r1"] = r1,

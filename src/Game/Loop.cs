@@ -98,7 +98,8 @@ public static partial class G
 				row(pr.on ? (myRpCan() ? new[] { myRpHint(deadAt), (K.back, "التدريب") } : new[] { (K.back, "التدريب") }) : myRpCan() ? new[] { (K.restart, "من بداية المرحلة"), myRpHint(deadAt), (K.back, "القائمة") } : new[] { (K.restart, "من بداية المرحلة"), (K.back, "القائمة") }, W / 2, H / 2 + 170);
 			}
 		}
-		if (state == "win")
+		if (state == "win" && rateC != null) overlay(0.7);   // the rating card is open: only the card
+		else if (state == "win")
 		{
 			overlay(0.7);
 			txt("خلّصت المرحلة!", W / 2, H / 2 - 160, 64, "#fff");
@@ -126,7 +127,8 @@ public static partial class G
 			drawWinXp(now);
 			if (now - Math.Max(winAt + 800, winSlam + 300) > 0) { row(new[] { (K.confirm, "العب مرة ثانية") }, W / 2, H / 2 + 135); row(myRpCan() ? new[] { myRpHint(winAt), (K.back, "المراحل") } : new[] { (K.back, "المراحل") }, W / 2, H / 2 + 190); }
 		}
-		if (state == "win") drawHcNote(now);
+		if (state == "win" && rateC == null) drawHcNote(now);
+		if (rateC != null) drawRate(now);
 		if (state == "prEnd") drawPrEnd(now);
 		if ((state is "replay" or "rpGap" or "rpEnd") && rp.doc != null) drawRpOverlay(now);
 		if (state == "starting" && audioHint) { overlay(0.4); txt("اضغط على الشاشة مرة وحدة عشان يشتغل الصوت 🔊", W / 2, H / 2, 32, "#fff", 500); }
