@@ -25,6 +25,7 @@ public static partial class G
 		public bool boss; public Level BL;
 		public bool[] bdown = new bool[VS_N]; public (double x, double y)[] bdpos = new (double, double)[VS_N];
 		public string[] bfin = new string[VS_N];   // each one's letter at the end
+		public bool bwon;   // a round was won in this room: its rating card when leaving (UI/Rate.cs)
 		public double wipeAt = -1, startAt = -1, leaveArm = -1;   // (revAt: the co-op one, PlatNet.cs)
 	}
 	public static bool bnOn => net?.boss == true && net.phase is "play" or "end";
@@ -206,7 +207,7 @@ public static partial class G
 	// the end of the song (playStep): tell the others my letter
 	public static void bnFinish()
 	{
-		var n = net; if (n == null) return; n.bfin[n.vseat] = lastRank; netSetPhase("end"); n.endAt = performance.now();
+		var n = net; if (n == null) return; n.bfin[n.vseat] = lastRank; n.bwon = true; netSetPhase("end"); n.endAt = performance.now();
 		vsSend(new JsonObject { ["k"] = "fin", ["w"] = n.vseat, ["r"] = lastRank });
 	}
 	// someone left during the match: they don't count any more (all the rest down = the new start)
