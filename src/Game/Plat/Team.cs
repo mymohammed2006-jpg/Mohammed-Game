@@ -130,6 +130,7 @@ public static partial class G
 		public List<(int k, double at)> taken = new();
 		public int[] flips = new int[TM_N]; public double reveal, chaseX = -999, beat0, swapAt = -9, swapFx = -9; public int swapA = -1, swapB = -1, snapAt = -1; public double snapT = -9, prevBt, wonAt = -1, playT; public bool won;
 		public int[] falls = new int[TM_N]; public string[] names = { "الأحمر", "الأزرق", "الأصفر" };   // the whole level's, for the win screen
+		public string[] skins = { "", "", "" };   // each one's look (his words 04:59 10-25), drawn inside a frame of its colour
 		// online (TeamNet): gen = how many times a page was built (events from an older one are dropped); the music clock's start and
 		// fixed steps; this player's buttons waiting for the next step; each one's XP from this finish (-1: not known yet)
 		public Voice[] stat; public List<TWave> waves = new(); public double murk; public TTower tw; public List<TBar> bars = new(); public int shield; public double shieldT; public long[] spkN; public double riseY = double.NaN; public bool ropeLive;   // the radio level: its static, the jumps' sound waves, how garbled the song is now
@@ -172,7 +173,7 @@ public static partial class G
 	{
 		var old = tm; var P = L.pages[page];
 		tm = new TeamRun { L = L, page = page, P = P, fromClouds = fromClouds, coverTheme = old?.P.theme ?? 0 };
-		if (old != null && old.L == L) { tm.falls = old.falls; tm.playT = old.playT; tm.names = old.names; tm.gen = old.gen; tm.tp = old.tp; tm.restarts = old.restarts; tm.hits = old.hits; }   // the whole level's, for the win screen
+		if (old != null && old.L == L) { tm.falls = old.falls; tm.playT = old.playT; tm.names = old.names; tm.skins = old.skins; tm.gen = old.gen; tm.tp = old.tp; tm.restarts = old.restarts; tm.hits = old.hits; }   // the whole level's, for the win screen
 		else if (L.cols != null) tm.names = new[] { 0, 1, 2 }.Select(i => i < L.cols.Length ? tm.names[L.cols[i]] : "").ToArray();   // a level with its own colours: each one named by theirs (online puts the real names over these)
 		if (P.cont && old != null && old.L == L)
 		{

@@ -14,6 +14,23 @@ public static partial class G
 	public static string playerSkin() => classicUi ? "" : state is "replay" or "rpGap" or "rpEnd" ? (rp.bot || rp.doc == null ? "" : rp.doc.sk) : skin;
 	public static string skinName(string s) => s == "" ? "العادي" : Array.Find(CHALS, c => c.id == s)?.name ?? "";
 
+	// online, two with the same look (his words 04:59 10-25): the first seat keeps its colours, a later one takes its seat's colour (never pink)
+	public static readonly double[] SEAT_HUE = { -1, 0.12, 0.38, 0.75 };   // -, gold, green, purple
+	public static double dupHue(IList<string> sk, int seat)
+	{
+		if (sk == null || seat <= 0 || seat >= sk.Count || seat >= SEAT_HUE.Length) return -1;
+		for (int i = 0; i < seat; i++) if ((sk[i] ?? "") == (sk[seat] ?? "")) return SEAT_HUE[seat];
+		return -1;
+	}
+	public static void tinted(double h, Action a) { if (h < 0) { a(); return; } g.setTint(h); a(); g.clearTint(); }
+	// a co-op player at (0,0): the old square in its colour, or its look inside a frame of its colour (the levels go by the colours)
+	public static void coopSquare(string col, string sk, double k, double now, string inner)
+	{
+		if (string.IsNullOrEmpty(sk)) { g.shadowColor = col; g.shadowBlur = 14 * k; g.fillStyle = col; g.fillRect(-9, -9, 18, 18); g.shadowBlur = 0; g.fillStyle = inner; g.fillRect(-3, -3, 6, 6); return; }
+		g.shadowColor = col; g.shadowBlur = 16 * k; g.strokeStyle = col; g.lineWidth = 2.4; g.strokeRect(-11.6, -11.6, 23.2, 23.2); g.shadowBlur = 0;
+		skinBody(sk, k, now);
+	}
+
 	// the square at (0,0); k scales the glow (1 = in the level); now = ms, for the moving parts
 	public static void skinBody(string s, double k, double now)
 	{

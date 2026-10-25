@@ -8,7 +8,7 @@ using MG;
 using static MG.JS;
 
 // Pictures of the v46 platformer-time and versus screens, with made-up players (nothing goes online).
-// Usage: -- --vs-shots <outDir>   (env SHOTS = a comma list of: win, board, room, wait, end, endlose, lock; default all)
+// Usage: -- --vs-shots <outDir>   (env SHOTS = a comma list of: win, board, room, wait, end, endlose, lock; default all; env VSK, SEAT: the looks, this PC's seat)
 public class VsShots
 {
 	string outDir; Main host; int i; List<(string name, Action set, int frames)> todo = new(); int cur = -1, left; bool shot;
@@ -44,6 +44,8 @@ public class VsShots
 		{
 			var n = new G.NetRun { host = true, vs = true, vseat = 0, L = P1, code = "48213", phase = play ? "play" : "lobby" };
 			string[] nm = { "Mohammed", "Nightmare", "Sara", "Noor" }; for (int s = 0; s < 4; s++) { n.vnm[s] = nm[s]; n.vin[s] = true; n.vsk[s] = ""; n.vplay[s] = true; }
+			if (System.Environment.GetEnvironmentVariable("VSK") is string vk) { var a = vk.Split(','); for (int s = 0; s < 4; s++) n.vsk[s] = s < a.Length ? a[s] : ""; }   // env VSK: the four looks
+			if (int.TryParse(System.Environment.GetEnvironmentVariable("SEAT"), out var me)) { n.vseat = me; G.skin = n.vsk[me]; }   // env SEAT: which one is this PC
 			return n;
 		}
 		Add("room", () => { G.net = Fake(false); G.net.roomOpen = true; G.state = "pltRoom"; });

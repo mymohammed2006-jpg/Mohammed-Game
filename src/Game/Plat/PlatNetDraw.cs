@@ -91,7 +91,8 @@ public static partial class G
 			txt(n.L?.name ?? "", W / 2, 165, 28, RED3, 700);
 			string me = acc?.name ?? "", ot = n.hello ? n.other : n.other + dots;
 			string left = n.host ? ot : me, right = n.host ? me : ot, lsk = n.host ? n.otherSk : skin, rsk = n.host ? skin : n.otherSk;
-			lobbySq(W / 2 + 200, 330, right, rsk, now); lobbySq(W / 2 - 200, 330, left, lsk, now);
+			double dh = (n.otherSk ?? "") == skin ? SEAT_HUE[1] : -1;   // the same look: the one who came in (the guest) in gold
+			lobbySq(W / 2 + 200, 330, right, rsk, now, n.host ? -1 : dh); lobbySq(W / 2 - 200, 330, left, lsk, now, n.host ? dh : -1);
 			txt(n.coop ? "مع" : "ضد", W / 2, 330, 40, "rgba(255,255,255,0.5)", 800);
 			if (n.rtt >= 0) { g.font = $"18px {TFONT}"; g.fillStyle = "rgba(255,255,255,0.4)"; g.textAlign = "center"; g.direction = "ltr"; g.fillText($"{Math.Round(n.rtt)} ms", W / 2, 520); g.direction = "rtl"; }
 			if (n.host && n.hello) row(new[] { (BTN[kind].confirm, "ابدأ") }, W / 2, 590, 38, "#fff", 30);
@@ -99,12 +100,13 @@ public static partial class G
 		}
 		row(new[] { (BTN[kind].back, "اطلع من الغرفة") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
 	}
-	static void lobbySq(double x, double y, string name, string sk, double now)
+	static void lobbySq(double x, double y, string name, string sk, double now, double hue = -1)
 	{
+		if (hue >= 0) g.setTint(hue);
 		g.save(); g.translate(x, y - 30); g.scale(3, 3); g.rotate(Math.Sin(now / 600) * 0.15);
 		if (string.IsNullOrEmpty(sk)) { g.shadowColor = CYAN; g.shadowBlur = 14; g.fillStyle = CYAN; g.fillRect(-9, -9, 18, 18); g.shadowBlur = 0; g.fillStyle = ARENA; g.fillRect(-3, -3, 6, 6); }
 		else skinBody(sk, 1, now);
-		g.restore();
+		g.restore(); g.clearTint();
 		txt(name, x, y + 70, 30, "#fff", 800);
 	}
 
@@ -114,7 +116,7 @@ public static partial class G
 		if (net.vs) { drawVsGhosts(now); return; }
 		var gp = netGhost(now); if (gp == null) return;
 		if (gp.dash == -1) { drawDown(gp.x, gp.y, now, true); return; }
-		drawPlayer(gp, net.otherSk ?? "", 0.55);
+		tinted(net.host && (net.otherSk ?? "") == skin ? SEAT_HUE[1] : -1, () => drawPlayer(gp, net.otherSk ?? "", 0.55));
 		g.globalAlpha = 0.7; txt(net.other, gp.x, gp.y - 30, 18, "#fff", 700); g.globalAlpha = 1;
 	}
 
@@ -165,7 +167,7 @@ public static partial class G
 			double x = W / 2 + ((N - 1) / 2.0 - i) * 300, y = 430; string col = tnCol(i); bool in_ = n.hi[i] || (!n.host && i == n.seat && n.said[0]);
 			string name = n.nm[i] is { Length: > 0 } s ? s : "";
 			g.save(); g.translate(x, y - 30); g.scale(3, 3); g.rotate(Math.Sin(now / 600 + i) * 0.15); g.globalAlpha = in_ ? 1 : 0.25;
-			g.shadowColor = col; g.shadowBlur = 14; g.fillStyle = col; g.fillRect(-9, -9, 18, 18); g.shadowBlur = 0; g.fillStyle = ARENA; g.fillRect(-3, -3, 6, 6);
+			coopSquare(col, in_ ? n.sk[i] : "", 1, now, ARENA);
 			g.restore(); g.globalAlpha = 1;
 			txt(in_ ? name : (name != "" ? name + dots : "أستنى" + dots), x, y + 70, 30, in_ ? "#fff" : "rgba(255,255,255,0.5)", 800);
 			if (i == n.seat) txt("أنت", x, y + 108, 22, col, 700);
@@ -189,7 +191,8 @@ public static partial class G
 			for (int i = 0; i < tnN; i++)
 			{
 				double x = W / 2 + ((tnN - 1) / 2.0 - i) * 260, y = 380; string col = tnCol(i);
-				g.shadowColor = col; g.shadowBlur = 20; g.fillStyle = col; g.fillRect(x - 27, y - 27, 54, 54); g.shadowBlur = 0; g.fillStyle = "#1b0f26"; g.fillRect(x - 9, y - 9, 18, 18);
+				if (string.IsNullOrEmpty(n.sk[i])) { g.shadowColor = col; g.shadowBlur = 20; g.fillStyle = col; g.fillRect(x - 27, y - 27, 54, 54); g.shadowBlur = 0; g.fillStyle = "#1b0f26"; g.fillRect(x - 9, y - 9, 18, 18); }
+				else { g.save(); g.translate(x, y); g.scale(3, 3); coopSquare(col, n.sk[i], 1, now, "#1b0f26"); g.restore(); }
 				txt(tnName(i), x, y + 70, 30, "#fff", 800); if (i == n.seat) txt("أنت", x, y + 106, 22, col, 700);
 			}
 			double left = (n.goAt - now) / 1000; if (left > 0) txt(ar(Math.Ceiling(left)), W / 2, 600, 70, GOLD, 800);

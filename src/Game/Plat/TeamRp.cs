@@ -70,7 +70,7 @@ public static partial class G
 		r.w.Flush(); byte[] gz; using (var o = new MemoryStream()) { using (var z = new GZipStream(o, CompressionLevel.Optimal)) z.Write(r.ms.GetBuffer(), 0, (int)r.ms.Length); gz = o.ToArray(); }
 		var seg = new RpqSeg { t0 = 0, n = r.n, d = Convert.ToBase64String(gz) };
 		int me = Math.Max(0, r.seat);
-		var it = new MyRp { kind = "team", hz = TM_HZ, r = res == "win" ? tmRank(me) : null, tmSeat = r.seat, tmNames = tm.names.ToArray(), tmStr = r.strs.ToList() };
+		var it = new MyRp { kind = "team", hz = TM_HZ, r = res == "win" ? tmRank(me) : null, tmSeat = r.seat, tmNames = tm.names.ToArray(), tmSkins = tm.skins.ToArray(), tmStr = r.strs.ToList() };
 		return myRpWrite(it, P.id, "n", res, new List<RpqSeg> { seg }, tm.hits, tm.falls[me]);
 	}
 	// the tests (test/TeamBot.cs RPT=1)
@@ -88,7 +88,7 @@ public static partial class G
 		public List<(int who, double x, double y, double timer, double s)> snaps = new(); public List<(double x, double y)> hail = new(); public List<(double x, double y, double t, int who)> steps = new();
 		public double murk, riseY = double.NaN; public int duo; public List<(double x, int dir, int r0, int on, int n)> bars = new();
 	}
-	public class TmRpData { public PlatLevel P; public TeamLevel L; public List<TFrame> fr = new(); public int seat; public string[] names; public List<string> strs; public Voice[] voices; public bool[] von; public string mkey; public TFrame prev; public Voice stat; public double murkNow; public List<TFrame> frFull, frCut; public int[] cutOi; public double lastT = double.NaN, lastTr; }
+	public class TmRpData { public PlatLevel P; public TeamLevel L; public List<TFrame> fr = new(); public int seat; public string[] names, skins; public List<string> strs; public Voice[] voices; public bool[] von; public string mkey; public TFrame prev; public Voice stat; public double murkNow; public List<TFrame> frFull, frCut; public int[] cutOi; public double lastT = double.NaN, lastTr; }
 	static TmRpData tmrp;
 	static int tmRpSaveMe = -1, tmRpSaveView = -1;
 	public static bool tmRpOn => rp.team && tmrp != null;
@@ -125,7 +125,7 @@ public static partial class G
 	static bool tmRpLoad(MyRp it, PlatLevel P)
 	{
 		if (P?.team == null || it.segs == null || it.segs.Count == 0) return false;
-		try { tmrp = new TmRpData { P = P, L = P.team, fr = tmRpParse(it.segs[0].d, P.team), seat = it.tmSeat, names = it.tmNames ?? new[] { "الأحمر", "الأزرق", "الأصفر" }, strs = it.tmStr ?? new List<string> { "" } }; }
+		try { tmrp = new TmRpData { P = P, L = P.team, fr = tmRpParse(it.segs[0].d, P.team), seat = it.tmSeat, names = it.tmNames ?? new[] { "الأحمر", "الأزرق", "الأصفر" }, skins = it.tmSkins ?? new[] { "", "", "" }, strs = it.tmStr ?? new List<string> { "" } }; }
 		catch (Exception) { tmrp = null; return false; }
 		if (tmrp.fr.Count < 2 || tmrp.fr.Any(f => f.page >= P.team.pages.Count)) { tmrp = null; return false; }
 		rp.doc = new RpDoc { r = it.r, res = it.res, v = RP_V, hz = TM_HZ, segs = new List<RpSeg> { new RpSeg { t0 = 0, n = tmrp.fr.Count, b = new ushort[3] } } };
@@ -232,7 +232,7 @@ public static partial class G
 		var L = tmrp.L;
 		if (tm == null || tm.page != A.page || tm.L != L || (tm.th.Count > 0 && tnBase() != A.tx.Length))
 		{
-			tm = new TeamRun { L = L, page = A.page, P = L.pages[A.page], names = tmrp.names.ToArray() }; tm.stemOn = new bool[L.stems.Length]; tmBuild();
+			tm = new TeamRun { L = L, page = A.page, P = L.pages[A.page], names = tmrp.names.ToArray(), skins = tmrp.skins.Select(x => x ?? "").Concat(new[] { "", "", "" }).Take(TM_N).ToArray() }; tm.stemOn = new bool[L.stems.Length]; tmBuild();
 		}
 		var p0 = tmrp.prev; if (p0 != null && Math.Abs(A.g[0] - p0.g[0]) > 0.5) p0 = null;   // after a left-out try: no fall / piece effects from the jump
 		tm.t = Lr(A.g[0], C.g[0]); songT = tr; tm.pageAt = Lr(A.g[1], C.g[1]); tm.doneAt = A.g[2]; tm.restartAt = A.g[3]; tm.wonAt = A.g[4]; tm.reveal = A.g[5]; tm.chaseX = Lr(A.g[6], C.g[6]);

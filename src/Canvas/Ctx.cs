@@ -50,6 +50,7 @@ public struct CtxState
 	public string textAlign, textBaseline, direction;
 	public double[] dash;
 	public int clip;                   // container in the Surface (0 = no clip)
+	public bool tint; public float tintH;   // not canvas: colours set while on take this hue (a player's square recoloured)
 
 	public static CtxState Default()
 	{
@@ -99,15 +100,27 @@ public partial class Ctx
 	public void restore() { if (stack.Count > 0) S = stack.Pop(); }
 	static CtxState Clone(CtxState s) => s;   // a struct; the dash array is never changed in place
 
-	public Paint fillStyle { get => S.fill; set { if (value.grad != null || value.col.A >= 0) S.fill = value; } }
-	public Paint strokeStyle { get => S.stroke; set => S.stroke = value; }
+	public Paint fillStyle { get => S.fill; set { if (value.grad != null || value.col.A >= 0) S.fill = Tint(value); } }
+	public Paint strokeStyle { get => S.stroke; set => S.stroke = Tint(value); }
 	public double globalAlpha { get => S.globalAlpha; set { if (value >= 0 && value <= 1 && !double.IsNaN(value)) S.globalAlpha = value; } }
 	public double lineWidth { get => S.lineWidth; set { if (value > 0 && !double.IsInfinity(value) && !double.IsNaN(value)) S.lineWidth = value; } }
 	public double miterLimit { get => S.miterLimit; set { if (value > 0) S.miterLimit = value; } }
 	public double shadowBlur { get => S.shadowBlur; set { if (value >= 0 && !double.IsNaN(value)) S.shadowBlur = value; } }
 	public double shadowOffsetX { get => S.shadowOffsetX; set => S.shadowOffsetX = value; }
 	public double shadowOffsetY { get => S.shadowOffsetY; set => S.shadowOffsetY = value; }
-	public string shadowColor { set { if (CssColor.TryParse(value, out var c)) S.shadowColor = c; } }
+	public string shadowColor { set { if (CssColor.TryParse(value, out var c)) S.shadowColor = Tint(c); } }
+	// the tint (not canvas): every colour set after this takes hue h (0..1) and keeps its own strength and brightness; greys stay grey
+	public void setTint(double h) { S.tint = true; S.tintH = (float)h; }
+	public void clearTint() => S.tint = false;
+	Color Tint(Color c) => !S.tint || c.S < 0.12f ? c : Color.FromHsv(S.tintH, c.S, c.V, c.A);
+	Paint Tint(Paint p)
+	{
+		if (!S.tint) return p;
+		if (p.grad == null) return new Paint { col = Tint(p.col) };
+		var g = new Gradient { radial = p.grad.radial, x0 = p.grad.x0, y0 = p.grad.y0, r0 = p.grad.r0, x1 = p.grad.x1, y1 = p.grad.y1, r1 = p.grad.r1 };
+		foreach (var (off, col) in p.grad.stops) g.stops.Add((off, Tint(col)));
+		return g;
+	}
 	public string lineCap { get => S.cap.ToString().ToLowerInvariant(); set { S.cap = value switch { "round" => Cap.Round, "square" => Cap.Square, "butt" => Cap.Butt, _ => S.cap }; } }
 	public string lineJoin { get => S.join.ToString().ToLowerInvariant(); set { S.join = value switch { "round" => Join.Round, "bevel" => Join.Bevel, "miter" => Join.Miter, _ => S.join }; } }
 	public string textAlign { get => S.textAlign; set { if (value is "start" or "end" or "left" or "right" or "center") S.textAlign = value; } }

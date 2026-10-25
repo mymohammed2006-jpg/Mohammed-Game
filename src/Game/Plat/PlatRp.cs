@@ -174,7 +174,7 @@ public static partial class G
 		var (x, y, fl) = plRpAt(s, songT); if ((fl & PF_HIDE) != 0) return;
 		if ((fl & PF_DOWN) != 0) { drawDown(x, y, performance.now(), true); return; }
 		var gp = new Player { x = x, y = y, r = 5, dash = (fl & 1) != 0 ? 0.1 : 0, fx = (fl & PF_LEFT) != 0 ? -1 : 1, hp = 1, ddx = 1 };
-		drawPlayer(gp, plrp.gsk ?? "", 0.55);
+		tinted((plrp.gsk ?? "") == (rp.doc.sk ?? "") ? SEAT_HUE[1] : -1, () => drawPlayer(gp, plrp.gsk ?? "", 0.55));   // the same look: the other one in gold
 		g.globalAlpha = 0.7; txt(plrp.gname ?? "", x, y - 30, 18, "#fff", 700); g.globalAlpha = 1;
 	}
 	// draw(): the platformer's replay instead of the main mode's level

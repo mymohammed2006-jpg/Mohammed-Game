@@ -95,6 +95,8 @@ public static partial class G
 	}
 
 	// ---------- the level ----------
+	// online, my square in its seat's colour when someone before me has the same look (Skins.cs dupHue)
+	static double myHue() => net == null || state is "replay" or "rpGap" or "rpEnd" ? -1 : net.vs ? dupHue(net.vsk, net.vseat) : !net.host && (net.otherSk ?? "") == skin ? SEAT_HUE[1] : -1;
 	static void drawPlat(double now)
 	{
 		double b = plBeat(), bp = ((b % 1) + 1) % 1; pulse = JS.exp(-bp * 5) * 0.8; energy = 0.6;
@@ -175,10 +177,10 @@ public static partial class G
 		foreach (var q in particles) { g.globalAlpha = Math.Max(0, q.life / q.max); g.fillStyle = q.col; g.fillRect(q.x - q.s / 2, q.y - q.s / 2, q.s, q.s); }
 		g.globalAlpha = 1;
 		double ia = 1;   // the intro: the square drops in, then the HUD shows
-		if (state == "pltIntro") { double s = (now - pl.introAt) / 1000; ia = clamp((s - 2.85) / 0.15, 0, 1); if (s >= 2.4) { double f = clamp((s - 2.4) / 0.45, 0, 1), dy = -260 * (1 - f * f); player.y += dy; drawPlayer(); player.y -= dy; } }
+		if (state == "pltIntro") { double s = (now - pl.introAt) / 1000; ia = clamp((s - 2.85) / 0.15, 0, 1); if (s >= 2.4) { double f = clamp((s - 2.4) / 0.45, 0, 1), dy = -260 * (1 - f * f); player.y += dy; tinted(myHue(), () => drawPlayer()); player.y -= dy; } }
 		else if (state != "pltDead" && pl.down) drawDown(player.x, player.y, now, false);
 		else if (pl.atGate) { }   // inside the gate
-		else if (state != "pltDead") drawPlayer();
+		else if (state != "pltDead") tinted(myHue(), () => drawPlayer());
 		if (online && state != "pltIntro") drawNetGhost(now);
 		g.save(); g.globalAlpha = ia;
 		// HUD: lives, the pieces, messages

@@ -275,7 +275,7 @@ public static partial class G
 		foreach (int s in vsOthers(n))
 		{
 			if (n.vleft[s]) continue; var gp = vsGhost(s, now); if (gp == null) continue;
-			drawPlayer(gp, n.vsk[s] ?? "", 0.55);
+			tinted(dupHue(n.vsk, s), () => drawPlayer(gp, n.vsk[s] ?? "", 0.55));
 			g.globalAlpha = 0.7; txt(vsName(s), gp.x, gp.y - 30, 18, "#fff", 700); g.globalAlpha = 1;
 		}
 	}
@@ -311,10 +311,11 @@ public static partial class G
 		for (int i = 0; i < VS_N && !connecting; i++)
 		{
 			double x = W / 2 + (1.5 - i) * 250, y = 430; bool in_ = n.vin[i]; string sk = n.vsk[i] ?? "";
+			if (in_ && dupHue(n.vsk, i) >= 0) g.setTint(dupHue(n.vsk, i));
 			g.save(); g.translate(x, y - 30); g.scale(3, 3); g.rotate(Math.Sin(now / 600 + i) * 0.15); g.globalAlpha = in_ ? 1 : 0.2;
 			if (!in_ || string.IsNullOrEmpty(sk)) { g.shadowColor = CYAN; g.shadowBlur = 14; g.fillStyle = CYAN; g.fillRect(-9, -9, 18, 18); g.shadowBlur = 0; g.fillStyle = ARENA; g.fillRect(-3, -3, 6, 6); }
 			else skinBody(sk, 1, now);
-			g.restore(); g.globalAlpha = 1;
+			g.restore(); g.clearTint(); g.globalAlpha = 1;
 			txt(in_ ? vsName(i) : "أستنى" + dots, x, y + 70, 28, in_ ? "#fff" : "rgba(255,255,255,0.4)", 800);
 			if (i == n.vseat && in_) txt("أنت", x, y + 106, 22, CYAN, 700);
 		}

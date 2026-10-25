@@ -44,6 +44,7 @@ public static partial class G
 		// the co-op level (kind "team", Plat/TeamRp.cs): whose screen it was, the three names, its messages
 		public int tmSeat { get; set; }
 		public string[] tmNames { get; set; }
+		public string[] tmSkins { get; set; }   // each one's look (10-25); none in older ones: the plain squares
 		public List<string> tmStr { get; set; }
 		public string file;
 	}

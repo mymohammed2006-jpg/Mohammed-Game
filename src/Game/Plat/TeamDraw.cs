@@ -244,7 +244,7 @@ public static partial class G
 		// the three
 		foreach (var p in tm.b) tmDrawBody(p, now);
 		// online: the other two's names over them
-		if (tmMe >= 0) foreach (var p in tm.b) if (p.i != tmMe && !p.gate) { g.globalAlpha = 0.75; txt(tm.names[p.i], p.x, p.y - (p.carry != null && !p.down ? 62 : 30), 16, "#fff", 700); g.globalAlpha = 1; }
+		if (tmMe >= 0) foreach (var p in tm.b) if (p.i != tmMe && !p.gate) { g.globalAlpha = 0.75; txt(tm.names[p.i], p.x, p.y - (p.carry != null && !p.down ? 62 : 30), 16, tm.skins[p.i] != "" ? tmCol(p.i) : "#fff", 700); g.globalAlpha = 1; }
 		if (tm.P.mirror > 0) foreach (var p in tm.b) tmDrawReflection(p, now);
 		foreach (var p in tm.b) if (p.carry != null && !p.down) tmDrawPic(p.carry, now);
 		// HUD: each one's lives in its colour, the song's pieces, messages
@@ -317,7 +317,7 @@ public static partial class G
 		g.save(); g.translate(p.x, p.y);
 		bool dsh = p.dash > 0; double a = dsh ? JS.atan2(p.ddy, p.ddx) : p.sa, s = dsh ? 1 : p.sk, sx = 1 + 0.75 * s, sy = 1 - 0.38 * s;
 		{ double q = Math.PI / 2; double r = a; r -= round(r / q) * q; g.rotate(a - r); g.scale(sx, sy); }
-		g.shadowColor = col; g.shadowBlur = 14; g.fillStyle = col; g.fillRect(-9, -9, 18, 18); g.shadowBlur = 0; g.fillStyle = "#1b0f26"; g.fillRect(-3, -3, 6, 6);
+		coopSquare(col, tm.skins[p.i], 1, now, "#1b0f26");
 		g.restore(); g.globalAlpha = 1;
 		if (p.i == 2 && p.armed && p.still > 0.08 && tm.th.Any(s => s.k == "flip" && s.d.a == 2))
 		{ g.strokeStyle = col; g.lineWidth = 3; g.globalAlpha = 0.8; g.beginPath(); g.arc(p.x, p.y, 17, -Math.PI / 2, -Math.PI / 2 + TAU * Math.Min(1, p.still)); g.stroke(); g.globalAlpha = 1; }

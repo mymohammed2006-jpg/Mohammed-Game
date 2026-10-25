@@ -187,7 +187,7 @@ public static partial class G
 		if (tm.P.rope > 0 && tm.ropeLive) duoCable(now);
 		foreach (var p in tm.b) tmDrawBody(p, now);
 		if (tm.spkN != null) duoShield(now);
-		if (tmMe >= 0) foreach (var p in tm.b) if (p.i != tmMe && !p.gate) { g.globalAlpha = 0.75; txt(tm.names[p.i], p.x, p.y - 30, 16, "#fff", 700); g.globalAlpha = 1; }
+		if (tmMe >= 0) foreach (var p in tm.b) if (p.i != tmMe && !p.gate) { g.globalAlpha = 0.75; txt(tm.names[p.i], p.x, p.y - 30, 16, tm.skins[p.i] != "" ? tmCol(p.i) : "#fff", 700); g.globalAlpha = 1; }
 		g.restore();
 		// the song's noise on the screen too, as much as the song is garbled
 		duoStatic(now, tm.murk);

@@ -24,7 +24,7 @@ public static partial class G
 	public partial class NetRun
 	{
 		public bool team; public int seat; public Peer[] tp = new Peer[TM_N];          // host: tp[1], tp[2]; the others: tp[0] (to the host)
-		public string[] nm = new string[TM_N]; public bool[] hi = new bool[TM_N], said = new bool[TM_N];
+		public string[] nm = new string[TM_N], sk = new string[TM_N]; public bool[] hi = new bool[TM_N], said = new bool[TM_N];
 		public double[] rt = { -1, -1, -1 }, connAt = new double[TM_N], pingT = new double[TM_N];
 		public List<TSnap>[] ts = { new(), new(), new() }; public List<(double at, double x, double y)> hist = new();
 		public List<(string k, JsonNode j)> later = new();
@@ -47,7 +47,7 @@ public static partial class G
 	static async void tnHost(PlatLevel L)
 	{
 		int N = L.team.players; var n = net = new NetRun { host = true, team = true, seat = 0, L = L }; n.tp[1] = new Peer(); if (N > 2) n.tp[2] = new Peer();
-		n.nm[0] = acc?.name ?? ""; n.hi[0] = true; netSetPhase("make"); state = "pltRoom";
+		n.nm[0] = acc?.name ?? ""; n.sk[0] = skin; n.hi[0] = true; netSetPhase("make"); state = "pltRoom";
 		try
 		{
 			var o1 = n.tp[1].Offer(); var o2 = N > 2 ? n.tp[2].Offer() : Task.FromResult<string>(null); await Task.WhenAll(o1, o2); if (net != n) return;
@@ -111,7 +111,7 @@ public static partial class G
 	// the host tells the two who is in the room
 	static void tnRoster()
 	{
-		var n = net; var o = new JsonObject { ["k"] = "ro", ["n"] = new JsonArray(n.nm.Select(x => (JsonNode)(x ?? "")).ToArray()), ["h"] = new JsonArray(n.hi.Select(x => (JsonNode)x).ToArray()) };
+		var n = net; var o = new JsonObject { ["k"] = "ro", ["n"] = new JsonArray(n.nm.Select(x => (JsonNode)(x ?? "")).ToArray()), ["s"] = new JsonArray(n.sk.Select(x => (JsonNode)(x ?? "")).ToArray()), ["h"] = new JsonArray(n.hi.Select(x => (JsonNode)x).ToArray()) };
 		tnSend(o);
 	}
 	// the maker, 30 times a second: the things the three drive by standing on them (scale, ride, sinking and falling clouds, stones,
@@ -291,7 +291,7 @@ public static partial class G
 			{
 				n.said[s] = true;
 				if (n.host) { n.hi[s] = true; tnRoster(); }
-				else { p.Send(new JsonObject { ["k"] = "hi", ["n"] = acc?.name ?? "", ["w"] = n.seat }.ToJsonString()); netSetPhase("lobby"); }
+				else { n.sk[n.seat] = skin; p.Send(new JsonObject { ["k"] = "hi", ["n"] = acc?.name ?? "", ["s"] = skin, ["w"] = n.seat }.ToJsonString()); netSetPhase("lobby"); }
 			}
 			else if (now - n.connAt[s] > 25000) { netDiag = p.Diag(); netEnd(n.host ? $"ما قدرنا نتصل بـ{tnName(s)}، يمكن الشبكة تمنع الاتصال" : "ما قدرنا نتصل، يمكن الشبكة تمنع الاتصال", n.host, tnName(s)); return; }
 		}
@@ -305,10 +305,10 @@ public static partial class G
 				if (!m.rel) { if (n.host) tnSendB(false, m.d, s); tnSnapGot(m.d, now); continue; }
 				JsonNode j; try { j = JsonNode.Parse(Encoding.UTF8.GetString(m.d)); } catch (Exception) { continue; }
 				string k = S(j?["k"]);
-				if (k == "hi" && n.host) { n.nm[s] = S(j["n"]) ?? n.nm[s]; tnRoster(); }
+				if (k == "hi" && n.host) { n.nm[s] = S(j["n"]) ?? n.nm[s]; n.sk[s] = S(j["s"]) ?? ""; tnRoster(); }
 				else if (k == "ro" && !n.host)
 				{
-					for (int i = 0; i < TM_N; i++) { n.nm[i] = S(j["n"]?[i]) ?? n.nm[i]; n.hi[i] = j["h"]?[i]?.GetValue<bool>() ?? false; }
+					for (int i = 0; i < TM_N; i++) { n.nm[i] = S(j["n"]?[i]) ?? n.nm[i]; n.sk[i] = S(j["s"]?[i]) ?? ""; n.hi[i] = j["h"]?[i]?.GetValue<bool>() ?? false; }
 				}
 				else if (k == "ping") p.Send(new JsonObject { ["k"] = "pong", ["t"] = j["t"]?.GetValue<double>() ?? 0 }.ToJsonString());
 				else if (k == "pong") { double r = now - (j["t"]?.GetValue<double>() ?? now); n.rt[s] = n.rt[s] < 0 ? r : n.rt[s] * 0.7 + r * 0.3; }
@@ -342,7 +342,7 @@ public static partial class G
 	{
 		var n = net; tmMe = tmView = n.seat; tmStopMusic(); tm = null;
 		tmStart(n.L.team, Math.Clamp(tnPage0, 0, n.L.team.pages.Count - 1));
-		for (int i = 0; i < TM_N; i++) tm.names[i] = tnName(i);
+		for (int i = 0; i < TM_N; i++) { tm.names[i] = tnName(i); tm.skins[i] = n.sk[i] ?? ""; }
 		state = "tmPlay"; tmRecStart();   // v46: what this screen shows, for "احفظ الريبلاي" (Plat/TeamRp.cs)
 	}
 

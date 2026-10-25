@@ -8,7 +8,7 @@ using static MG.JS;
 
 // The co-op level with three players and no people: -- --team-run <levelId> <page> <outDir> <route0> <route1> <route2> [fps=60] [every=1]
 // Each route is PlatTest's script for one player ("<seconds> <keys>", keys L R U D J X).
-// env NODRAW=1: no pictures (fast, for working out routes); env WAV=<file>: also writes the game's sound; env T=<seconds>: how long.
+// env NODRAW=1: no pictures (fast, for working out routes); env SKINS: the players' looks; env WAV=<file>: also writes the game's sound; env T=<seconds>: how long.
 // Writes state.log: time beat, then per player x y hp (d = down, g = in the gate), then events.
 public class TeamTest
 {
@@ -89,6 +89,8 @@ public class TeamTest
 		T = double.TryParse(System.Environment.GetEnvironmentVariable("T"), out var tt) ? tt : lines.Max(l => l.Length > 0 ? l[^1].t : 0) + 3;
 		G.ensureAudio(); G.stopMenu();
 		G.tmStart(G.LoadTeam(id), page); G.state = "team";
+		// env SKINS: each player's look, a comma list (e.g. "crystal,skull,") for pictures of the looks in their colours
+		if (System.Environment.GetEnvironmentVariable("SKINS") is string sks) { var a = sks.Split(','); for (int k = 0; k < G.TM_N; k++) G.tm.skins[k] = k < a.Length ? a[k] : ""; }
 		if (rpt) G.tmRecStartPub();
 		view = System.Environment.GetEnvironmentVariable("VIEW");
 	}
@@ -119,7 +121,7 @@ public class TeamTest
 		// coming); "C" stops while a wave comes close (the one carrying the shield waits for the other); "K" jumps spikes and
 		// low rock ahead; "M" jumps when the other one jumps; "D" holds down (takes the shield when touching)
 		{
-			var o = G.tm.b[1 - k]; var tks = kk.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+			var o = G.tm.b[k == 0 ? 1 : 0]; var tks = kk.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 			foreach (var tok in tks) if (tok.Length > 1 && tok[0] == 'F' && double.TryParse(tok[1..], out var off)) goal = o.x + off;
 			if (tks.Contains("B"))
 			{
