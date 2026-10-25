@@ -84,7 +84,25 @@ public static partial class G
 		c.then?.Invoke();
 	}
 
-	// "تقييم المراحل": what the players said, one row per level (only on Mohammed's account)
+	// "أشياء إضافية" (settings in the menu): for now one item, "تقييم المراحل"
+	public static int extraSel;
+	static readonly string[] EXTRAS = { "تقييم المراحل" };
+	public static void drawExtras(double now)
+	{
+		txt("أشياء إضافية", W / 2, 88, 48, "#fff");
+		for (int i = 0; i < EXTRAS.Length; i++)
+		{
+			double y = 200 + i * 76; bool sel = i == extraSel; int ii = i;
+			zone(W / 2 - 390, y - 32, 780, 64, () => extraSel = ii, "confirm");
+			if (sel) { rr(W / 2 - 390, y - 32, 780, 64, 16); g.fillStyle = $"rgba({RGB},{str(0.08 + 0.08 * pulse)})"; g.fill(); g.strokeStyle = RED; g.lineWidth = 2; g.stroke(); }
+			star(W / 2 + 330, y, 15); g.fillStyle = sel ? GOLDS : "rgba(255,213,74,0.5)"; g.fill();
+			txt(EXTRAS[i], W / 2 + 300, y, 32, sel ? "#fff" : "rgba(255,255,255,0.55)", 800, "right");
+			txt("وش رأي اللاعبين بكل مرحلة", W / 2 - 360, y, 20, "rgba(255,255,255,0.45)", 500, "left");
+		}
+		row(new[] { (BTN[kind].confirm, "افتح"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
+	}
+
+	// "تقييم المراحل": what the players said, one row per level (everyone can open it: settings, أشياء إضافية)
 	public class RateSum { public Level L; public int n, likes, stars; public double avg => n > 0 ? (double)stars / n : -1; }
 	public static List<RateSum> rateSums = new(); public static int rateSel, rateFirst; public static bool rateBusy, rateErr;
 	public static void drawRatings(double now)

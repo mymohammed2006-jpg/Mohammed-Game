@@ -33,6 +33,8 @@ public class RateShots
 		Add("2_card_new", () => { Win("ps"); G.rateC = new G.RateCard { L = L, at = performance.manual.Value }; });
 		Add("3_card_liked", () => { Win("ps"); G.rateC = new G.RateCard { L = L, at = performance.manual.Value - 1000, like = 1, st = 4, row = 1 }; });
 		Add("4_card_disliked", () => { Win("ps"); G.rateC = new G.RateCard { L = L, at = performance.manual.Value - 1000, like = 0, st = 0, row = 1 }; });
+		Add("7_settings", () => { G.rateC = null; G.state = "settings"; G.setSel = 6; }, 60);
+		Add("8_extras", () => { G.state = "extras"; G.extraSel = 0; }, 60);
 		Add("6_ratings", () =>
 		{
 			G.rateC = null; G.state = "ratings"; var r = new Random(4); G.rateSums = new();
