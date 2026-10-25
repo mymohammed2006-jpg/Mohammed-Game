@@ -40,7 +40,7 @@ public static partial class G
 	}
 	static void H2Draw(Hz h, Action<double> body)
 	{
-		h.draw = t => { H2va = H2Vis(t); if (H2va <= 0.01) return; g.save(); g.globalAlpha = H2va; body(t); g.restore(); H2va = 1; };
+		h.draw = t => { H2va = h.hurts ? 1 : H2Vis(t); if (H2va <= 0.01) return;   /* 10-25: what can hurt is never in the dark */ g.save(); g.globalAlpha = H2va; body(t); g.restore(); H2va = 1; };
 	}
 
 	// ---------- where the square is, as the run's recording sees it ----------
@@ -131,7 +131,7 @@ public static partial class G
 				double e = Ext(i, t), l = a.L * e; if (l < 2) continue; bool wh = t - ta[i] < 0.05;
 				g.globalAlpha = H2va; H2Planks(a.x0, a.y0, 1, 0);
 				g.save(); g.translate(a.x0, a.y0); g.rotate(ang);
-				g.shadowColor = PINK; g.shadowBlur = 12; g.fillStyle = wh ? "#fff" : PINK; g.fillRect(0, -w * 0.3, l - w * 0.3, w * 0.6); g.shadowBlur = 0;
+				g.shadowColor = PINK; g.shadowBlur = 12; g.fillStyle = wh ? PINKW : PINK; g.fillRect(0, -w * 0.48, l - w * 0.3, w * 0.96); g.shadowBlur = 0;
 				// the hand: a bony palm and four long claws
 				g.beginPath(); g.ellipse(l - w * 0.35, 0, w * 0.42, w * 0.5, 0, 0, TAU); g.fill();
 				for (int f = 0; f < 4; f++)
@@ -184,6 +184,7 @@ public static partial class G
 				// the zigzag of the current
 				double len = hypot(s.x1 - s.x0, s.y1 - s.y0), ux = (s.x1 - s.x0) / len, uy = (s.y1 - s.y0) / len; int m = 22;
 				g.strokeStyle = lv ? PINK : (bt * 8 % 1 < 0.5 ? "#fff" : H2G(0.8)); g.lineWidth = lv ? 5 : 1.5; if (lv) { g.shadowColor = PINK; g.shadowBlur = 16; }
+				if (lv) { g.save(); g.strokeStyle = H2P(0.5); g.lineWidth = WR * 2; g.beginPath(); g.moveTo(s.x0, s.y0); g.lineTo(s.x1, s.y1); g.stroke(); g.restore(); }
 				g.beginPath();
 				for (int i = 0; i <= m; i++) { double f = (double)i / m, o = (i == 0 || i == m) ? 0 : JS.sin(t * 47 + i * 2.3) * (lv ? 7 : 4 * sn); double x = s.x0 + ux * len * f - uy * o, y = s.y0 + uy * len * f + ux * o; if (i == 0) g.moveTo(x, y); else g.lineTo(x, y); }
 				g.stroke(); g.shadowBlur = 0;
@@ -192,7 +193,7 @@ public static partial class G
 			else { g.strokeStyle = H2G(0.3); g.lineWidth = 2; g.beginPath(); g.moveTo(s.x0, s.y0); g.lineTo(s.x1, s.y1); g.stroke(); }
 			foreach (var (px, py) in new[] { (s.x0, s.y0), (s.x1, s.y1) })
 			{
-				g.fillStyle = "rgba(30,26,34,1)"; circle(px, py, PR + 3);
+				g.fillStyle = act ? "#8f1a43" : "rgba(30,26,34,1)"; circle(px, py, PR + 3);
 				g.strokeStyle = act ? PINK : H2G(0.7); g.lineWidth = 3; g.beginPath(); g.arc(px, py, PR, 0, TAU); g.stroke();
 				g.fillStyle = act ? H2P(0.5 + 0.4 * pulse) : H2G(0.4); circle(px, py, 5);
 			}
@@ -292,7 +293,7 @@ public static partial class G
 			foreach (var c in C)
 			{
 				double u = t - c.tb;
-				if (u >= 0) { if (u < BH + 0.25) { double k = u < BH ? 1 : 1 - (u - BH) / 0.25; g.globalAlpha = H2va * k; g.fillStyle = H2P(0.45); circle(c.x, c.y, bR); g.strokeStyle = u < 0.05 ? "#fff" : PINK; g.lineWidth = 4; g.beginPath(); g.arc(c.x, c.y, bR, 0, TAU); g.stroke(); } continue; }
+				if (u >= 0) { if (u < BH + 0.25) { double k = u < BH ? 1 : 1 - (u - BH) / 0.25; g.globalAlpha = H2va * k; g.fillStyle = H2P(0.62); circle(c.x, c.y, bR); g.strokeStyle = u < 0.05 ? PINKW : PINK; g.lineWidth = 4; g.beginPath(); g.arc(c.x, c.y, bR, 0, TAU); g.stroke(); } continue; }
 				g.globalAlpha = H2va; double warn = H2k(t, c.tb - 1.5 * SPB, c.tb);
 				if (warn > 0) { g.strokeStyle = (bt * 4 % 1 < 0.5) ? "#fff" : H2G(0.8); g.lineWidth = 2; g.beginPath(); g.arc(c.x, c.y, c.r + (bR - c.r) * warn, 0, TAU); g.stroke(); }
 				g.fillStyle = PINK; g.shadowColor = PINK; g.shadowBlur = 10;
@@ -402,8 +403,8 @@ public static partial class G
 			for (int i = 0; i < m; i++)
 			{
 				double u = t - ex[i]; if (u < 0 || u > hold + 0.25) continue; int c = (int)ord[i]; double k = u < hold ? 1 : 1 - (u - hold) / 0.25;
-				g.globalAlpha = H2va * k; g.fillStyle = H2P(0.42); circle(cx[c], cy[c], R); g.strokeStyle = u < 0.05 ? "#fff" : PINK; g.lineWidth = 5; g.shadowColor = PINK; g.shadowBlur = 16; g.beginPath(); g.arc(cx[c], cy[c], R, 0, TAU); g.stroke(); g.shadowBlur = 0;
-				g.fillStyle = u < 0.05 ? "#fff" : PINK; for (int s = 0; s < 10; s++) { double an = s * TAU / 10 + c, l = R * (0.55 + 0.4 * (s % 2)); g.beginPath(); g.moveTo(cx[c] + JS.cos(an - 0.12) * 30, cy[c] + JS.sin(an - 0.12) * 30); g.lineTo(cx[c] + JS.cos(an) * l, cy[c] + JS.sin(an) * l); g.lineTo(cx[c] + JS.cos(an + 0.12) * 30, cy[c] + JS.sin(an + 0.12) * 30); g.fill(); }
+				g.globalAlpha = H2va * k; g.fillStyle = H2P(0.62); circle(cx[c], cy[c], R); g.strokeStyle = u < 0.05 ? PINKW : PINK; g.lineWidth = 5; g.shadowColor = PINK; g.shadowBlur = 16; g.beginPath(); g.arc(cx[c], cy[c], R, 0, TAU); g.stroke(); g.shadowBlur = 0;
+				g.fillStyle = u < 0.05 ? PINKW : PINK; for (int s = 0; s < 10; s++) { double an = s * TAU / 10 + c, l = R * (0.55 + 0.4 * (s % 2)); g.beginPath(); g.moveTo(cx[c] + JS.cos(an - 0.12) * 30, cy[c] + JS.sin(an - 0.12) * 30); g.lineTo(cx[c] + JS.cos(an) * l, cy[c] + JS.sin(an) * l); g.lineTo(cx[c] + JS.cos(an + 0.12) * 30, cy[c] + JS.sin(an + 0.12) * 30); g.fill(); }
 			}
 		});
 		h.hit = (p, t) => { for (int i = 0; i < m; i++) { if (t < ex[i] || t >= ex[i] + hold) continue; int c = (int)ord[i]; if (hypot(p.x - cx[c], p.y - cy[c]) < R + p.r - 2) return true; } return false; };
@@ -449,7 +450,7 @@ public static partial class G
 	public static Hz H2Dark(double t0, double t1, double[] fl)
 	{
 		H2dk0 = t0; H2dk1 = t1; H2fl = fl;
-		var h = new Hz { kind = "H2Dark" };
+		var h = new Hz { kind = "H2Dark", veil = true };
 		h.update = (t, dt) => { if (t > t1 + 1) h.dead = true; };
 		h.draw = t =>
 		{
@@ -525,7 +526,7 @@ public static partial class G
 				return;
 			}
 			double u = t - ta; if (u > hold + 0.5) return; double a2 = u < hold ? 1 : 1 - (u - hold) / 0.5;
-			g.globalAlpha = H2va * a2; g.fillStyle = u < 0.06 ? "#fff" : "rgba(255,42,109,0.82)"; g.fillRect(0, 0, W, H);
+			g.globalAlpha = H2va * a2; g.fillStyle = u < 0.06 ? PINKW : "rgba(255,42,109,0.82)"; g.fillRect(0, 0, W, H);
 			var gr2 = g.createRadialGradient(x, y, 0, x, y, r); gr2.addColorStop(0, "rgba(30,20,22,1)"); gr2.addColorStop(1, "rgba(14,8,10,1)"); g.fillStyle = gr2; circle(x, y, r);
 			g.strokeStyle = "#fff"; g.lineWidth = 3; g.beginPath(); g.arc(x, y, r, 0, TAU); g.stroke();
 		});
@@ -537,7 +538,7 @@ public static partial class G
 	// part 1 the graveyard, 2 the rounds, 3 the last round (red moon)
 	public static Hz H2Stage(int part, double t0, double t1)
 	{
-		var h = new Hz { kind = "H2Stage" };
+		var h = new Hz { kind = "H2Stage", veil = true };
 		h.update = (t, dt) => { H2SampUpd(t); if (t > t1 + 1) h.dead = true; };
 		h.draw = t =>
 		{

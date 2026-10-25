@@ -25,7 +25,7 @@ public static partial class G
 				g.fillStyle = "rgba(255,42,109,0.85)"; g.fillRect(x - w / 2, len * k - 3, w, 3); return;
 			}
 			double h = len * drop(t) * (1 - lift(t)); if (h <= 0) return;
-			g.save(); g.shadowColor = PINK; g.shadowBlur = 18; g.fillStyle = (t - ta) < 0.09 ? "#fff" : PINK; rr(x - w / 2, -14, w, h + 14, 8); g.fill(); g.shadowBlur = 0;
+			g.save(); g.shadowColor = PINK; g.shadowBlur = 18; g.fillStyle = (t - ta) < 0.09 ? PINKW : PINK; rr(x - w / 2, -14, w, h + 14, 8); g.fill(); g.shadowBlur = 0;
 			g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(x - w / 2 + 6, h - 22, w - 12, 6); g.restore();
 		};
 		hz.hit = (p, t) => { if (t < ta || t >= te) return false; double h = len * drop(t); return Math.Abs(p.x - x) < w / 2 + p.r - 1 && p.y - p.r < h - 1; };
@@ -101,7 +101,7 @@ public static partial class G
 			}
 			if (t < ts) { double k = clamp((t - tw) / (ts - tw), 0, 1); g.save(); g.translate(x, y); g.rotate(ang); g.fillStyle = $"rgba(255,42,109,{str(0.03 + 0.07 * k)})"; g.fillRect(-D, -s, 2 * D, 2 * s); g.restore(); g.fillStyle = $"rgba(255,42,109,{str(0.2 + 0.5 * k)})"; circle(x, y, 4 + 6 * k); }
 		};
-		h.hit = (p, t) => { if (t < ts || t >= ta) return false; double o = off(t); foreach (var sd in new double[] { -1, 1 }) { if (obbHit(p.x, p.y, p.r, x + c * sd * o, y + sn * sd * o, s * 0.4, s * 0.9, 0)) return true; } return false; };
+		h.hit = (p, t) => { if (t < ts || t >= ta) return false; double o = off(t);   /* 10-25: the box leans like the glass (it stood straight) */ foreach (var sd in new double[] { -1, 1 }) { double gx = x + c * sd * o, gy = y + sn * sd * o; if (obbHit(p.x, p.y, p.r, gx + JS.sin(sd * 0.25) * s * 0.5, gy - JS.cos(sd * 0.25) * s * 0.5, s * 0.42, s * 0.45, sd * 0.25) || obbHit(p.x, p.y, p.r, gx - JS.sin(sd * 0.25) * s * 0.81, gy + JS.cos(sd * 0.25) * s * 0.81, s * 0.34, s * 0.11, sd * 0.25) || obbHit(p.x, p.y, p.r, gx - JS.sin(sd * 0.25) * s * 0.33, gy + JS.cos(sd * 0.25) * s * 0.33, s * 0.07, s * 0.4, sd * 0.25)) return true; } return false; };
 		return h;
 	}
 
@@ -140,7 +140,7 @@ public static partial class G
 			g.beginPath(); g.moveTo(0, -4); g.lineTo(0, 46); g.moveTo(0, -4); g.lineTo(JS.cos(spin) * 30, 22); g.stroke(); g.lineCap = "butt";
 			// the skirt
 			double r = live ? rad(t) : R * 0.75; g.save(); g.scale(1, 0.36);
-			if (live) { g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = (t - t0) < 0.08 ? "#fff" : PINK; } else { g.fillStyle = $"rgba(255,42,109,{str(0.1 + 0.2 * a)})"; }
+			if (live) { g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = (t - t0) < 0.08 ? PINKW : PINK; } else { g.fillStyle = $"rgba(255,42,109,{str(0.1 + 0.2 * a)})"; }
 			g.beginPath(); for (int i = 0; i <= 24; i++) { double an = spin + i * TAU / 24, k = i % 2 != 0 ? 0.82 : 1; if (i != 0) g.lineTo(JS.cos(an) * r * k, JS.sin(an) * r * k); else g.moveTo(JS.cos(an) * r * k, JS.sin(an) * r * k); }
 			g.closePath(); g.fill(); g.restore();
 			g.globalAlpha = 1; g.restore();
@@ -211,7 +211,7 @@ public static partial class G
 			// the wings
 			foreach (var sd in new double[] { -1, 1 }) { var q = root(sd); double rx = q[0], ry = q[1], a = wingA(t, sd); g.save(); g.translate(rx, ry); g.rotate(a); for (int k = 0; k < 5; k++) { double L = WL * (1 - k * 0.13) * s; g.save(); g.rotate(k * 0.13 * sd); g.beginPath(); g.moveTo(0, -8); g.quadraticCurveTo(L * 0.5, -24 + k * 4, L, 0); g.quadraticCurveTo(L * 0.5, 14, 0, 10); g.fill(); g.restore(); } g.restore(); }
 			// body and head
-			g.shadowBlur = ch ? 50 : 30; g.fillStyle = ch ? "#fff" : PINK; g.beginPath(); g.ellipse(x, y, 30 * s, 46 * s, 0, 0, TAU); g.fill(); circle(x, y - 52 * s, 20 * s);
+			g.shadowBlur = ch ? 50 : 30; g.fillStyle = ch ? PINKW : PINK; g.beginPath(); g.ellipse(x, y, 30 * s, 46 * s, 0, 0, TAU); g.fill(); circle(x, y - 52 * s, 20 * s);
 			g.beginPath(); g.moveTo(x - 6, y - 48 * s); g.lineTo(x, y - 34 * s); g.lineTo(x + 6, y - 48 * s); g.fill();
 			g.shadowBlur = 0; g.fillStyle = "#000"; circle(x - 7, y - 56 * s, 3.5); circle(x + 7, y - 56 * s, 3.5);
 			g.restore(); g.globalAlpha = 1;

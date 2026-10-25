@@ -60,12 +60,15 @@ public static partial class G
 		{
 			// the room turned over like a mirror (a level can set viewFlip: 0 normal .. 1 mirrored), not the hearts and the bar
 			double vf = viewFlip?.Invoke() ?? 0; g.save(); if (vf > 0) { g.translate(W / 2, 0); g.scale(JS.cos(vf * Math.PI), 1); g.translate(-W / 2, 0); }
-			foreach (var h in hazards) h.draw(songT);
-			if (gloom > 0.01 && player != null)
+			// 10-25 (his words: everything that hurts is pink and seen): in the dark, what can hurt is drawn after the dark, so the dark only covers the room
+			bool dk = gloom > 0.01 && player != null, vl = dk; foreach (var h in hazards) vl |= h.veil;
+			foreach (var h in hazards) if (!vl || !h.hurts) h.draw(songT);
+			if (dk)
 			{
 				var gr = g.createRadialGradient(player.x, player.y, 170, player.x, player.y, 520); gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(1, $"rgba(0,0,0,{str(gloom)})");
 				g.fillStyle = gr; g.fillRect(0, 0, W, H);
 			}
+			if (vl) { foreach (var h in hazards) if (h.hurts && h.layer < 0) h.draw(songT); foreach (var h in hazards) if (h.hurts && h.layer >= 0) h.draw(songT); }
 			foreach (var q in particles) { g.globalAlpha = Math.Max(0, q.life / q.max); g.fillStyle = q.col; g.fillRect(q.x - q.s / 2, q.y - q.s / 2, q.s, q.s); }
 			g.globalAlpha = 1;
 			drawGhost(); drawPlayer(); g.restore(); drawHUD(); prHUD();

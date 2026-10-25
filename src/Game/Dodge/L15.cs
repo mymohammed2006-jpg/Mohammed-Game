@@ -99,7 +99,7 @@ public static partial class G
 		for (int i = 0; i < 10; i++)
 		{
 			double sx = ((i * 211 + t * (22 + i * 4)) % (W + 360)) - 180, sy = (i * 67 % H) + JS.sin(t * 0.6 + i * 1.7) * 70, sr = 150 + 50 * JS.sin(t * 0.9 + i);
-			var sg = g.createRadialGradient(sx, sy, 0, sx, sy, sr); sg.addColorStop(0, deadly ? "rgba(90,0,28,0.45)" : "rgba(20,16,22,0.4)"); sg.addColorStop(1, deadly ? "rgba(90,0,28,0)" : "rgba(20,16,22,0)"); g.fillStyle = sg; circle(sx, sy, sr);
+			var sg = g.createRadialGradient(sx, sy, 0, sx, sy, sr); sg.addColorStop(0, deadly ? "rgba(90,0,28,0.25)" : "rgba(20,16,22,0.4)"); sg.addColorStop(1, deadly ? "rgba(90,0,28,0)" : "rgba(20,16,22,0)"); g.fillStyle = sg; circle(sx, sy, sr);
 		}
 		foreach (var hl in holes)
 		{
@@ -154,7 +154,7 @@ public static partial class G
 				if (t < t0 && t > t0 - 0.6) { g.fillStyle = L15G(0.06 + 0.16 * L15k(t, t0 - 0.6, t0)); g.fillRect(x0 + 2, 0, cw - 4, gy[c] - gh); g.fillRect(x0 + 2, gy[c] + gh, cw - 4, H - gy[c] - gh); }
 				if (q <= 0) continue;
 				double top = (gy[c] - gh) * q, bot = H - (H - gy[c] - gh) * q; bool wh = t >= t0 && t < t0 + 0.05;
-				g.fillStyle = wh ? "#fff" : PINK; g.fillRect(x0 + 1, 0, cw - 2, top); g.fillRect(x0 + 1, bot, cw - 2, H - bot);
+				g.fillStyle = wh ? PINKW : PINK; g.fillRect(x0 + 1, 0, cw - 2, top); g.fillRect(x0 + 1, bot, cw - 2, H - bot);
 				// the ribs: curved bones across the column
 				g.strokeStyle = "rgba(40,0,12,0.55)"; g.lineWidth = 5; g.beginPath();
 				for (double y = 18; y < top - 6; y += 34) { g.moveTo(x0 + 4, y); g.quadraticCurveTo(x0 + cw / 2, y + 14, x0 + cw - 4, y); }
@@ -194,7 +194,7 @@ public static partial class G
 				if (down(i, t))
 				{
 					double u = t - f, k = Math.Min(1, u / 0.12);
-					g.fillStyle = u < 0.05 ? "#fff" : PINK; g.fillRect(x + 3, y + 3, sw - 6, sh - 6);
+					g.fillStyle = u < 0.05 ? PINKW : PINK; g.fillRect(x + 3, y + 3, sw - 6, sh - 6);
 					var gr = g.createRadialGradient(x + sw / 2, y + sh / 2, 4, x + sw / 2, y + sh / 2, sw * 0.6); gr.addColorStop(0, "rgba(40,0,10,0.7)"); gr.addColorStop(1, "rgba(40,0,10,0)");
 					g.fillStyle = gr; g.fillRect(x + 3, y + 3, sw - 6, sh - 6);
 					// the slab dropping away
@@ -243,7 +243,7 @@ public static partial class G
 			if (k < pt.Length && t >= pt[k])
 			{
 				int s = (int)ps[k]; bool wh = t - pt[k] < 0.05;
-				for (int i = 0; i < cols * rows; i++) if (i != s) { g.fillStyle = wh ? "#fff" : PINK; g.fillRect((i % cols) * cw + 2, (i / cols) * ch + 2, cw - 4, ch - 4); }
+				for (int i = 0; i < cols * rows; i++) if (i != s) { g.fillStyle = wh ? PINKW : PINK; g.fillRect((i % cols) * cw + 2, (i / cols) * ch + 2, cw - 4, ch - 4); }
 				if (!wh) for (int i = 0; i < cols * rows; i++) if (i != s) L15SkullDraw((i % cols + 0.5) * cw, (i / cols + 0.5) * ch, 26, 0, "rgba(60,0,18,0.35)");
 			}
 			// the next one: its safe cell outlined, the others turning
@@ -289,7 +289,7 @@ public static partial class G
 			{
 				double an = th0 + i * TAU / n, c = JS.cos(an), s = JS.sin(an);
 				if (!on) { L15Dash(cx + c * r0, cy + s * r0, cx + c * len, cy + s * len, L15G(0.3 + 0.5 * L15k(t, tw, ta)), 3); continue; }
-				g.shadowColor = PINK; g.shadowBlur = 14; L15Bone(cx + c * r0, cy + s * r0, cx + c * len, cy + s * len, th, t - ta < 0.05 ? "#fff" : PINK); g.shadowBlur = 0;
+				g.shadowColor = PINK; g.shadowBlur = 14; L15Bone(cx + c * r0, cy + s * r0, cx + c * len, cy + s * len, th, t - ta < 0.05 ? PINKW : PINK); g.shadowBlur = 0;
 			}
 			if (r0 < 60)
 			{
@@ -324,8 +324,8 @@ public static partial class G
 				g.beginPath(); g.arc(x, y, R, 0, TAU); g.stroke(); g.setLineDash(new double[0]); g.fillStyle = echo ? $"rgba(200,150,230,{str(0.05 + 0.18 * k)})" : L15P(0.04 + 0.18 * k); circle(x, y, R * k); return;
 			}
 			double u = t - ta, al = u < hold ? 1 : Math.Max(0, 1 - (u - hold) / 0.3);
-			g.save(); g.globalAlpha = al; g.fillStyle = L15P(0.35); circle(x, y, R); g.shadowColor = PINK; g.shadowBlur = 16;
-			L15Spikes(x, y, R, Math.Min(1, u / 0.07), u < 0.05 ? "#fff" : PINK, x * 0.01); g.shadowBlur = 0; g.restore();
+			g.save(); g.globalAlpha = al; g.fillStyle = L15P(0.6); circle(x, y, R); g.shadowColor = PINK; g.shadowBlur = 16;
+			L15Spikes(x, y, R, Math.Min(1, u / 0.07), u < 0.05 ? PINKW : PINK, x * 0.01); g.shadowBlur = 0; g.restore();
 		};
 		h.hit = (p, t) => t >= ta && t < ta + hold && hypot(p.x - x, p.y - y) < R + p.r - 2;
 		return h;
@@ -354,7 +354,7 @@ public static partial class G
 			{
 				double u = t - m.t; if (u < 0) continue;
 				if (u < dl) { double k = u / dl; g.fillStyle = $"rgba(30,10,20,{str(0.25 + 0.45 * k)})"; circle(m.x, m.y, R * (0.4 + 0.5 * k)); g.strokeStyle = $"rgba(200,150,230,{str(0.2 + 0.5 * k)})"; g.lineWidth = 1.5; g.beginPath(); g.arc(m.x, m.y, R * (0.4 + 0.5 * k), 0, TAU); g.stroke(); }
-				else if (u < dl + lf + 0.25) { double v = u - dl, k = v < 0.06 ? v / 0.06 : v > lf ? Math.Max(0, 1 - (v - lf) / 0.25) : 1; L15Spikes(m.x, m.y, R, k, v < 0.04 ? "#fff" : PINK, m.x * 0.03 + m.y * 0.02); }
+				else if (u < dl + lf + 0.25) { double v = u - dl, k = v < 0.06 ? v / 0.06 : v > lf ? Math.Max(0, 1 - (v - lf) / 0.25) : 1; L15Spikes(m.x, m.y, R, k, v < 0.04 ? PINKW : PINK, m.x * 0.03 + m.y * 0.02); }
 			}
 		};
 		h.hit = (p, t) =>
@@ -389,7 +389,7 @@ public static partial class G
 			double nc = -1; foreach (var c in cb) if (c + ch > bt) { nc = c; break; }
 			if (on && nc >= 0)
 			{
-				if (bt >= nc) { g.fillStyle = bt - nc < 0.1 ? "#fff" : PINK; g.shadowColor = PINK; g.shadowBlur = 24; circle(cx, cy, cR); g.shadowBlur = 0; L15Spikes(cx, cy, cR * 0.8, 1, "rgba(60,0,18,0.5)", bt); }
+				if (bt >= nc) { g.fillStyle = bt - nc < 0.1 ? PINKW : PINK; g.shadowColor = PINK; g.shadowBlur = 24; circle(cx, cy, cR); g.shadowBlur = 0; L15Spikes(cx, cy, cR * 0.8, 1, "rgba(60,0,18,0.5)", bt); }
 				else if (bt > nc - 3) { double k = L15k(bt, nc - 3, nc); g.fillStyle = L15P(0.05 + 0.25 * k); circle(cx, cy, cR); g.strokeStyle = L15P(0.4 + 0.6 * k); g.lineWidth = 3; g.setLineDash(new double[] { 10, 8 }); g.beginPath(); g.arc(cx, cy, cR, 0, TAU); g.stroke(); g.setLineDash(new double[0]); }
 			}
 			// the rings and their doors (a skull on each side of a door)
@@ -437,7 +437,7 @@ public static partial class G
 			var T = Tri(bt);
 			if (t >= dt0 && t < dt0 + dh)
 			{
-				g.fillStyle = t - dt0 < 0.06 ? "#fff" : PINK; g.beginPath(); g.rect(0, 0, W, H); g.moveTo(T[0].x, T[0].y); g.lineTo(T[1].x, T[1].y); g.lineTo(T[2].x, T[2].y); g.closePath(); g.fill("evenodd");
+				g.fillStyle = t - dt0 < 0.06 ? PINKW : PINK; g.beginPath(); g.rect(0, 0, W, H); g.moveTo(T[0].x, T[0].y); g.lineTo(T[1].x, T[1].y); g.lineTo(T[2].x, T[2].y); g.closePath(); g.fill("evenodd");
 			}
 			else
 			{
@@ -450,7 +450,7 @@ public static partial class G
 				if (t < lt[k] - wn) continue; var p0 = V(ord[k], bt); var p1 = V(ord[k + 1], bt);
 				if (t < lt[k]) { double q = L15k(t, lt[k] - wn, lt[k]); L15Dash(p0.x, p0.y, p0.x + (p1.x - p0.x) * q, p0.y + (p1.y - p0.y) * q, L15G(0.4 + 0.6 * q), 3); continue; }
 				if (t >= dt0 + dh) continue;
-				g.save(); g.shadowColor = PINK; g.shadowBlur = 18; g.strokeStyle = t - lt[k] < 0.05 ? "#fff" : PINK; g.lineWidth = th; g.lineCap = "round"; g.beginPath(); g.moveTo(p0.x, p0.y); g.lineTo(p1.x, p1.y); g.stroke(); g.restore();
+				g.save(); g.shadowColor = PINK; g.shadowBlur = 18; g.strokeStyle = t - lt[k] < 0.05 ? PINKW : PINK; g.lineWidth = th; g.lineCap = "round"; g.beginPath(); g.moveTo(p0.x, p0.y); g.lineTo(p1.x, p1.y); g.stroke(); g.restore();
 			}
 			g.restore();
 		};
@@ -533,7 +533,7 @@ public static partial class G
 				if (t >= bb[k])
 				{
 					// shut: the two jaws meet the strip, fangs on their edges
-					double u = t - bb[k]; g.fillStyle = u < 0.05 ? "#fff" : PINK; g.shadowColor = PINK; g.shadowBlur = 18;
+					double u = t - bb[k]; g.fillStyle = u < 0.05 ? PINKW : PINK; g.shadowColor = PINK; g.shadowBlur = 18;
 					g.fillRect(-900, -900, 900 + gxk - dw, 1800); g.fillRect(gxk + dw, -900, 900, 1800); g.shadowBlur = 0;
 					g.fillStyle = "#f4e6ea"; g.beginPath(); for (double v = -800; v < 800; v += 46) { g.moveTo(gxk - dw, v); g.lineTo(gxk - dw + 16, v + 23); g.lineTo(gxk - dw, v + 46); g.moveTo(gxk + dw, v + 23); g.lineTo(gxk + dw - 16, v + 46); g.lineTo(gxk + dw, v + 69); } g.fill();
 				}
@@ -569,7 +569,7 @@ public static partial class G
 			if (t < tw) return;
 			if (t < ta) { double k = L15k(t, tw, ta); g.save(); g.translate(x, y); g.rotate(ang); g.fillStyle = L15P(0.06 + 0.22 * k); g.fillRect(0, -w / 2, len, w); g.restore(); L15Dash(x, y, x + c * len, y + s * len, L15G(0.3 + 0.6 * k), 2 + 2 * k); return; }
 			double l = L(t); if (l <= 1) return; bool wh = t - ta < 0.12;
-			g.save(); g.translate(x, y); g.rotate(ang); g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = wh ? "#fff" : PINK;
+			g.save(); g.translate(x, y); g.rotate(ang); g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = wh ? PINKW : PINK;
 			for (double u = 0; u < l; u += w * 0.9) { double wv = JS.sin(u * 0.02 - t * 30) * w * 0.1 * (1 - u / len); g.fillRect(u, -w * 0.4 + wv, w * 0.75, w * 0.8); g.beginPath(); g.moveTo(u + w * 0.1, -w * 0.4 + wv); g.lineTo(u + w * 0.35, -w * 0.62 + wv); g.lineTo(u + w * 0.6, -w * 0.4 + wv); g.fill(); }
 			g.shadowBlur = 0; g.restore();
 		};
@@ -609,7 +609,7 @@ public static partial class G
 			for (int i = 0; i < 2; i++)
 			{
 				bool tr = real[k] == i; var c = i == 0 ? pa : pb;
-				if (rev && !tr) { double v = bt - r0 - k * rl - rv; if (v < 0.5) { g.fillStyle = v < 0.08 ? "#fff" : PINK; circle(c.x, c.y, r * (1 - v * 1.6)); } continue; }
+				if (rev && !tr) { double v = bt - r0 - k * rl - rv; if (v < 0.5) { g.fillStyle = v < 0.08 ? PINKW : PINK; circle(c.x, c.y, r * (1 - v * 1.6)); } continue; }
 				double pz = tr ? on : off; g.strokeStyle = $"rgba(255,230,210,{str(0.35 + 0.6 * pz)})"; g.lineWidth = 2 + 6 * pz; g.beginPath(); g.arc(c.x, c.y, Math.Max(4, r - 6 - 10 * pz), 0, TAU); g.stroke();
 				g.fillStyle = $"rgba(255,225,200,{str(0.06 + 0.12 * pz)})"; circle(c.x, c.y, r * 0.5 + 8 * pz);
 			}
@@ -628,7 +628,7 @@ public static partial class G
 	// part 0: dark, 1: the crypt, 2: the ritual circle, 3: the beast's den
 	public static Hz L15Stage(int part, double t0, double t1)
 	{
-		var h = new Hz { kind = "L15Stage" };
+		var h = new Hz { kind = "L15Stage", veil = true };
 		h.update = (t, dt) => { if (t > t1 + 1) h.dead = true; };
 		h.draw = t =>
 		{

@@ -101,7 +101,7 @@ public static partial class G
 				double f = clamp((t - tw) / (tl - tw) * 1.6 - 0.6, 0, 1); if (f > 0) { double s = 2.4 - 1.4 * f, py = y - 260 * (1 - f) * (1 - f); g.globalAlpha = 0.35 + 0.65 * f; g.save(); g.translate(x, py); g.scale(s, s); g.rotate(t * 3); g.shadowColor = PINK; g.shadowBlur = 14; g.fillStyle = PINK; g.beginPath(); g.ellipse(0, 0, 20, 15, 0, 0, TAU); g.fill(); g.shadowBlur = 0; g.fillStyle = "#fff"; g.beginPath(); g.ellipse(0, -3, 14, 8, 0, 0, TAU); g.fill(); g.restore(); g.globalAlpha = 1; }
 				return;
 			}
-			double e = t - tl, a = t < te ? 1 : Math.Max(0, 1 - (t - te) / 0.3); g.globalAlpha = a; g.save(); g.translate(x, y); g.shadowColor = PINK; g.shadowBlur = 18; g.fillStyle = e < 0.06 ? "#fff" : PINK; g.beginPath();
+			double e = t - tl, a = t < te ? 1 : Math.Max(0, 1 - (t - te) / 0.3); g.globalAlpha = a; g.save(); g.translate(x, y); g.shadowColor = PINK; g.shadowBlur = 18; g.fillStyle = e < 0.06 ? PINKW : PINK; g.beginPath();
 			for (int i = 0; i < 14; i++) { double an = i * TAU / 14, rr = PR * (i % 2 != 0 ? 0.8 : 1.04) * Math.Min(1, 0.6 + e * 6); if (i != 0) g.lineTo(JS.cos(an) * rr, JS.sin(an) * rr); else g.moveTo(rr, 0); }
 			g.closePath(); g.fill();
 			g.shadowBlur = 0; g.fillStyle = "rgba(255,255,255,0.8)"; circle(-PR * 0.25, -PR * 0.2, PR * 0.2); circle(PR * 0.3, PR * 0.15, PR * 0.13); g.restore(); g.globalAlpha = 1;
@@ -320,7 +320,7 @@ public static partial class G
 			double kk = t < te ? 1 : Math.Max(0, 1 - (t - te) / 0.3); g.globalAlpha = kk;
 			for (int i = 0; i < arms; i++)
 			{
-				g.save(); g.rotate(A + i * TAU / arms); g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = (t - ta) < 0.07 ? "#fff" : PINK; g.fillRect(r0, -w / 2, L, w); g.shadowBlur = 0; g.fillStyle = "rgba(255,255,255,0.35)";
+				g.save(); g.rotate(A + i * TAU / arms); g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = (t - ta) < 0.07 ? PINKW : PINK; g.fillRect(r0, -w / 2, L, w); g.shadowBlur = 0; g.fillStyle = "rgba(255,255,255,0.35)";
 				double o = (t * 120) % 40; for (double q = r0 + o; q < L; q += 40) { g.beginPath(); g.moveTo(q, -w / 2); g.lineTo(q + 12, -w / 2); g.lineTo(q + 2, w / 2); g.lineTo(q - 10, w / 2); g.closePath(); g.fill(); }
 				g.restore();
 			}
@@ -353,7 +353,7 @@ public static partial class G
 		h.draw = t =>
 		{
 			if (t < t0) { double k = clamp((t - tw) / (t0 - tw), 0, 1); g.strokeStyle = $"rgba(255,42,109,{str(0.3 + 0.5 * k)})"; g.lineWidth = 3; g.setLineDash(new double[] { 12, 10 }); g.beginPath(); g.arc(cx, cy, R1, 0, TAU); g.stroke(); g.setLineDash(new double[0]); return; }
-			double r = rad(t); if (r >= 780) return; g.save(); g.beginPath(); g.rect(0, 0, W, H); g.arc(cx, cy, r, 0, TAU, true); g.fillStyle = "rgba(255,42,109,0.2)"; g.fill("evenodd"); g.clip("evenodd");
+			double r = rad(t); if (r >= 780) return; g.save(); g.beginPath(); g.rect(0, 0, W, H); g.arc(cx, cy, r, 0, TAU, true); g.fillStyle = "rgba(255,42,109,0.45)"; g.fill("evenodd"); g.clip("evenodd");
 			g.fillStyle = "rgba(255,42,109,0.22)"; double sp = (t * 0.25) % (TAU / 24); g.beginPath(); for (int i = 0; i < 24; i++) { double a = sp + i * TAU / 24; g.moveTo(cx, cy); g.arc(cx, cy, 900, a, a + TAU / 48); g.closePath(); }
 			g.fill(); g.restore();
 			g.save(); g.shadowColor = PINK; g.shadowBlur = 18; g.strokeStyle = PINK; g.lineWidth = 6; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.stroke(); g.restore();
@@ -407,7 +407,7 @@ public static partial class G
 				double k = clamp((t - tw) / (ta - tw), 0, 1); g.fillStyle = $"rgba(255,42,109,{str(0.04 + 0.14 * k)})"; g.fillRect(x, y, ww, hh); g.strokeStyle = $"rgba(255,42,109,{str(0.4 + 0.5 * k)})"; g.lineWidth = 3; g.setLineDash(new double[] { 12, 10 }); g.strokeRect(x + 2, y + 2, ww - 4, hh - 4); g.setLineDash(new double[0]);
 				double hx = vert ? c : W - 70 - (1 - k) * 60, hy = vert ? 60 + (1 - k) * -40 : c; g.save(); g.translate(hx, hy); g.rotate(vert ? -0.5 * (1 - k) : Math.PI / 2 - 0.5 * (1 - k)); g.fillStyle = GREY + str(0.35 + 0.5 * k) + ")"; g.fillRect(-6, 0, 12, 90); g.fillStyle = $"rgba(255,42,109,{str(0.4 + 0.5 * k)})"; g.fillRect(-46, -30, 92, 44); g.restore(); return;
 			}
-			double e = t - ta, a = t < te ? 1 : Math.Max(0, 1 - (t - te) / 0.3); g.globalAlpha = a; g.save(); g.shadowColor = PINK; g.shadowBlur = 22; g.fillStyle = e < 0.07 ? "#fff" : PINK; g.fillRect(x, y, ww, hh); g.restore();
+			double e = t - ta, a = t < te ? 1 : Math.Max(0, 1 - (t - te) / 0.3); g.globalAlpha = a; g.save(); g.shadowColor = PINK; g.shadowBlur = 22; g.fillStyle = e < 0.07 ? PINKW : PINK; g.fillRect(x, y, ww, hh); g.restore();
 			g.fillStyle = "rgba(255,255,255,0.28)"; for (double q = 0; q < (vert ? hh : ww); q += 46) { if (vert) g.fillRect(x, q, ww, 14); else g.fillRect(q, y, 14, hh); }
 			double sq = e < 0.12 ? 1 - e / 0.12 * 0.3 : 0.7; g.save(); g.translate(vert ? c : W - 40, vert ? 40 : c); if (!vert) g.rotate(Math.PI / 2); g.fillStyle = GREY + "0.9)"; g.fillRect(-7, -10, 14, -70); g.fillStyle = "#fff"; g.fillRect(-w * 0.32, -10, w * 0.64, 40 * sq); g.fillStyle = PINK; g.fillRect(-w * 0.32, -10 + 40 * sq, w * 0.64, 8); g.restore(); g.globalAlpha = 1;
 		};

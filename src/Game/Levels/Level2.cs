@@ -22,7 +22,7 @@ public static partial class G
 			if (t < th) { double k = clamp((t - tw) / (th - tw), 0, 1), a = s * (1.7 - 0.7 * k); g.fillStyle = $"rgba(255,42,109,{str(0.07 + 0.17 * k)})"; g.fillRect(x - a / 2, y - a / 2, a, a); g.strokeStyle = "rgba(255,42,109,0.85)"; g.lineWidth = 2; g.strokeRect(x - s / 2, y - s / 2, s, s); }
 			else
 			{
-				double k = clamp((t - th) / 0.08, 0, 1); g.save(); g.shadowColor = PINK; g.shadowBlur = 22; g.fillStyle = k < 1 ? "#fff" : PINK; g.fillRect(x - s / 2, y - s / 2, s, s); g.restore();
+				double k = clamp((t - th) / 0.08, 0, 1); g.save(); g.shadowColor = PINK; g.shadowBlur = 22; g.fillStyle = k < 1 ? PINKW : PINK; g.fillRect(x - s / 2, y - s / 2, s, s); g.restore();
 				g.strokeStyle = "#000"; g.lineWidth = 3; g.beginPath(); g.moveTo(x - s * 0.3, y - s * 0.2); g.lineTo(x, y + s * 0.05); g.lineTo(x + s * 0.25, y - s * 0.3); g.moveTo(x, y + s * 0.05); g.lineTo(x + s * 0.05, y + s * 0.35); g.stroke();
 			}
 		};
@@ -101,7 +101,7 @@ public static partial class G
 		h.draw = t =>
 		{
 			double sc = 1 + 0.1 * pulse; g.save(); g.translate(x, y);
-			g.save(); g.rotate(t * 0.6); g.shadowColor = PINK; g.shadowBlur = 34; g.fillStyle = PINK; g.fillRect(-60 * sc, -60 * sc, 120 * sc, 120 * sc); g.shadowBlur = 0; g.fillStyle = "#000"; g.fillRect(-42 * sc, -42 * sc, 84 * sc, 84 * sc); g.restore();
+			g.save(); g.rotate(t * 0.6); g.shadowColor = PINK; g.shadowBlur = 34; g.fillStyle = PINK; g.fillRect(-60 * sc, -60 * sc, 120 * sc, 120 * sc); g.shadowBlur = 0; g.fillStyle = "#8f1a43"; g.fillRect(-42 * sc, -42 * sc, 84 * sc, 84 * sc); g.restore();   /* 10-25: the middle hurts too, so dark pink, not black */
 			g.save(); g.rotate(Math.PI / 4); g.fillStyle = PINK; g.fillRect(-22, -22, 44, 44); g.restore();
 			g.fillStyle = "#000"; circle(JS.cos(eye) * 9, JS.sin(eye) * 9, 9);
 			g.strokeStyle = PINK; g.globalAlpha = 0.5; g.lineWidth = 2; g.save(); g.rotate(-t * 0.9); for (int i = 0; i < 4; i++) { g.rotate(TAU / 4); g.strokeRect(84, -8, 16, 16); } g.restore();
