@@ -1,12 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 using static MG.JS;
 
 namespace MG;
 
-// Rating a level after a win (v50): "عجبتني / ما عجبتني" + 0 to 5 stars. The card opens over the win screen when the player leaves it
-// (play again or back to the list), once per level: sent or skipped, it doesn't come back for that level.
+// Rating a level after a win (v49): "عجبتني / ما عجبتني" + 0 to 5 stars. The card opens over the win screen when the player leaves it
+// (play again or back to the list), once per level: sent or skipped, it doesn't come back for that level. The online co-op levels:
+// after leaving the room. Not in versus, the practice or replays. Online: ratings/{uid}_{level} (one per player and level, only with a
+// letter on that level); a player without an account keeps it on the PC until they log in. Everyone can see them in the menu's
+// settings: أشياء إضافية, تقييم المراحل.
 public static partial class G
 {
 	public class RateCard { public Level L; public int like = -1, st = -1, row; public double at, msgAt = -1e9, sentAt = -1e9; public Action then; }
@@ -35,7 +41,7 @@ public static partial class G
 		for (int k = 0; k < 2; k++)
 		{
 			int v = k == 0 ? 1 : 0; double x = k == 0 ? W / 2 + 12 : W / 2 - 12 - w1; bool on = c.like == v; int kk = v;
-			zone(x, ry - h1 / 2, w1, h1, () => c.row = 0, "confirm", () => { c.like = kk; c.row = 1; });
+			zone(x, ry - h1 / 2, w1, h1, () => c.row = 0, null, () => { c.like = kk; c.row = 1; });
 			rr(x, ry - h1 / 2, w1, h1, 16);
 			string col = v == 1 ? GOLDS : "#c9c4dc";
 			g.fillStyle = on ? (v == 1 ? "rgba(255,213,74,0.22)" : "rgba(201,196,220,0.18)") : "rgba(255,255,255,0.05)"; g.fill();
@@ -47,7 +53,7 @@ public static partial class G
 		for (int i = 0; i < 5; i++)
 		{
 			double x = sx0 + i * sg; int n = i + 1; bool on = c.st >= n;
-			zone(x - sg / 2, sy - 34, sg, 68, () => c.row = 1, "confirm", () => { c.st = c.st == n && n == 1 ? 0 : n; c.row = 1; });
+			zone(x - sg / 2, sy - 34, sg, 68, () => c.row = 1, null, () => { c.st = c.st == n && n == 1 ? 0 : n; c.row = 1; });
 			star(x, sy, sr);
 			if (on) { g.fillStyle = GOLDS; g.shadowColor = GOLDS; g.shadowBlur = 14; g.fill(); g.shadowBlur = 0; }
 			else { g.fillStyle = "rgba(255,255,255,0.06)"; g.fill(); g.strokeStyle = "rgba(255,255,255,0.35)"; g.lineWidth = 2; g.stroke(); }
@@ -81,8 +87,52 @@ public static partial class G
 	static void rateDone(bool send)
 	{
 		var c = rateC; rateC = null;
+		rated[c.L.id] = send ? new RateQ { lk = c.like == 1, st = c.st } : new RateQ { skip = true }; saveRated();
+		if (send) { toast = "شكرًا على تقييمك!"; toastT = 2.2; toastPad = null; flushRates(); }
 		c.then?.Invoke();
 	}
+
+	// what this PC rated: skip = skipped (nothing sent), sent = online already
+	public class RateQ { public bool lk { get; set; } public int st { get; set; } public bool skip { get; set; } public bool sent { get; set; } }
+	static Dictionary<string, RateQ> rated;
+	static Dictionary<string, RateQ> Rated()
+	{
+		if (rated != null) return rated;
+		try { rated = JsonSerializer.Deserialize<Dictionary<string, RateQ>>(localStorage.getItem("mg_rated") ?? "{}") ?? new(); } catch (Exception) { rated = new(); }
+		return rated;
+	}
+	static void saveRated() => localStorage.setItem("mg_rated", JsonSerializer.Serialize(rated));
+	// leaving a win screen: the card first (once per level), then what the player picked
+	public static bool rateAsk(Level L, Action then)
+	{
+		if (classicUi || L == null || rateC != null || Rated().ContainsKey(L.id)) return false;
+		rateC = new RateCard { L = L, at = performance.now(), then = then }; return true;
+	}
+	// sending: when the account's letters are online (the rules check the letter); no internet = later, refused = dropped
+	static bool rateBusy; static double rateTry = -1e9;
+	public static void flushRates() => _ = flushRatesA();
+	static async Task flushRatesA()
+	{
+		if (acc == null || acc.dirty || syncing || rateBusy) return;
+		var todo = Rated().Where(kv => !kv.Value.skip && !kv.Value.sent).ToList(); if (todo.Count == 0) return;
+		rateBusy = true; rateTry = performance.now();
+		try
+		{
+			foreach (var (id, q) in todo)
+			{
+				if (acc == null) return;
+				var f = new JsonObject { ["uid"] = new JsonObject { ["stringValue"] = acc.uid }, ["lvl"] = new JsonObject { ["stringValue"] = id }, ["lk"] = new JsonObject { ["booleanValue"] = q.lk }, ["st"] = new JsonObject { ["integerValue"] = str(q.st) } };
+				try { await commit(new JsonObject { ["update"] = new JsonObject { ["name"] = $"{FS_DOC}/ratings/{acc.uid}_{id}", ["fields"] = f }, ["updateTransforms"] = new JsonArray(new JsonObject { ["fieldPath"] = "at", ["setToServerValue"] = "REQUEST_TIME" }) }); q.sent = true; saveRated(); rateList.at = 0; }
+				catch (Exception e) { if (e.Message == "NET") return; q.sent = true; saveRated(); }
+			}
+		}
+		finally { rateBusy = false; }
+	}
+	public static void rateTick(double now)
+	{
+		if (acc != null && !acc.dirty && !rateBusy && now - rateTry > 30000 && !(state is "play" or "starting" or "levelIntro") && Rated().Values.Any(q => !q.skip && !q.sent)) flushRates();
+	}
+
 
 	// "أشياء إضافية" (settings in the menu): for now one item, "تقييم المراحل"
 	public static int extraSel;
@@ -104,7 +154,51 @@ public static partial class G
 
 	// "تقييم المراحل": what the players said, one row per level (everyone can open it: settings, أشياء إضافية)
 	public class RateSum { public Level L; public int n, likes, stars; public double avg => n > 0 ? (double)stars / n : -1; }
-	public static List<RateSum> rateSums = new(); public static int rateSel, rateFirst; public static bool rateBusy, rateErr;
+	public static List<RateSum> rateSums = new(); public static int rateSel, rateFirst; public static bool rateLoading, rateErr;
+	public class RateList { public double at; public List<(string lvl, bool lk, int st)> all = new(); }
+	static readonly RateList rateList = new();
+	static async Task loadRates(bool force)
+	{
+		if (rateLoading || (!force && rateList.at != 0 && performance.now() - rateList.at < 60000)) { rateSumUp(); return; }
+		rateLoading = true; rateErr = false;
+		try
+		{
+			var o = new List<(string, bool, int)>(); string tok = "";
+			do
+			{
+				var j = await jfetch($"{FS_URL}/ratings?pageSize=300{(tok != "" ? "&pageToken=" + Uri.EscapeDataString(tok) : "")}");
+				if (j["documents"] is JsonArray ds) foreach (var d in ds)
+					{
+						var fl = d["fields"]; string lv = S(fl?["lvl"]?["stringValue"]); bool lk = fl?["lk"]?["booleanValue"]?.GetValue<bool>() ?? false; int st = int.TryParse(S(fl?["st"]?["integerValue"]), out var v) ? v : -1;
+						if (lv != null && st >= 0 && st <= 5) o.Add((lv, lk, st));
+					}
+				tok = S(j["nextPageToken"]) ?? "";
+			} while (tok != "");
+			rateList.all = o; rateList.at = performance.now();
+		}
+		catch (Exception) { rateErr = true; }
+		finally { rateLoading = false; rateSumUp(); }
+	}
+	// every level, the best liked first (the average of the stars, then the number of ratings); no ratings yet = at the end
+	static void rateSumUp()
+	{
+		rateSums = ALL_LV().Select(L => { var r = rateList.all.Where(x => x.lvl == L.id).ToList(); return new RateSum { L = L, n = r.Count, likes = r.Count(x => x.lk), stars = r.Sum(x => x.st) }; })
+			.Select((x, i) => (x, i)).OrderBy(t => t.x.n == 0 ? 1 : 0).ThenByDescending(t => t.x.avg).ThenByDescending(t => t.x.n).ThenBy(t => t.i).Select(t => t.x).ToList();
+		rateSel = Math.Min(rateSel, Math.Max(0, rateSums.Count - 1));
+	}
+	public static void openRatings() { state = "ratings"; rateSel = 0; rateFirst = 0; _ = loadRates(false); }
+	public static void extrasInput(Inp inp)
+	{
+		if (inp.up) extraSel = (extraSel + EXTRAS.Length - 1) % EXTRAS.Length; else if (inp.down) extraSel = (extraSel + 1) % EXTRAS.Length;
+		else if (inp.confirm) { if (extraSel == 0) openRatings(); }
+		else if (inp.back || inp.pz) { state = "settings"; setSel = Array.IndexOf(setRows(), "extra"); }
+	}
+	public static void ratingsInput(Inp inp)
+	{
+		if (inp.down && rateSel < rateSums.Count - 1) rateSel++; else if (inp.up && rateSel > 0) rateSel--;
+		else if (inp.back || inp.pz) { state = "extras"; return; }
+		if (rateSel < rateFirst) rateFirst = rateSel; else if (rateSel > rateFirst + 9) rateFirst = rateSel - 9;
+	}
 	public static void drawRatings(double now)
 	{
 		bgShapes(now); txt("تقييم المراحل", W / 2, 62, 46, "#fff");
@@ -113,20 +207,23 @@ public static partial class G
 		txt("النجوم", lx + 330, top - 30, 20, "rgba(255,255,255,0.5)", 500);
 		txt("عجبتني", lx + 200, top - 30, 20, "rgba(255,255,255,0.5)", 500);
 		txt("ما عجبتني", lx + 80, top - 30, 20, "rgba(255,255,255,0.5)", 500);
-		if (rateBusy && rateSums.Count == 0) { txt("جاري التحميل…", W / 2, top + 120, 26, "rgba(255,255,255,0.6)", 500); return; }
-		if (rateErr && rateSums.Count == 0) { txt("ما فيه نت، ما قدرت أجيب التقييمات", W / 2, top + 120, 26, "#ffb35c", 500); return; }
+		if (rateLoading && rateList.at == 0) { txt("جاري التحميل…", W / 2, top + 120, 26, "rgba(255,255,255,0.6)", 500); return; }
+		if (rateErr && rateList.at == 0) { txt("ما فيه نت، ما قدرت أجيب التقييمات", W / 2, top + 120, 26, "#ffb35c", 500); return; }
 		for (int i = rateFirst; i < Math.Min(rateSums.Count, rateFirst + 10); i++)
 		{
-			var x = rateSums[i]; double y = top + (i - rateFirst) * rh; bool sl = i == rateSel;
+			var x = rateSums[i]; double y = top + (i - rateFirst) * rh; bool sl = i == rateSel; int ii = i;
+			zone(lx, y - rh / 2 + 3, rw, rh - 6, () => rateSel = ii, null);
 			rr(lx, y - rh / 2 + 3, rw, rh - 6, 10); g.fillStyle = sl ? $"rgba({RGB},0.16)" : "rgba(255,255,255,0.04)"; g.fill(); if (sl) { g.strokeStyle = RED; g.lineWidth = 2; g.stroke(); }
 			txt(lvName(x.L), lx + rw - 20, y, 22, "#fff", 800, "right");
-			if (!string.IsNullOrEmpty(x.L.song)) { g.font = $"15px {TFONT}"; g.textAlign = "right"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillStyle = "rgba(255,255,255,0.45)"; g.fillText(x.L.song, lx + rw - 250, y + 1); g.direction = "rtl"; }
+			if (!string.IsNullOrEmpty(x.L.song) && !(x.L.plat && x.L.best == null) && !hcHidden(x.L)) { g.font = $"15px {TFONT}"; g.textAlign = "right"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillStyle = "rgba(255,255,255,0.45)"; g.fillText(x.L.song, lx + rw - 250, y + 1); g.direction = "rtl"; }
 			if (x.n == 0) { txt("محد قيّمها للحين", lx + 200, y, 18, "rgba(255,255,255,0.35)", 500); continue; }
 			star(lx + 380, y, 11); g.fillStyle = GOLDS; g.fill();
 			txt($"{ar(Math.Round(x.avg * 10) / 10)} من ٥", lx + 320, y, 21, GOLDS, 800);
 			txt(ar(x.likes), lx + 200, y, 22, "#fff", 800);
 			txt(ar(x.n - x.likes), lx + 80, y, 22, "rgba(255,255,255,0.7)", 800);
 		}
+		if (rateFirst > 0) { g.fillStyle = "rgba(255,255,255,0.5)"; g.beginPath(); g.moveTo(lx - 30, top - 14); g.lineTo(lx - 42, top + 2); g.lineTo(lx - 18, top + 2); g.closePath(); g.fill(); }
+		if (rateFirst + 10 < rateSums.Count) { double ay = top + 9 * rh; g.fillStyle = "rgba(255,255,255,0.5)"; g.beginPath(); g.moveTo(lx - 30, ay + 14); g.lineTo(lx - 42, ay - 2); g.lineTo(lx - 18, ay - 2); g.closePath(); g.fill(); }
 		if (rateSums.Count > 0) { int tot = rateSums.Sum(x => x.n); txt($"كل التقييمات: {ar(tot)}", W / 2, top + 10 * rh + 8, 20, "rgba(255,255,255,0.55)", 500); }
 		row(new[] { (BTN[kind].move, "فوق وتحت"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
 	}

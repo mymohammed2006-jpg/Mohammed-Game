@@ -215,6 +215,7 @@ public static partial class G
 		}
 		catch (Exception e) { netState = e.Message == "NET" ? "net" : "err"; if (upShow && !upFailShown) { upFailShown = true; showCorner(netState == "net" ? "بينحفظ أونلاين أول ما يرجع النت" : "ما قدرت أحفظ أونلاين الحين، بجرب بعدين", "#ffb35c", 3500); } }
 		finally { syncing = false; }
+		flushRates();   // the level ratings, now that the letters are online (UI/Rate.cs)
 	}
 	public static void markDirty() { if (acc == null) return; acc.dirty = true; saveAcc(); upShow = true; upFailShown = false; showCorner("جاري الحفظ أونلاين…", "#ffffff", 10000); sync(); }
 	static void logout() { acc = null; saveAcc(); rpq = new(); saveRpq(); foreach (var L in ALL_LV()) { setLocal(L, false, null); setLocal(L, true, null); } upShow = false; }
@@ -320,6 +321,7 @@ public static partial class G
 	public static void syncTick(double now)
 	{
 		if (acc != null && acc.dirty && !syncing && now - lastSyncTry > 30000 && !(state is "play" or "starting" or "levelIntro")) sync();
+		rateTick(now);
 	}
 
 	// ---------- replays: saving and uploading ----------

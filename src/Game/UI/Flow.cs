@@ -42,7 +42,7 @@ public static partial class G
 	}
 
 	// ---------- screen transitions: the old picture fades into the new screen's background, then the new screen fades in ----------
-	static readonly string[] TR_ST = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "news", "chal", "skins", "hcList", "myRp" };
+	static readonly string[] TR_ST = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "news", "chal", "skins", "hcList", "myRp", "extras", "ratings" };
 	const double TR_OUT = 110, TR_IN = 170;
 	static ImageTexture trSnap; static string trLast = ""; static bool trOn = false; static double trAt = -1e9;
 	public static void trCheck(double now)
@@ -177,6 +177,7 @@ public static partial class G
 			else if ((d != 0 || inp.confirm) && r == "screen") { int i = Array.IndexOf(SCREEN_MODES, screenMode), sn = SCREEN_MODES.Length; setScreen(SCREEN_MODES[((i < 0 ? 0 : i) + (d != 0 ? d : 1) + sn) % sn]); }
 			else if ((d != 0 || inp.confirm) && r == "vsync") setVsync(!vsyncOn);
 			else if ((d != 0 || inp.confirm) && r == "counter") setFpsShow(!fpsShow);
+			else if (inp.confirm && r == "extra") { state = "extras"; extraSel = 0; }
 			else if (d != 0 && r == "fps") { int i = Array.IndexOf(FPS_LIST, fpsCap); if (i < 0) i = 4; setFps(FPS_LIST[(int)clamp(i + d, 0, FPS_LIST.Length - 1)]); }
 			else if (d != 0 && r == "res") { var L = resList(); int i = Array.IndexOf(L, resSet); if (i < 0) i = 0; setRes(L[(i + L.Length + d) % L.Length]); }
 			else if (inp.back || inp.pz || inp.confirm) state = setBack();

@@ -91,6 +91,7 @@ public static partial class G
 	static void netEnd(string why, bool tell = false, string byeName = null)
 	{
 		var n = net; if (n == null) return; net = null;
+		var rl = tm != null && tm.won ? ALL_LV().FirstOrDefault(x => x.id == tm.L.id) : null;   // a co-op level won: its rating card on the list (UI/Rate.cs), however the room ended
 		var ps = n.all();
 		if (tell) foreach (var q in ps) q.Send(new JsonObject { ["k"] = "bye", ["n"] = byeName ?? acc?.name ?? "" }.ToJsonString());
 		_ = Task.Run(async () => { await Task.Delay(300); foreach (var q in ps) q.Close(); });
@@ -99,6 +100,7 @@ public static partial class G
 		if (why == null || !why.StartsWith("ما قدرنا")) netDiag = null;
 		if (state.StartsWith("plt") && state != "pltList") { plStopMusic(); player = null; particles = new List<Particle>(); actx.resume(); state = "pltList"; }
 		if (state.StartsWith("tm")) { tmStopMusic(); tm = null; tmMe = tmView = -1; particles = new List<Particle>(); actx.resume(); state = "pltList"; }
+		if (rl != null && state == "pltList") rateAsk(rl, null);
 	}
 
 	// ---------- every frame ----------

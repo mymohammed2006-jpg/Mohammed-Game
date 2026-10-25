@@ -222,7 +222,8 @@ public static partial class G
 		}
 		if (state == "pltVsEnd") drawVsEnd(now);
 		if (state == "pltVsWait") { drawVsWait(now); if (hostAsk != 0) drawHostAsk(); }
-		if (state == "pltWin")
+		if (state == "pltWin" && rateC != null) overlay(0.7);   // the rating card is open: only the card
+		else if (state == "pltWin")
 		{
 			overlay(0.7); txt("خلّصت المرحلة!", W / 2, H / 2 - 160, 64, "#fff");
 			double ts = now - pl.winAt;

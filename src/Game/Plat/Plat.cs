@@ -320,8 +320,9 @@ public static partial class G
 		else if (state == "pltWin")
 		{
 			plRpKey(inp, pl.winAt, "win", lastRank);
-			if (now - pl.winAt > 800 && inp.confirm) { plStopMusic(); plStart(pl.L); }
-			else if (inp.back) plExit();
+			void again() { plStopMusic(); plStart(pl.L); }
+			if (now - pl.winAt > 800 && inp.confirm) { if (!rateAsk(pl.L.lv, again)) again(); }
+			else if (inp.back) { if (!rateAsk(pl.L.lv, plExit)) plExit(); }
 		}
 		else return false;
 		return true;

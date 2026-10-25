@@ -15,7 +15,8 @@ public partial class Main : Node
 	PvRun pvRun;
 	UiRun uiRun;
 	VsShots vsShots;
-	RateShots rateShots;      // --rate-shots: pictures of the level rating card (test/RateShots.cs)
+	RateShots rateShots;
+	RateSync rateSync;        // --rate-sync: the level rating end to end on the Firebase emulator (test/RateSync.cs)      // --rate-shots: pictures of the level rating card (test/RateShots.cs)
 	PtSync ptSync;            // --pt-sync: the platformer's best times to the account and back, on the emulator (test/PtSync.cs)          // --vs-shots: pictures of the v46 time and versus screens (test/VsShots.cs)
 	NetTest netTest;          // --net-test: two copies of the game online on the Firebase emulator (test/NetTest.cs)
 	TeamNetTest teamNet;      // --team-net: three copies of the game on the co-op level (test/TeamNetTest.cs)
@@ -49,6 +50,7 @@ public partial class Main : Node
 			if (args[i] == "--team-run") teamTest = TeamTest.FromArgs(args, i + 1);
 			if (args[i] == "--net-test") netTest = NetTest.FromArgs(args, i + 1);
 			if (args[i] == "--vs-shots") vsShots = VsShots.FromArgs(args, i + 1);
+			if (args[i] == "--rate-sync") rateSync = RateSync.FromArgs(args, i + 1);
 			if (args[i] == "--rate-shots") rateShots = RateShots.FromArgs(args, i + 1);
 			if (args[i] == "--pt-sync") ptSync = PtSync.FromArgs(args, i + 1);
 			if (args[i] == "--team-net") teamNet = TeamNetTest.FromArgs(args, i + 1);
@@ -73,6 +75,7 @@ public partial class Main : Node
 		if (netTest != null) { netTest.Start(this); return; }
 		if (vsShots != null) { vsShots.Start(this); return; }
 		if (rateShots != null) { rateShots.Start(this); return; }
+		if (rateSync != null) { rateSync.Start(this); return; }
 		if (ptSync != null) { ptSync.Start(this); return; }
 		if (teamNet != null) { teamNet.Start(this); return; }
 		if (pvRun != null) { pvRun.Start(this); return; }
@@ -122,7 +125,7 @@ public partial class Main : Node
 
 	public override void _Input(InputEvent e)
 	{
-		if (restartTest != null || botRun != null || uiRun != null || pvRun != null || platTest != null || teamTest != null || teamBot != null || teamBotNet != null || netTest != null || vsShots != null || rateShots != null || ptSync != null || teamNet != null || canvasTestOut != null) return;
+		if (restartTest != null || botRun != null || uiRun != null || pvRun != null || platTest != null || teamTest != null || teamBot != null || teamBotNet != null || netTest != null || vsShots != null || rateShots != null || rateSync != null || ptSync != null || teamNet != null || canvasTestOut != null) return;
 		if (upd != null && upd.state != "done") return;
 		if (e is InputEventKey k)
 		{
@@ -174,6 +177,7 @@ public partial class Main : Node
 		if (netTest != null) { netTest.Process(); return; }
 		if (vsShots != null) { vsShots.Process(); return; }
 		if (rateShots != null) { rateShots.Process(); return; }
+		if (rateSync != null) { rateSync.Process(); return; }
 		if (ptSync != null) { ptSync.Process(); return; }
 		if (teamNet != null) { teamNet.Process(); return; }
 		if (pvRun != null) { pvRun.Process(); return; }

@@ -24,8 +24,8 @@ public static partial class G
 	}
 
 	static readonly string[] IN_GAME = { "play", "paused", "pauseSet", "dead", "win", "starting", "replay", "rpGap", "rpEnd", "prEnd" };
-	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins", "hcList", "myRp" };
-	static readonly string[] FS_HINT = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "pltPause", "pltSet", "tmPause", "tmSet", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "chal", "skins", "hcList" };
+	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins", "hcList", "myRp", "extras", "ratings" };
+	static readonly string[] FS_HINT = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "pltPause", "pltSet", "tmPause", "tmSet", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "chal", "skins", "hcList", "extras", "ratings" };
 
 	public static void draw(double now)
 	{
@@ -146,7 +146,7 @@ public static partial class G
 		zonesFlip();
 	}
 
-	static readonly string[] MENU_MUSIC = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "practice", "news", "chal", "skins", "hcList", "myRp" };
+	static readonly string[] MENU_MUSIC = { "main", "levels", "modes", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "practice", "news", "chal", "skins", "hcList", "myRp", "extras", "ratings" };
 	public static void step(double now, bool nd = false)
 	{
 		double dt = Math.Min(0.05, Math.Max(0, now - last) / 1000); last = now; fdt = dt;
@@ -155,6 +155,9 @@ public static partial class G
 		if (state == "gate") { if ((f11Hit || fsOK()) && menuBuf != null) { ensureAudio(); gatePressAt = now; gatePassed = true; state = "gateWait"; } f11Hit = false; }
 		else if (state == "gateWait") { if (actx.state == "running") { playMenu(0); state = "splash"; } else if (now - gatePressAt > 600) { gateHint = true; if (inp.any) ensureAudio(); } }
 		else if (state == "splash") { if (menuPos() >= MENU_DROP) { goMain(now); } else if (inp.any && menuPos() > 1.2) { stopMenu(); playMenu(MENU_DROP); goMain(now); } }
+		else if (rateC != null) rateInput(inp);   // the level rating card (UI/Rate.cs) takes the keys while it's open
+		else if (state == "extras") extrasInput(inp);
+		else if (state == "ratings") ratingsInput(inp);
 		else if (stepMenus(inp, now, dt)) { }
 		else if (state == "rpLoad")
 		{
@@ -198,7 +201,13 @@ public static partial class G
 		}
 		else if (state == "dead" && pr.on) { myRpDeadKey(inp); if (now - deadAt > 700 && inp.confirm) prGo(); else if (inp.back) prToMenu(); }
 		else if (state == "dead") { myRpDeadKey(inp); if (now - deadAt > 700 && inp.confirm) requestStart(checkpoint); else if (now - deadAt > 700 && inp.restart) requestStart(0); else if (inp.back) toMenu(); }
-		else if (state == "win") { myRpWinKey(inp); if (now - winAt > 800 && inp.confirm) { stopMusic(); requestStart(0); } else if (inp.back) { stopMusic(); player = null; hazards = new List<Hz>(); state = fromList; } }
+		else if (state == "win")
+		{
+			myRpWinKey(inp);
+			void again() { stopMusic(); requestStart(0); }
+			void list() { stopMusic(); player = null; hazards = new List<Hz>(); state = fromList; }
+			if (now - winAt > 800 && inp.confirm) { if (!rateAsk(cur, again)) again(); } else if (inp.back) { if (!rateAsk(cur, list)) list(); }
+		}
 		pvUpdate(now);
 		if (pv.src != null || pv.had) { if (menuSrc != null) stopMenu(); }
 		else if (MENU_MUSIC.Contains(state)) { if (menuSrc == null && menuBuf != null && actx.state == "running") playMenu(MENU_DROP); }
