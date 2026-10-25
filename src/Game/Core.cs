@@ -13,6 +13,7 @@ public class Hz
 {
 	public double x, y, vx, vy, r;
 	public bool dead, ex;
+	public int z;   // the drawing layer: < 0 under the others (a floor), > 0 over them; 0 = in the order they came (every level before B1)
 	public Action<double, double> update = (t, dt) => { };
 	public Action<double> draw = t => { };
 	public Func<Player, double, bool> hit = (p, t) => false;
@@ -43,7 +44,7 @@ public class Player
 public class Particle { public double x, y, vx, vy, life, max, s; public string col; }
 
 // level event: at beat b run f (keep = comes back after a checkpoint)
-public class Ev { public double b; public Action f; public bool keep; }
+public class Ev { public double b; public Action f; public bool keep; public bool rnd; }   // rnd: aimed at the player (the test bot learns it only once it fires)
 
 public static partial class G
 {

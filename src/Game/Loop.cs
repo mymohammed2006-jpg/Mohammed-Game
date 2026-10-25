@@ -55,12 +55,14 @@ public static partial class G
 		var K = BTN[kind];
 		if (plRpDraw(now)) { }
 		else if (drawMenus(now, inGame)) { }
-		else if (!inGame) { drawSpawn(); if (state == "levelIntro") drawLevelInfo(now); }
+		else if (!inGame) { if (state == "levelIntro" && cur?.boss == true) drawBossScene(now); else { drawSpawn(); if (state == "levelIntro") drawLevelInfo(now); } }
 		else
 		{
 			// the room turned over like a mirror (a level can set viewFlip: 0 normal .. 1 mirrored), not the hearts and the bar
 			double vf = viewFlip?.Invoke() ?? 0; g.save(); if (vf > 0) { g.translate(W / 2, 0); g.scale(JS.cos(vf * Math.PI), 1); g.translate(-W / 2, 0); }
-			foreach (var h in hazards) h.draw(songT);
+			bool zs = false; foreach (var h in hazards) if (h.z != 0) { zs = true; break; }
+			if (!zs) foreach (var h in hazards) h.draw(songT);
+			else { foreach (var h in hazards) if (h.z < 0) h.draw(songT); foreach (var h in hazards) if (h.z == 0) h.draw(songT); foreach (var h in hazards) if (h.z > 0) h.draw(songT); }
 			if (gloom > 0.01 && player != null)
 			{
 				var gr = g.createRadialGradient(player.x, player.y, 170, player.x, player.y, 520); gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(1, $"rgba(0,0,0,{str(gloom)})");
@@ -175,10 +177,10 @@ public static partial class G
 		else if (state == "prEnd") { myRpPrEndKey(inp); if (performance.now() - winAt > 600 && inp.confirm) prGo(); else if (inp.back || inp.pz) prToMenu(); }
 		else if (state == "starting")
 		{
-			if (actx.state == "running" && cur.buf != null) { if (startBeat == 0 && introOn) { introOn = false; state = "levelIntro"; introAt = now; player = null; hazards = new List<Hz>(); particles = new List<Particle>(); } else beginRun(startBeat); }
+			if (actx.state == "running" && cur.buf != null) { if (startBeat == 0 && introOn) { introOn = false; state = "levelIntro"; introAt = now; player = null; hazards = new List<Hz>(); particles = new List<Particle>(); if (cur.boss) bossSceneMusic(); } else beginRun(startBeat); }
 			else if (now - startReqAt > 500) audioHint = true;
 		}
-		else if (state == "levelIntro") { if (now - introAt > 3200) beginRun(0); }
+		else if (state == "levelIntro") { if (now - introAt > (cur.boss ? BOSS_SCENE * 1000 : 3200)) beginRun(0); }   // a boss level: its scene (UI/BossScene.cs)
 		else if (state == "play") { if (inp.pz) pause(); else { updatePlay(pr.on ? dt * spd : dt, inp); if (pr.on) cpMsg = 0; } }
 		else if (state == "paused" && pr.on) prPauseInput(inp);
 		else if (state == "paused")

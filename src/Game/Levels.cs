@@ -38,6 +38,7 @@ public static partial class G
 	{
 		AddDodgeLevels();   // the new levels after L11 are data files (Dodge.cs)
 		AddHcLevels();      // the Hardcore levels are data files too (UI/Hard.cs)
+		AddBossLevels();    // and the boss levels (UI/Boss.cs)
 		for (int i = 0; i < LEVELS.Count; i++) LEVELS[i].id ??= "L" + (i + 1);
 		for (int i = 0; i < FRIENDS.Count; i++) FRIENDS[i].id ??= "F" + (i + 1);
 	}

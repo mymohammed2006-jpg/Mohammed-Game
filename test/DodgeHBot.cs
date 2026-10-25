@@ -12,14 +12,14 @@ using static MG.JS;
 // (tools/level13/bot) and shared here so L12, L13 and L14 use one bot. -- --dodge hbot <id> <n|e> <outDir> [seed=1] [maxatt=200]
 //   at most 5 input changes in any 1 s, >= 0.185 s between direction changes and between dashes, looks every 0.05 s, each change
 //   reaches the game 0-0.04 s late at random, no emergency dashes. Memorized player: knows the FIXED events 1.6 s ahead; events with
-//   "rnd": true in data/dodge_<id>.json (aimed at the square, or random each run) only 0.32-0.40 s after they fire.
+//   "rnd": true in data/dodge_<id>.json (aimed at the square, or random each run; a level built by code: Ev.rnd) only 0.32-0.40 s after they fire.
 //   Practice like a person: on a hit it goes back 1-10 s and tries a variation from there; stops at the first run with no hit.
 //   Writes run.inp (runSeed, then "x y dash" per 60 Hz frame), run.log, rec.txt (RP4=rec.txt --bot-run plays it) and botrun.json (bot.json's entry).
 public class DodgeHBot
 {
 	static readonly CultureInfo IC = CultureInfo.InvariantCulture;
 	const double FR = 1.0 / 60;
-	static Level Lv(string id) => G.ALL_LV().Concat(G.HCLV).First(x => x.id == id);
+	static Level Lv(string id) => G.ALL_LV().Concat(G.HCLV).Concat(G.BOSSLV).First(x => x.id == id);
 	static void Begin(Level L, bool ez, int seed)
 	{
 		G.easy = ez; G.applyTheme(ez); G.cur = L; G.levelTiming(L); G.hitsTotal = 0; G.deaths = 0; G.rec = new RecState(); G.state = "play";
@@ -178,7 +178,7 @@ public class DodgeHBot
 
 	Att Attempt(List<(int x, int y, bool d)> rep, BS st0, int f0, List<(double from, double v)> sched, bool full)
 	{
-		var at = new Att(); Begin(L, EZ, seed); at.runSeed = G.runSeed; evs = G.events; sandbox.Clear(); var s = st0 != null ? st0.Copy() : new BS { rs = (uint)seed * 2654435761u };
+		var at = new Att(); Begin(L, EZ, seed); at.runSeed = G.runSeed; evs = G.events; if (RND.Length == 0) RND = evs.Select(e => e.rnd).ToArray(); sandbox.Clear(); var s = st0 != null ? st0.Copy() : new BS { rs = (uint)seed * 2654435761u };
 		double end = G.B(L.end) + 0.5; int f = 0, lastHits = 0;
 		while (G.state == "play" && G.songT < end + 1)
 		{
@@ -200,7 +200,7 @@ public class DodgeHBot
 	void Bot()
 	{
 		L = Lv(a[0]); EZ = a[1] == "e"; string dir = a[2]; Directory.CreateDirectory(dir); string outP = Path.Combine(dir, "run");
-		using (var jf = Godot.FileAccess.Open($"res://data/dodge_{a[0]}.json", Godot.FileAccess.ModeFlags.Read)) if (jf != null) { var doc = System.Text.Json.JsonDocument.Parse(jf.GetAsText()); RND = doc.RootElement.GetProperty("events").EnumerateArray().Select(e => e.TryGetProperty("rnd", out var v) && v.ValueKind == System.Text.Json.JsonValueKind.True).ToArray(); } seed = a.Length > 3 ? int.Parse(a[3]) : 1; int MAXATT = a.Length > 4 ? int.Parse(a[4]) : 200;
+		using (var jf = Godot.FileAccess.Open($"res://data/dodge_{a[0]}.json", Godot.FileAccess.ModeFlags.Read)) if (jf != null) { var doc = System.Text.Json.JsonDocument.Parse(jf.GetAsText()); if (doc.RootElement.TryGetProperty("events", out var je)) RND = je.EnumerateArray().Select(e => e.TryGetProperty("rnd", out var v) && v.ValueKind == System.Text.Json.JsonValueKind.True).ToArray(); } seed = a.Length > 3 ? int.Parse(a[3]) : 1; int MAXATT = a.Length > 4 ? int.Parse(a[4]) : 200;
 		double[] BACK = { 1, 1.5, 2, 2, 3, 3, 4, 4, 5, 6, 8, 10 };
 		var rep = new List<(int, int, bool)>(); BS st0 = null; var snaps = new List<BS>(); int f0 = 0; var sched = new List<(double, double)>(); int vc = 0, att = 0, tries = 0; double spot = -99; Att res = null; var log = new StringBuilder();
 		var sw = System.Diagnostics.Stopwatch.StartNew();

@@ -29,8 +29,8 @@ public static partial class G
 		}
 	}
 	public static bool hcOpen() => !classicUi && xpProg(xp).lv >= HC_LV;
-	public static bool noEz(Level L) => L != null && (L.plat || L.hc);   // levels with no Easy (no Easy letter, column or board page)
-	public static int maxHp(Level L) => L != null && L.hc ? HC_HP : 5;
+	public static bool noEz(Level L) => L != null && (L.plat || L.hc || L.boss);   // levels with no Easy (no Easy letter, column or board page)
+	public static int maxHp(Level L) => L != null && L.hc ? HC_HP : L != null && L.boss ? BOSS_HP : 5;
 	public static double ptsMul(Level L) => L.hc ? 5 : 1;   // Hardcore letters are worth 5 times the points (Mohammed 19:19 10-21)
 
 	// the main menu: after "مراحل الشباب"

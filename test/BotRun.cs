@@ -14,7 +14,7 @@ public class BotRun
 {
 	public bool play;
 	string id, m, outDir; int every = 60, from = 0, to = int.MaxValue, total;
-	int i; double T0; bool done, pendingShot; int shotFrame;
+	int i; double T0; bool done, pendingShot; int shotFrame; int scN = -1; string scSt;
 	StringBuilder log = new();
 	Main host;
 	const uint SEED = 12345;
@@ -36,7 +36,7 @@ public class BotRun
 		performance.manual = 100000; AudioCtx.manualTime = 0;
 		G.InitSound();
 		G.gfx.Resize(1280, 720); G.scale = 1; G.offX = 0; G.offY = 0;
-		var L = G.ALL_LV().Concat(G.HCLV).First(x => x.id == id);
+		var L = G.ALL_LV().Concat(G.HCLV).Concat(G.BOSSLV).First(x => x.id == id);
 		if (System.Environment.GetEnvironmentVariable("SKIN") is string sk) { G.classicUi = false; G.skin = sk == "none" ? "" : sk; }   // SKIN=<look|none>: today's game with that look (previews)
 		JS.SeedRandom(SEED);
 		G.rpOverlayOff = true;
@@ -153,8 +153,19 @@ public class BotRun
 		}
 		if (pendingShot)
 		{
-			G.gfx.game.GetTexture().GetImage().SavePng(Path.Combine(outDir, $"f{shotFrame:D6}.png"));
+			G.gfx.game.GetTexture().GetImage().SavePng(Path.Combine(outDir, $"{(scN >= 0 ? "s" : "f")}{shotFrame:D6}.png"));
 			pendingShot = false;
+		}
+		// SCENE=1 (a boss level): its scene first, frames s<n>.png at 60 a second
+		if (scN >= 0 || (scN == -1 && System.Environment.GetEnvironmentVariable("SCENE") == "1" && G.cur.boss))
+		{
+			if (scN < 0) { scSt = G.state; scN = 0; }
+			while (scN <= (int)(G.BOSS_SCENE * 60))
+			{
+				int n = scN++; var st = G.state; G.state = "levelIntro"; G.introAt = 0; G.gfx.BeginFrame(); G.draw(n * 1000.0 / 60); G.state = st;
+				if (n % every == 0) { G.gfx.EndFrame(); pendingShot = true; shotFrame = n; return; }
+			}
+			scN = -2; G.state = scSt;
 		}
 		if (done && play && G.rec != null)
 		{

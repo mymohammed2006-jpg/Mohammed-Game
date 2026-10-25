@@ -55,7 +55,7 @@ public class RestartTest
 
 	void Dodge(string id)
 	{
-		var L = G.ALL_LV().Concat(G.HCLV).First(x => x.id == id); log.Append($"== {id} {L.name}\n");
+		var L = G.ALL_LV().Concat(G.HCLV).Concat(G.BOSSLV).First(x => x.id == id); log.Append($"== {id} {L.name}\n");
 		G.easy = false; G.cur = L; G.fromList = "levels"; G.levelTiming(L); L.buf = G.LoadSong(G.SONG_FILE[L.id]); G.noMus = false;
 		G.requestStart(0); Ok(Until(() => G.state == "play", 2000), "starts");
 		// 1) no save yet: back to the last save = a fresh start, no death
@@ -95,7 +95,7 @@ public class RestartTest
 	G.RpqItem Queued(string id) { var j = localStorage.getItem("mg_rpq"); if (j == null) return null; var d = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, G.RpqItem>>(j); return d.TryGetValue(id + "_n", out var q) ? q : null; }
 	void Run(string id, int[] diesAt)
 	{
-		var L = G.ALL_LV().Concat(G.HCLV).First(x => x.id == id); log.Append($"== {id} {L.name} deaths per save {string.Join(",", diesAt)}\n");
+		var L = G.ALL_LV().Concat(G.HCLV).Concat(G.BOSSLV).First(x => x.id == id); log.Append($"== {id} {L.name} deaths per save {string.Join(",", diesAt)}\n");
 		localStorage.removeItem("mg_rpq"); L.best = null; G.easy = false; G.cur = L; G.fromList = "levels"; G.levelTiming(L); if (L.buf == null) L.buf = G.LoadSong(G.SONG_FILE[L.id]); G.noMus = false;
 		G.requestStart(0); Until(() => G.state == "play", 2000);
 		for (int k = 0; k < diesAt.Length; k++)
