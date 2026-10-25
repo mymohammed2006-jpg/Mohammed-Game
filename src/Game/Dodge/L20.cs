@@ -106,70 +106,6 @@ public static partial class G
 	}
 
 	// ---------- part 1: switching on ----------
-	// the start menu: 5 rows. A selector (the pink bar) jumps to row sr[k] at beat sb[k] (the next row is outlined a beat before).
-	// A second selector (qb, qr) can join. "Select" scans: from beat cb[k] a vertical line crosses the screen in cd beats (dir cs[k]) and
-	// only its gap (row cg[k]) is safe; the gap row and the starting edge show a beat before. Grey from tw (beats), it kills from ta
-	static readonly string[] L20MENU = { "NEW GAME", "CONTINUE", "STAGE SELECT", "OPTIONS", "EXIT" };
-	public static Hz L20Menu(double[] sb, double[] sr, double[] qb, double[] qr, double[] cb, double[] cs, double[] cg, double cd, double tw, double ta, double te)
-	{
-		const int N = 5; double rh = H / N; var h = new Hz { kind = "L20Menu" };
-		double rowAt(double[] b, double[] r, double bt, out int k)
-		{
-			// a menu cursor: it jumps, it never slides over the rows between
-			k = -1; for (int i = 0; i < b.Length; i++) if (bt >= b[i]) k = i; return k < 0 ? -1 : r[k] * rh;
-		}
-		double scanX(int i, double bt) { double k = (bt - cb[i]) / cd; return cs[i] > 0 ? -30 + k * (W + 60) : W + 30 - k * (W + 60); }
-		h.update = (t, dt) => { if (t > B(te) + 0.4) h.dead = true; };
-		h.draw = t =>
-		{
-			double bt = BT(t); if (bt < tw) return; double a = Math.Min(L20k(bt, tw, tw + 1), 1 - L20k(bt, te, te + 0.6)); bool on = bt >= ta && bt < te;
-			g.save(); g.globalAlpha = a;
-			// the rows and their names
-			g.font = $"800 34px {TFONT}"; g.textAlign = "center"; g.textBaseline = "middle";
-			for (int i = 0; i < N; i++) { g.strokeStyle = L20G(0.12); g.lineWidth = 2; g.strokeRect(14, i * rh + 6, W - 28, rh - 12); g.fillStyle = L20G(0.16); g.fillText(L20MENU[i], W / 2, i * rh + rh / 2); }
-			// the select scans: the gap row to stand in, then the line
-			for (int i = 0; i < cb.Length; i++)
-			{
-				if (bt < cb[i] - 2 || bt > cb[i] + cd) continue; double gy = cg[i] * rh;
-				if (bt < cb[i])
-				{
-					double k = L20k(bt, cb[i] - 2, cb[i]); g.strokeStyle = $"rgba(255,255,255,{str(0.35 + 0.5 * k)})"; g.lineWidth = 3; g.strokeRect(10, gy + 8, W - 20, rh - 16);
-					double x0 = cs[i] > 0 ? 12 : W - 12; L20Dash(x0, 0, x0, gy, L20G(0.4 + 0.5 * k), 3); L20Dash(x0, gy + rh, x0, H, L20G(0.4 + 0.5 * k), 3);
-					g.fillStyle = L20P(0.05 + 0.18 * k); g.fillRect(x0 - 25, 0, 50, gy); g.fillRect(x0 - 25, gy + rh, 50, H - gy - rh);
-					continue;
-				}
-				double x = scanX(i, bt); g.strokeStyle = "rgba(255,255,255,0.55)"; g.lineWidth = 2; g.strokeRect(10, gy + 8, W - 20, rh - 16);
-				g.shadowColor = PINK; g.shadowBlur = 18; g.fillStyle = bt - cb[i] < 0.08 ? L20HOT : PINK; g.fillRect(x - 25, 0, 50, gy + 8); g.fillRect(x - 25, gy + rh - 8, 50, H - gy - rh + 8); g.shadowBlur = 0;
-			}
-			// the selectors: the next row outlined, then the bar
-			void sel(double[] b, double[] r)
-			{
-				if (b.Length == 0) return; double y = rowAt(b, r, bt, out int k);
-				if (k + 1 < b.Length && bt >= b[k + 1] - 1) { double kk = L20k(bt, b[k + 1] - 1, b[k + 1]); g.strokeStyle = $"rgba(255,255,255,{str(0.3 + 0.55 * kk)})"; g.lineWidth = 3; g.setLineDash(new double[] { 14, 10 }); g.strokeRect(8, r[k + 1] * rh + 4, W - 16, rh - 8); g.setLineDash(new double[0]); }
-				if (y < 0) return;
-				if (!on) { g.fillStyle = L20P(0.06 + 0.14 * L20k(bt, tw, ta)); g.fillRect(8, y + 4, W - 16, rh - 8); return; }
-				// the jump: a white streak from the row it left (harmless)
-				if (k > 0 && bt - b[k] < 0.15) { double y0 = r[k - 1] * rh, q = 1 - (bt - b[k]) / 0.15; g.fillStyle = $"rgba(255,255,255,{str(0.25 * q)})"; g.fillRect(W / 2 - 40, Math.Min(y0, y) + rh / 2, 80, Math.Abs(y - y0)); }
-				g.shadowColor = PINK; g.shadowBlur = 20; g.fillStyle = bt - b[k] < 0.08 ? L20HOT : PINK; g.fillRect(8, y + 4, W - 16, rh - 8); g.shadowBlur = 0;
-				g.fillStyle = "rgba(60,0,20,0.5)"; foreach (var sd in new[] { -1.0, 1.0 }) { double ax = W / 2 + sd * 300; g.beginPath(); g.moveTo(ax - sd * 22, y + rh / 2 - 22); g.lineTo(ax, y + rh / 2); g.lineTo(ax - sd * 22, y + rh / 2 + 22); g.closePath(); g.fill(); }
-			}
-			sel(sb, sr); sel(qb, qr);
-			g.restore();
-		};
-		h.hit = (p, t) =>
-		{
-			double bt = BT(t); if (bt < ta || bt >= te) return false;
-			foreach (var (b, r) in new[] { (sb, sr), (qb, qr) }) { if (b.Length == 0) continue; double y = rowAt(b, r, bt, out _); if (y >= 0 && L20In(p, 8, y + 4, W - 8, y + rh - 4)) return true; }
-			for (int i = 0; i < cb.Length; i++)
-			{
-				if (bt < cb[i] || bt > cb[i] + cd) continue; double x = scanX(i, bt), gy = cg[i] * rh;
-				if (Math.Abs(p.x - x) < 25 + p.r - 2 && (p.y - p.r + 2 < gy + 8 || p.y + p.r - 2 > gy + rh - 8)) return true;
-			}
-			return false;
-		};
-		return h;
-	}
-
 	// Tetris: 80 px cells, 16 x 9. The pieces were played out by gen.py: piece i has states (beat, then 4 cells col,row) in pz;
 	// its landing (the last state) shows as a dashed ghost. The stack: cell j is at column sc[j], at row kr[..] from beat kb[..], gone at se[j].
 	// A full row flashes at cl beats (rows clr) before it goes. Everything is fixed, nothing is random
@@ -179,6 +115,13 @@ public static partial class G
 	{
 		const double C = 80; var h = new Hz { kind = "L20Tetris" };
 		int stateOf(L20Piece q, double bt) { int k = -1; for (int i = 0; i < q.b.Length; i++) if (bt >= q.b[i]) k = i; return k; }
+		const double SLAM = 0.2;
+		bool slam(L20Piece q, double bt, out int[] a0, out int[] a1)
+		{
+			int L = q.b.Length - 1; a0 = a1 = null; if (L < 1 || bt < q.b[L] || bt >= q.b[L] + SLAM) return false; a0 = q.c[L - 1]; a1 = q.c[L];
+			for (int j = 0; j < 4; j++) if (a0[2 * j] != a1[2 * j] || a1[2 * j + 1] - a0[2 * j + 1] < 2) return false;
+			return true;
+		}
 		double stkRow(L20Stk s, double bt) { double r = double.NaN; for (int i = 0; i < s.b.Length; i++) if (bt >= s.b[i]) r = s.r[i]; return r; }
 		h.update = (t, dt) => { if (t > B(te) + 0.5) h.dead = true; };
 		h.draw = t =>
@@ -189,8 +132,14 @@ public static partial class G
 			g.strokeStyle = L20G(0.1); g.lineWidth = 1; g.beginPath(); for (int c = 1; c < 16; c++) { g.moveTo(c * C, 0); g.lineTo(c * C, H); } g.stroke();
 			// the rows about to clear: a laser line across
 			for (int i = 0; i < cl.Length; i++) if (bt >= cl[i] - 1 && bt < cl[i]) { double y = clr[i] * C, k = L20k(bt, cl[i] - 1, cl[i]); g.fillStyle = $"rgba(255,255,255,{str(0.15 + 0.6 * k * (bt % 0.25 < 0.125 ? 1 : 0.5))})"; g.fillRect(0, y + C / 2 - 3 - 4 * k, W, 6 + 8 * k); }
+			// where the stack's cells go next (a row coming up from below, the stack pushed up): dashed a beat before
+			g.strokeStyle = "rgba(255,255,255,0.5)"; g.lineWidth = 2; g.setLineDash(new double[] { 7, 6 });
+			foreach (var s in S) { if (bt >= s.end) continue; for (int j = 0; j < s.b.Length; j++) if (s.b[j] > bt && s.b[j] - bt < 1 && (j == 0 || s.r[j] < s.r[j - 1])) { g.strokeRect(s.col * C + 7, s.r[j] * C + 7, C - 14, C - 14); break; } }
+			g.setLineDash(new double[0]);
 			// the stack
 			foreach (var s in S) { if (bt >= s.end) continue; double r = stkRow(s, bt); if (double.IsNaN(r)) continue; L20Cell(s.col * C + 2, r * C + 2, C - 4, C - 4, PINK); }
+			// a slam (a piece dropped at once, on the clap): its trail down the columns, for a moment
+			foreach (var q in P) if (slam(q, bt, out var a0, out var a1)) { g.shadowColor = PINK; g.shadowBlur = 18; for (int j = 0; j < 4; j++) { double y0 = a0[2 * j + 1] * C, y1 = a1[2 * j + 1] * C; g.fillStyle = PINK; g.fillRect(a1[2 * j] * C + 8, y0, C - 16, y1 - y0 + C); } g.shadowBlur = 0; }
 			// the falling pieces and their ghosts
 			foreach (var q in P)
 			{
@@ -211,6 +160,7 @@ public static partial class G
 			foreach (var s in S) { if (bt >= s.end) continue; double r = stkRow(s, bt); if (double.IsNaN(r)) continue; if (L20In(q0, s.col * C + 2, r * C + 2, s.col * C + C - 2, r * C + C - 2)) return true; }
 			foreach (var q in P)
 			{
+				if (slam(q, bt, out var a0, out var a1)) for (int j = 0; j < 4; j++) if (L20In(q0, a1[2 * j] * C + 8, a0[2 * j + 1] * C, a1[2 * j] * C + C - 8, a1[2 * j + 1] * C + C)) return true;
 				int k = stateOf(q, bt); if (k < 0 || k >= q.b.Length - 1) continue; var cs = q.c[k];
 				for (int j = 0; j < 4; j++) if (L20In(q0, cs[2 * j] * C + 2, cs[2 * j + 1] * C + 2, cs[2 * j] * C + C - 2, cs[2 * j + 1] * C + C - 2)) return true;
 			}
@@ -222,11 +172,18 @@ public static partial class G
 	// the loading ring round (cx,cy): it breathes from rmin to rmax and back every per beats (rmin at b0), th thick, with one gap (gw rad)
 	// that turns w rad a beat and turns back every rv beats (the arrows at the gap show the way, white a beat before it turns back).
 	// The loading icon in the middle (coreR) burns too. Grey from tw, kills b0 .. b1 (beats)
-	public static Hz L20Ring(double cx, double cy, double rmin, double rmax, double per, double th, double gw, double w, double rv, double a0, double coreR, double tw, double b0, double b1)
+	// With jumps (jb, ja): the gap stays put and jumps to ja[k] at beat jb[k] (on the song's stabs); its next place shows dashed before
+	public static Hz L20Ring(double cx, double cy, double rmin, double rmax, double per, double th, double gw, double w, double rv, double a0, double coreR, double tw, double b0, double b1, double[] jb = null, double[] ja = null)
 	{
-		var h = new Hz { x = cx, y = cy, kind = "L20Ring" };
+		var h = new Hz { x = cx, y = cy, kind = "L20Ring" }; bool jump = jb != null && jb.Length > 0;
 		double R(double bt) => rmin + (rmax - rmin) * (0.5 - 0.5 * JS.cos(TAU * (bt - b0) / per));
-		double G(double bt) => a0 + w * L20Tri(Math.Max(0, bt - b0), rv);
+		int jk(double bt) { int k = -1; for (int i = 0; i < jb.Length; i++) if (bt >= jb[i]) k = i; return k; }
+		double G(double bt)
+		{
+			if (!jump) return a0 + w * L20Tri(Math.Max(0, bt - b0), rv);
+			int k = jk(bt); if (k < 0) return a0; double from = k == 0 ? a0 : ja[k - 1], u = (bt - jb[k]) / 0.1;
+			if (u >= 1) return ja[k]; double d = ((ja[k] - from) % TAU + TAU + Math.PI) % TAU - Math.PI; return from + d * L20Ease(u);
+		}
 		bool inGap(double a, double d, double bt) { double x = (a - G(bt)) % TAU; if (x < -Math.PI) x += TAU; if (x > Math.PI) x -= TAU; return Math.Abs(x) < gw / 2 - 3 / Math.Max(d, 1); }
 		h.update = (t, dt) => { if (t > B(b1) + 0.4) h.dead = true; };
 		h.draw = t =>
@@ -241,6 +198,16 @@ public static partial class G
 				// the loading icon: a pink disc with 8 dark spokes that turn
 				g.fillStyle = PINK; circle(cx, cy, coreR); g.shadowBlur = 0;
 				g.strokeStyle = "rgba(60,0,20,0.5)"; g.lineWidth = 6; g.beginPath(); for (int i = 0; i < 8; i++) { double q = bt * 2 + i * TAU / 8; g.moveTo(cx + JS.cos(q) * coreR * 0.35, cy + JS.sin(q) * coreR * 0.35); g.lineTo(cx + JS.cos(q) * coreR * 0.85, cy + JS.sin(q) * coreR * 0.85); } g.stroke();
+				if (jump)
+				{
+					int k = jk(bt); if (k + 1 < jb.Length && jb[k + 1] - bt < 1)
+					{
+						double q = L20k(bt, jb[k + 1] - 1, jb[k + 1]), na = ja[k + 1]; g.strokeStyle = $"rgba(255,255,255,{str(0.35 + 0.55 * q)})"; g.lineWidth = 3; g.setLineDash(new double[] { 10, 8 });
+						foreach (var sd in new[] { -1.0, 1.0 }) { double qa = na + sd * gw / 2; g.beginPath(); g.moveTo(cx + JS.cos(qa) * (coreR + 10), cy + JS.sin(qa) * (coreR + 10)); g.lineTo(cx + JS.cos(qa) * 900, cy + JS.sin(qa) * 900); g.stroke(); }
+						g.setLineDash(new double[0]);
+					}
+					g.restore(); return;
+				}
 				// the way the gap turns; white a beat before it turns back
 				double u = Math.Max(0, bt - b0), m = ((u % (2 * rv)) + 2 * rv) % (2 * rv); int dir = m < rv ? 1 : -1; bool flip = (m < rv ? rv - m : 2 * rv - m) < 1;
 				g.strokeStyle = flip ? (bt % 0.5 < 0.25 ? "#fff" : L20G(0.8)) : L20G(0.6); g.lineWidth = 4;
@@ -263,13 +230,15 @@ public static partial class G
 
 	// a loading bar's front: a pink wall (40 wide, full height) that steps sx px every beat from x0 (dir 1: to the right) at beats b0, b0+1, ...;
 	// its hole (hy[k] +- hh) moves with each step. The next place and its hole show a beat before. Behind it the "loaded" part (grey, harmless)
-	public static Hz L20Front(double x0, double dir, double sx, double[] hy, double hh, double tw, double b0)
+	// With sb: step k comes at beat sb[k] (on the song's hits) instead of every beat
+	public static Hz L20Front(double x0, double dir, double sx, double[] hy, double hh, double tw, double b0, double[] sb = null)
 	{
-		int K = hy.Length; double b1 = b0 + K; var h = new Hz { kind = "L20Front" };
+		int K = hy.Length; bool st = sb != null && sb.Length == K; if (st) b0 = sb[0]; double b1 = st ? sb[K - 1] + 1 : b0 + K; var h = new Hz { kind = "L20Front" };
 		double X(int k) => x0 + dir * sx * k;
+		int stepOf(double bt) { if (!st) return (int)clamp(Math.Floor(bt - b0), 0, K - 1); int k = 0; for (int i = 0; i < K; i++) if (bt >= sb[i]) k = i; return k; }
 		void at(double bt, out double x, out double y)
 		{
-			int k = (int)clamp(Math.Floor(bt - b0), 0, K - 1); double u = bt - b0 - k;
+			int k = stepOf(bt); double u = bt - (st ? sb[k] : b0 + k);
 			if (k == 0 || u >= 0.15) { x = X(k); y = hy[k]; return; }
 			double e = L20Ease(u / 0.15); x = X(k - 1) + (X(k) - X(k - 1)) * e; y = hy[k - 1] + (hy[k] - hy[k - 1]) * e;
 		}
@@ -283,7 +252,7 @@ public static partial class G
 				double k = L20k(bt, tw, b0); L20Dash(X(0), 0, X(0), hy[0] - hh, L20G(0.4 + 0.5 * k), 3); L20Dash(X(0), hy[0] + hh, X(0), H, L20G(0.4 + 0.5 * k), 3);
 				g.fillStyle = L20P(0.05 + 0.18 * k); g.fillRect(X(0) - 20, 0, 40, hy[0] - hh); g.fillRect(X(0) - 20, hy[0] + hh, 40, H - hy[0] - hh); g.restore(); return;
 			}
-			at(bt, out double x, out double y); int kk = (int)clamp(Math.Floor(bt - b0), 0, K - 1);
+			at(bt, out double x, out double y); int kk = stepOf(bt);
 			// the loaded part: grey stripes behind the front (harmless)
 			double bx0 = dir > 0 ? 0 : x + 20, bx1 = dir > 0 ? x - 20 : W; g.fillStyle = "rgba(200,210,235,0.06)"; g.fillRect(bx0, 0, bx1 - bx0, H);
 			g.strokeStyle = "rgba(200,210,235,0.08)"; g.lineWidth = 10; g.beginPath(); for (double s = -H; s < W; s += 46) { double sa = clamp(s, bx0, bx1), sb2 = clamp(s + H, bx0, bx1); if (sb2 > sa) { g.moveTo(sa, H - (sa - s)); g.lineTo(sb2, H - (sb2 - s)); } } g.stroke();
@@ -351,9 +320,10 @@ public static partial class G
 
 	// the balls stop (at bx by) from beat f0; at f0 + 0.5 they take aim at the square (a dashed line follows it until then), and at f1
 	// they fly there at sp px/s. Aimed: "rnd" in the data
-	public static Hz L20Shot(double[] bx, double[] by, double R, double sp, double f0, double f1)
+	// (fa: the aim is taken then instead of at f0 + 0.5; the dashed line follows the square until then)
+	public static Hz L20Shot(double[] bx, double[] by, double R, double sp, double f0, double f1, double fa = -1)
 	{
-		int n = bx.Length; var h = new Hz { kind = "L20Shot" }; double ax = -1, ay = -1; var dx = new double[n]; var dy = new double[n]; double fa = f0 + 0.5;
+		int n = bx.Length; var h = new Hz { kind = "L20Shot" }; double ax = -1, ay = -1; var dx = new double[n]; var dy = new double[n]; if (fa < 0) fa = f0 + 0.5;
 		h.update = (t, dt) =>
 		{
 			double bt = BT(t);

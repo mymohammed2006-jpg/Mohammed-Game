@@ -288,8 +288,6 @@ public static partial class G
 	});
 	static readonly int _k20rot = L20K("L20rot", e => () => { _l20rb = e.nums("rb"); _l20ra = e.nums("ra"); });
 	static readonly int _k20stage = L20K("L20stage", e => () => hazards.Add(L20Stage(B(e.num("to")))));
-	static readonly int _k20menu = L20K("L20menu", e => () =>
-		hazards.Add(L20Menu(e.nums("sb"), e.nums("sr"), e.nums("qb"), e.nums("qr"), e.nums("cb"), e.nums("cs"), e.nums("cg"), e.num("cd"), e.num("tw"), e.num("ta"), e.num("te"))));
 	static readonly int _k20tetris = L20K("L20tetris", e => () =>
 	{
 		var pz = e.nums("pz"); var P = new List<L20Piece>(); int i = 0;
@@ -299,19 +297,16 @@ public static partial class G
 		hazards.Add(L20Tetris(P, S, e.nums("cl"), e.nums("clr"), e.num("tw"), e.num("te")));
 	});
 	static readonly int _k20ring = L20K("L20ring", e => () =>
-		hazards.Add(L20Ring(e.num("x", W / 2), e.num("y", H / 2), e.num("rmin"), e.num("rmax"), e.num("per"), e.num("th"), e.num("gw") * Math.PI / 180, e.num("w"), e.num("rv"), e.num("a0") * Math.PI / 180, e.num("core"), e.num("tw"), e.num("ta"), e.num("te"))));
-	static readonly int _k20front = L20K("L20front", e => () => hazards.Add(L20Front(e.num("x0"), e.num("dir"), e.num("sx"), e.nums("hy"), e.num("hh"), e.num("tw"), e.num("ta"))));
+		hazards.Add(L20Ring(e.num("x", W / 2), e.num("y", H / 2), e.num("rmin"), e.num("rmax"), e.num("per"), e.num("th"), e.num("gw") * Math.PI / 180, e.num("w"), e.num("rv"), e.num("a0") * Math.PI / 180, e.num("core"), e.num("tw"), e.num("ta"), e.num("te"), e.nums("jb"), e.nums("ja").Select(v => v * Math.PI / 180).ToArray())));
+	static readonly int _k20front = L20K("L20front", e => () => hazards.Add(L20Front(e.num("x0"), e.num("dir"), e.num("sx"), e.nums("hy"), e.num("hh"), e.num("tw"), e.num("ta"), e.nums("sb"))));
 	static readonly int _k20pong = L20K("L20pong", e => () =>
 		L20Add(e, L20Pong(e.nums("nk"), e.nums("kb"), e.nums("kx"), e.nums("ky"), e.num("R"), e.flag("pad"), e.nums("lb"), e.nums("ly"), e.nums("rb"), e.nums("ry"), e.num("tw"), e.num("ta"), e.num("te"))));
-	static readonly int _k20shot = L20K("L20shot", e => () => hazards.Add(L20Shot(e.nums("bx"), e.nums("by"), e.num("R"), e.num("sp"), e.num("f0"), e.num("f1"))));
-	static readonly int _k20inv = L20K("L20inv", e => () =>
-		hazards.Add(L20Invaders(e.i("cols"), e.i("rows"), e.num("dx"), e.num("dy"), e.nums("sb"), e.nums("ox"), e.nums("oy"), e.nums("lb"), e.nums("lc"), e.num("lw"), e.num("lh"), e.num("wn"), e.nums("dv"), e.num("ddur"), e.num("tw"), e.num("ta"), e.num("te"))));
+	static readonly int _k20shot = L20K("L20shot", e => () => hazards.Add(L20Shot(e.nums("bx"), e.nums("by"), e.num("R"), e.num("sp"), e.num("f0"), e.num("f1"), e.num("fa", -1))));
 	static readonly int _k20ufo = L20K("L20ufo", e => () => hazards.Add(L20Ufo(e.num("y"), e.num("dir"), e.nums("bd"), e.num("vb"), e.num("wn"), e.num("ta"), e.num("te"))));
-	static readonly int _k20glitch = L20K("L20glitch", e => () => hazards.Add(L20Glitch(e.i("n"), e.num("hw"), e.nums("x0"), e.nums("v"), e.num("tw"), e.num("ta"), e.num("te"))));
 	static readonly int _k20lanes = L20K("L20lanes", e => () =>
 		L20Add(e, L20Lanes(e.i("n"), e.num("lw"), e.num("cx0"), e.num("hitY"), e.num("vpb"), e.num("clipY", -400), e.nums("nb"), e.nums("nl"), e.nums("nlen"), e.num("tilt"), e.num("tb0"), e.num("tb1"), e.num("rx", W / 2), e.num("ry", H / 2),
 			e.nums("sw"), e.nums("sa"), e.nums("sbb"), e.num("swd", 1), e.num("tw"), e.num("ta"), e.num("te"), e.flag("line"))));
-	static readonly int _k20close = L20K("L20close", e => () => hazards.Add(L20Close(e.num("bw"), e.num("bh"), e.num("tw"), e.num("t0"), e.num("t1"), e.num("t2"))));
+	static readonly int _k20close = L20K("L20close", e => () => hazards.Add(L20Close(e.num("bw"), e.num("bh"), e.num("tw"), e.num("t0"), e.num("t1"), e.num("t2"), e.nums("cs"))));
 	static readonly int _k20boss = L20K("L20boss", e => () => hazards.Add(L20Boss(e.num("in"), e.num("on"), e.num("ex"))));
 	static readonly int _k20spray = L20K("L20spray", e => () =>
 		hazards.Add(L20Spray(e.nums("ex"), e.nums("ey"), e.num("ta"), e.num("te"), e.num("ev"), e.i("fan"), e.num("spread") * Math.PI / 180, e.num("amp") * Math.PI / 180, e.num("per"), e.num("sp"), e.num("R"))));
