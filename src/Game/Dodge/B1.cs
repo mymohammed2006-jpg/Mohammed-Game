@@ -22,17 +22,6 @@ public static partial class G
 	public const double B1_END = 320.5;
 	// freeze windows (beats): what flies stops at a, the circles judge at b, then it flies back home
 	static readonly (double a, double b)[] B1FZ = { (124, 128), (138, 144), (153, 160), (169, 176), (187, 192), (282.5, 288) };
-	// the drums of the drops (his ask 06:55 10-25: every hit of the song, not fewer): in each 4 beats 0, 0.75, 1, 1.75, 2, 2.75, 3.5
-	// (measured on the song: the 3-3-2 of the kick and the snare); 2, 2.75 and 3.5 are the loudest
-	static readonly double[] B1G = { 0, 0.75, 1, 1.75, 2, 2.75, 3.5 };
-	static bool B1Drop(double b) => (b >= 192 && b < 252) || (b >= 256 && b < 282.5) || (b >= 288 && b < 320);
-	static IEnumerable<double> B1Hits(double a, double z) { for (double bar = Math.Floor(a / 4) * 4; bar < z; bar += 4) foreach (var g0 in B1G) { double T = bar + g0; if (T >= a && T < z) yield return T; } }
-	// how hard the core (and its pieces) beats right now: on every drum hit in the drops, on the beat elsewhere
-	static double B1Beat(double bt)
-	{
-		if (!B1Drop(bt)) return pulse; double f = bt - Math.Floor(bt / 4) * 4, last = 0; foreach (var g0 in B1G) if (g0 <= f) last = g0;
-		return JS.exp(-(f - last) * 7);
-	}
 	static (double a, double b)? B1Fz(double t0) { foreach (var w in B1FZ) { double a = B(w.a); if (a > t0 + 1e-6) return (a, B(w.b)); } return null; }
 	// how far a thing sent at t0 at speed v has gone at t: on, held in the freeze, then back (< 0 = home again)
 	static double B1Fly(double t0, double v, double t)
@@ -114,13 +103,13 @@ public static partial class G
 	static void B1CoreDraw(double x, double y, double r, double bt, double live)
 	{
 		g.save(); g.translate(x, y);
-		double bp = B1Beat(bt), pu = 1 + (B1Drop(bt) ? 0.14 : 0.06) * bp * live;
-		g.shadowColor = PINK; g.shadowBlur = 26 + 14 * bp;
+		double pu = 1 + 0.06 * pulse * live;
+		g.shadowColor = PINK; g.shadowBlur = 26 + 14 * pulse;
 		var gr = g.createRadialGradient(0, 0, r * 0.15, 0, 0, r * pu); gr.addColorStop(0, "#ffd0e0"); gr.addColorStop(0.35, PINK); gr.addColorStop(1, "#b0123f"); g.fillStyle = gr;
 		g.beginPath(); for (int i = 0; i < 10; i++) { double q = i * TAU / 10 + bt * 0.05, rr2 = r * pu * (i % 2 == 0 ? 1.08 : 0.9); if (i == 0) g.moveTo(JS.cos(q) * rr2, JS.sin(q) * rr2); else g.lineTo(JS.cos(q) * rr2, JS.sin(q) * rr2); } g.closePath(); g.fill(); g.shadowBlur = 0;
 		g.rotate(-bt * 0.12); g.strokeStyle = "rgba(40,0,14,0.75)"; g.lineWidth = 3; g.beginPath();
 		for (int i = 0; i < 6; i++) { double q = i * TAU / 6; g.moveTo(JS.cos(q) * r * 0.25, JS.sin(q) * r * 0.25); g.lineTo(JS.cos(q + 0.3) * r * 0.85, JS.sin(q + 0.3) * r * 0.85); }
-		g.stroke(); g.fillStyle = "rgba(40,0,14,0.85)"; circle(0, 0, r * 0.22); g.fillStyle = "#fff"; circle(0, 0, r * 0.08 * (1 + bp * live));
+		g.stroke(); g.fillStyle = "rgba(40,0,14,0.85)"; circle(0, 0, r * 0.22); g.fillStyle = "#fff"; circle(0, 0, r * 0.08 * (1 + pulse * live));
 		g.restore();
 	}
 
@@ -540,8 +529,8 @@ public static partial class G
 		// ===== 3. the rage (b192-320) =====
 		// two (three) spirals that turn and flip every 4 beats, the wedges every 2 beats
 		{
-			double th = 0; var tms = new SortedSet<double>(B1Hits(192, 220)); for (double b = 192; b < 220; b += 0.5) tms.Add(b);
-			foreach (double b in tms)
+			double th = 0;
+			for (double b = 192; b < 220; b += 0.5)
 			{
 				double bb = b; int dir = (int)((b - 192) / 4) % 2 == 0 ? 1 : -1; th += 0.35 * dir; double t0 = th;
 				at(bb - 0.5, () => { for (int i = 0; i < 3; i++) add(B1Shot(B1X, B1Y, t0 + i * TAU / 3, 320, B(bb), 0.5 * SB)); });
@@ -552,50 +541,23 @@ public static partial class G
 			double TT = T, a = T * 0.45;
 			at(TT - 2, () => { add(B1Wedge(a, 0.38, B(TT), 2 * SB)); add(B1Wedge(a + Math.PI, 0.38, B(TT), 2 * SB)); });
 		}
-		// the split (b220-252): the core breaks on the drum roll (b220.5-222.75), four pieces go round; on every drum hit they throw out
-		// (two each on 0 and 2, one on the others), and on the off-beat hits one of them in turn shoots three at the marked one
-		foreach (double T in new[] { 220.5, 221, 221.25, 221.5, 221.75, 222, 222.25, 222.75 })
-		{
-			double TT = T, a0 = (T - 220) * 1.7;
-			at(TT - 0.75, () => { for (int i = 0; i < 4; i++) add(B1Shot(B1X, B1Y, a0 + i * Math.PI / 2, 300, B(TT), 0.75 * SB)); });
-		}
+		// the split (b220-252): four pieces go round; in turn one of them shoots three at you; crosses of light every 4 beats
 		at(219, () => add(B1Pieces()));
 		at(221, () => add(B1MarkFx(B(221), B(282))));
+		for (double T = 223.5; T < 251; T += 1)
 		{
-			int vi = 0, side = 0;
-			foreach (double T in B1Hits(223, 251))
+			double TT = T; int i = (int)(T - 223.5) % 4;
+			at(TT - 1.5, () =>
 			{
-				double TT = T, f = T % 4; bool heavy = f == 0 || f == 2; int sd = side++ % 2 == 0 ? 1 : -1;
-				at(TT - 1, () =>
-				{
-					for (int i = 0; i < 4; i++)
-					{
-						var q = B1PieceAt(i, TT); double a = JS.atan2(q.y - B1Y, q.x - B1X);
-						if (heavy) { add(B1Shot(q.x, q.y, a + 1.1, 330, B(TT), SB)); add(B1Shot(q.x, q.y, a - 1.1, 330, B(TT), SB)); }
-						else add(B1Shot(q.x, q.y, a + sd * 1.1, 330, B(TT), SB));
-					}
-				});
-				if (heavy) continue;
-				int pi = vi++ % 4;
-				at(TT - 1.5, () =>
-				{
-					var q = B1PieceAt(pi, TT); var p = B1Aim(TT); double a = JS.atan2(p.y - q.y, p.x - q.x);
-					for (int s = -1; s <= 1; s++) add(B1Shot(q.x, q.y, a + s * 0.13, 560, B(TT), 1.5 * SB, 9, 3));
-				}, rnd: true);
-			}
+				var q = B1PieceAt(i, TT); var p = B1Aim(TT); double a = JS.atan2(p.y - q.y, p.x - q.x);
+				for (int s = -1; s <= 1; s++) add(B1Shot(q.x, q.y, a + s * 0.13, 560, B(TT), 1.5 * SB, 9, 3));
+			}, rnd: true);
 		}
-		// the roll at the end (b251.25-251.75): the pieces throw out three times on their way home; b252 the core is back with a ring
-		foreach (double T in new[] { 251.25, 251.5, 251.75 })
+		// and each piece throws two shards out every beat, crossing the others
+		for (double T = 222; T < 251; T += 1)
 		{
-			double TT = T, k = (T - 251.25) * 4;
-			at(TT - 0.75, () => { for (int i = 0; i < 4; i++) { var q = B1PieceAt(i, TT); double a = JS.atan2(q.y - B1Y, q.x - B1X) + k * 0.35; add(B1Shot(q.x, q.y, a, 360, B(TT), 0.75 * SB)); } });
-		}
-		at(252, () => add(B1Ring(B1X, B1Y, B(252), 420, -Math.PI / 2, 0.55)));
-		// b253-256 the kicks while it pulls itself back: a turning star of shards a beat
-		foreach (double T in new[] { 253.0, 254, 255, 255.5 })
-		{
-			double TT = T, a0 = T * 0.5;
-			at(TT - 1, () => { for (int i = 0; i < 6; i++) add(B1Shot(B1X, B1Y, a0 + i * TAU / 6, 300, B(TT), SB)); });
+			double TT = T;
+			at(TT - 1, () => { for (int i = 0; i < 4; i++) { var q = B1PieceAt(i, TT); double a = JS.atan2(q.y - B1Y, q.x - B1X); add(B1Shot(q.x, q.y, a + 1.1, 330, B(TT), SB)); add(B1Shot(q.x, q.y, a - 1.1, 330, B(TT), SB)); } });
 		}
 		for (double T = 224; T < 252; T += 2)
 		{
@@ -610,30 +572,23 @@ public static partial class G
 			at(TT - 2, () => add(B1Slam(q, B(TT), 2 * SB)));
 			at(TT, () => add(B1Ring(cx, cy, B(TT), 480, ga, 0.5)));
 		}
-		foreach (double T in B1Hits(256, 282).Where(T => T % 4 is 1.75 or 3.5))
+		for (double T = 257; T < 282; T += 2)
 		{
 			double TT = T;
 			at(TT - 1.5, () => { var p = B1Aim(TT); add(B1Laser(B1X, B1Y, JS.atan2(p.y - B1Y, p.x - B1X), B(TT), 1.5 * SB)); }, rnd: true);
 		}
 		{
 			double th = 0;
-			foreach (double b in B1Hits(256, 282.5)) { double bb = b; th += 0.42; double t0 = th; at(bb - 0.5, () => { add(B1Shot(B1X, B1Y, t0, 300, B(bb), 0.5 * SB)); add(B1Shot(B1X, B1Y, t0 + Math.PI, 300, B(bb), 0.5 * SB)); }); }
+			for (double b = 256; b < 282.5; b += 0.5) { double bb = b; th += 0.42; double t0 = th; at(bb - 0.5, () => add(B1Shot(B1X, B1Y, t0, 300, B(bb), 0.5 * SB))); }
 		}
 		// the dip: everything stops, one circle low in the middle
 		at(282.3, () => B1Circles(k => t => (640 + (k % 2 == 0 ? 1 : -1) * (k + 1) / 2 * 260 * (k == 0 ? 0 : 1), k >= 2 ? 120 : 610), B(282.5), B(288), 60));
 		// the end (b288-316): the walls close in, a ring every beat with a gap that sways around a turning line
 		at(286, () => add(B1Walls(288, 300, 316, 318, 290, 150)));
+		for (double T = 289; T < 316; T += 1)
 		{
-			int grp = 0; double lastG = -1;
-			foreach (double T in B1Hits(289, 316))
-			{
-				double TT = T, f = T % 4;
-				if (f == 0.75) continue;
-				if (f == 1.75) { double a0 = T * 0.6; at(TT - 1, () => { for (int i = 0; i < 4; i++) add(B1Shot(B1X, B1Y, a0 + i * Math.PI / 2, 280, B(TT), SB)); }); continue; }
-				double gk = Math.Floor(T / 4) * 3 + (f < 1 ? 0 : f < 2 ? 1 : 2); if (gk != lastG) { grp++; lastG = gk; }
-				double ga = -Math.PI / 2 + (T - 288) / 4 * (Math.PI / 6) + (grp % 2 == 0 ? 1 : -1) * 22 * Math.PI / 180;
-				at(TT, () => add(B1Ring(B1X, B1Y, B(TT), 360, ga, 0.45)));
-			}
+			double TT = T, ga = -Math.PI / 2 + (T - 288) / 4 * (Math.PI / 6) + ((int)(T - 289) % 2 == 0 ? 1 : -1) * 22 * Math.PI / 180;
+			at(TT, () => add(B1Ring(B1X, B1Y, B(TT), 360, ga, 0.45)));
 		}
 		at(319, () => add(B1Shatter(B(320))));
 
