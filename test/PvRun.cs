@@ -33,6 +33,7 @@ public class PvRun
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "rpt") { RptScene(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "radio") { RadioScene(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "rpp") { RppScene(now); G.last = now(); return; }
+		if (System.Environment.GetEnvironmentVariable("MG_PV") == "v49") { V49Tour(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "hc2") { HcOrder(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "hcsk") { HcSkins(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "news")
@@ -241,6 +242,34 @@ public class PvRun
 		for (int j = 0; j < 4; j++) at[2196 + j * 2] = () => tap("ArrowDown"); at[2206] = () => tap("Enter");
 		at[2260] = () => tap("KeyT"); at[2263] = () => G.rpSeekTo(double.Parse(System.Environment.GetEnvironmentVariable("MG_TM_AT") ?? "60")); shots[2275] = "14-coop-replay-box-on"; at[2276] = () => tap("KeyT"); shots[2282] = "15-coop-replay-box-off";
 		endF = 2290;
+	}
+	// v49 release check: what's new, the modes, the new levels' cards, boss menu, settings -> extras -> ratings, and a few seconds in each new level
+	void V49Tour(Func<double> now)
+	{
+		void tap(string k) { G.OnKeyDown(k, false); rel.Add(k); }
+		int f = 1;
+		at[f] = () => { G.gatePassed = true; localStorage.setItem("mg_news", "48"); G.goMain(now()); }; shots[f += 120] = "00-news";
+		at[++f] = () => { G.state = "main"; G.mainAt = now() - 3000; G.menuSel = 0; }; shots[f += 60] = "01-main";
+		for (int m = 0; m < 3; m++) { int mm = m; at[++f] = () => { G.state = "modes"; G.modeSel = mm; }; shots[f += 40] = "02-modes-" + m; }
+		foreach (var id in new[] { "L15", "L16", "L17", "L18", "L19", "L20" }) { string ii = id; at[++f] = () => { G.state = "levels"; G.lvlSel = G.LEVELS.FindIndex(x => x.id == ii); }; shots[f += 50] = "03-levels-" + id; }
+		foreach (var id in new[] { "F9", "F10", "F11" }) { string ii = id; at[++f] = () => { G.state = "friends"; G.friSel = G.FRIENDS.FindIndex(x => x.id == ii); }; shots[f += 50] = "04-friends-" + id; }
+		at[++f] = () => { G.state = "bossMenu"; G.bossSel = 0; }; shots[f += 50] = "05-boss-menu";
+		at[++f] = () => { G.state = "hcList"; }; shots[f += 50] = "06-hardcore-list";
+		at[++f] = () => { G.state = "settings"; G.setSel = 0; }; shots[f += 50] = "07-settings";
+		at[++f] = () => { G.state = "extras"; }; shots[f += 50] = "08-extras";
+		at[++f] = () => G.openRatings(); shots[f += 80] = "09-ratings";
+		at[++f] = () => { G.state = "board"; G.board.mode = "n"; }; shots[f += 60] = "10-board";
+		at[++f] = () => { G.state = "chal"; }; shots[f += 40] = "11-chal";
+		at[++f] = () => { G.state = "points"; }; shots[f += 40] = "12-points";
+		foreach (var id in new[] { "L16", "L17", "L18", "L19", "L20", "F10", "F11", "B1" })
+		{
+			string ii = id;
+			at[++f] = () => { G.easy = false; var L = G.ALL_LV().Concat(G.HCLV).First(x => x.id == ii); G.startLevel(L, ii[0] == 'F' ? "friends" : "levels"); };
+			shots[f += 90] = "13-" + id + "-intro"; shots[f += 400] = "14-" + id + "-play";
+			at[++f] = () => tap("Escape"); shots[f += 10] = "15-" + id + "-pause"; at[++f] = () => { G.state = "main"; G.stopMusic(); };
+			f += 20;
+		}
+		endF = f + 10;
 	}
 	// the radio level for two: its card on the list, the room, the start, the pause, and its replay (MG_RPT_FILE from TeamTest RPT=1)
 	void RadioScene(Func<double> now)
