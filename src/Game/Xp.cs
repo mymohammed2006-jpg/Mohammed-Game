@@ -22,6 +22,7 @@ public static partial class G
 		["L17"] = 1.8,   // حالف لا ما انام: the same difficulty as L5 (Mohammed, 10-24)
 		["L18"] = 1.8,   // level 18, Awof Al-Dunya: the same difficulty as L5 (Mohammed, 10-24)
 		["L19"] = 1.8,   // عافني وراح: the same difficulty as L5 (Mohammed 20:30 10-24)
+		["L20"] = 4.0,   // New Game: as hard as Abra Macabre
 		["P1"] = 1.5,   // the platformer's first level
 		["P2"] = 2.0,   // the co-op level for three (harder than P1, easier than Link)
 		["P3"] = 3.0,   // the radio, co-op for two (harder than P2): Mohammed 00:29 10-24
