@@ -35,6 +35,17 @@ public static partial class G
 			}
 			return;
 		}
+		if (state == "bossList")
+		{
+			// like the Hardcore list: a boss card plays its song, a locked one the radio static
+			bool bo = bossLv < BOSSLV.Count; var BL = bo ? BOSSLV[bossLv] : null; string bk = "boss" + str(bossLv);
+			if (bk != pv.sel) { pv.sel = bk; pv.at = now; pvStop(); }
+			if (pv.src == null && now - pv.at > 350 && actx.state == "running")
+			{
+				if (bo && BL.buf != null && BL.ok) { pvStart(BL); pv.had = true; } else if (!bo) { pvStartStatic(); pv.had = true; }
+			}
+			return;
+		}
 		if (state != "levels" && state != "friends") { pvStop(); pv.sel = ""; pv.had = false; return; }
 		var L = state == "levels" ? (lvlSel < LEVELS.Count ? LEVELS[lvlSel] : null) : (friSel < FRIENDS.Count ? FRIENDS[friSel] : null); string k = state + str(lvlSel) + ":" + str(friSel);
 		if (k != pv.sel) { pv.sel = k; pv.at = now; pvStop(); }
@@ -42,7 +53,7 @@ public static partial class G
 	}
 
 	// ---------- screen transitions: the old picture fades into the new screen's background, then the new screen fades in ----------
-	static readonly string[] TR_ST = { "main", "levels", "modes", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "news", "chal", "skins", "hcList", "myRp", "extras", "ratings" };
+	static readonly string[] TR_ST = { "main", "levels", "modes", "bossList", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "news", "chal", "skins", "hcList", "myRp", "extras", "ratings" };
 	const double TR_OUT = 110, TR_IN = 170;
 	static ImageTexture trSnap; static string trLast = ""; static bool trOn = false; static double trAt = -1e9;
 	public static void trCheck(double now)

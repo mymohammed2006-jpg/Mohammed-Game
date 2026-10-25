@@ -16,6 +16,7 @@ public static partial class G
 	{
 		if (state == "modes") drawModes(now);
 		else if (state == "bossMenu") drawBossMenu(now);
+		else if (state == "bossList") drawBossList(now);
 		else if (state == "pltList") drawPltList(now);
 		else if (state == "pltIntro") drawPltIntro(now);
 		else if (state is "pltPlay" or "pltPause" or "pltSet" or "pltDead" or "pltWin" or "pltVsEnd" or "pltVsWait") drawPlat(now);

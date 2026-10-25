@@ -25,14 +25,27 @@ public static partial class G
 
 	// ---------- the screen: the third card of "المراحل الرئيسية" opens it ----------
 	static readonly string[] BOSS_OPTS = { "العب لحالك", "سوّ غرفة", "ادخل بكود" };
-	public static int bossSel = 0; static bool joinBoss;
+	public static int bossSel = 0, bossLv = 0; static bool joinBoss;
 	static double bossShake;
+	// the bosses' list (his ask 13:21 10-25, "اعتمد" + now 13:53): a card per boss, then the boss's own screen; BOSS_LOCKED cards after them
+	// show a lock and ؟؟؟ (the bosses still to come)
+	const int BOSS_LOCKED = 2;
+	static int bossSlots => BOSSLV.Count + BOSS_LOCKED;
+	static Level bossL => bossLv < BOSSLV.Count ? BOSSLV[bossLv] : BOSSLV.FirstOrDefault();
 	public static bool stepBoss(Inp inp, double now, double dt)
 	{
+		if (state == "bossList")
+		{
+			if (inp.left && bossLv < bossSlots - 1) bossLv++;
+			if (inp.right && bossLv > 0) bossLv--;
+			if (inp.confirm) { if (bossLv < BOSSLV.Count) { state = "bossMenu"; bossSel = 0; } else { shakeCard = 0.4; sfx(tt => sTone(tt, 140, 0.12, "square", 0.08)); } }
+			else if (inp.back || inp.pz) state = "modes";
+			return true;
+		}
 		if (state != "bossMenu") return false;
 		bossShake = Math.Max(0, bossShake - dt);
 		int n = BOSS_OPTS.Length; if (inp.up) bossSel = (bossSel + n - 1) % n; if (inp.down) bossSel = (bossSel + 1) % n;
-		var L = BOSSLV.FirstOrDefault();
+		var L = bossL;
 		if (inp.confirm && L != null)
 		{
 			if (bossSel == 0) { if (L.ok && L.buf != null) { joinBoss = false; startLevel(L, "bossMenu"); } else bossShake = 0.4; }
@@ -40,13 +53,42 @@ public static partial class G
 			else if (bossSel == 1) { joinBoss = true; bnHost(); }
 			else { joinBoss = true; joinCode = ""; joinDig = 0; state = "pltJoin"; }
 		}
-		else if (inp.back || inp.pz) state = "modes";
+		else if (inp.back || inp.pz) state = "bossList";
 		return true;
+	}
+	public static void drawBossList(double now)
+	{
+		bgShapes(now); txt("طور الزعيم", W / 2, 95, 52, "#fff");
+		const int VIS = 4; double cw = 270, chh = 380, gp = 30, cy = H / 2 + 20; int n = bossSlots, first = Math.Max(0, Math.Min(bossLv - VIS + 1, n - VIS)), vis = Math.Min(VIS, n);
+		if (bossLv < first) first = bossLv;
+		double total = vis * cw + (vis - 1) * gp;
+		for (int k = 0; k < vis; k++)
+		{
+			int i = first + k; bool sel = i == bossLv, ok = i < BOSSLV.Count; double x = W / 2 + total / 2 - cw / 2 - k * (cw + gp);
+			int ii = i; zone(x - cw / 2, cy - chh / 2, cw, chh, () => bossLv = ii);
+			if (sel && shakeCard > 0) x += JS.sin(shakeCard * 60) * 8 * shakeCard / 0.4;
+			double lf = lift("B" + i, sel);
+			rr(x - cw / 2, cy - chh / 2 + lf, cw, chh, 20); g.fillStyle = sel ? CARDS : CARD; g.fill(); g.strokeStyle = sel ? RED : "rgba(255,42,109,0.3)"; g.lineWidth = sel ? 3 : 1.5; g.stroke();
+			txt("الزعيم " + ar(i + 1), x, cy - 140 + lf, 24, sel ? PINK : "rgba(255,255,255,0.5)", 700);
+			if (ok)
+			{
+				var L = BOSSLV[i];
+				B1CoreDraw(x, cy - 50 + lf, 46, now / 1000 * 130 / 60, 1);
+				{ double fs = 32; g.font = $"800 {str(fs)}px {FONT}"; while (fs > 18 && g.measureText(L.name).width > cw - 24) { fs--; g.font = $"800 {str(fs)}px {FONT}"; } txt(L.name, x, cy + 45 + lf, fs, "#fff", 800); }
+				g.font = $"20px {TFONT}"; g.fillStyle = PINK; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText("Nitro Fun - " + L.song, x, cy + 88 + lf);
+				txt(L.best != null ? "أفضل حرف: " + L.best : "ما خلصتها للحين", x, cy + 135 + lf, 22, L.best != null ? NGOLD : "rgba(255,255,255,0.5)", 700);
+			}
+			else { lockIcon(x, cy - 30 + lf); txt("؟؟؟", x, cy + 55 + lf, 32, "rgba(255,255,255,0.4)", 800); txt("قريب", x, cy + 105 + lf, 22, "rgba(255,255,255,0.35)", 600); }
+		}
+		if (first > 0) txt("◀", W / 2 + total / 2 + 40, cy, 28, "rgba(255,255,255,0.5)", 800);
+		if (first + vis < n) txt("▶", W / 2 - total / 2 - 40, cy, 28, "rgba(255,255,255,0.5)", 800);
+		txt("من ١ إلى ٤ لاعبين", W / 2, H - 80, 22, "rgba(255,255,255,0.6)", 500);
+		row(new[] { (BTN[kind].confirm, "اختيار"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
 	}
 	public static void drawBossMenu(double now)
 	{
 		bgShapes(now); txt("طور الزعيم", W / 2, 95, 52, "#fff");
-		var L = BOSSLV.FirstOrDefault(); if (L == null) return;
+		var L = bossL; if (L == null) return;
 		// the boss's card on the left: its core, name, song, best letter
 		double cx = 330, cy = H / 2 + 30, cw = 380, chh = 400, sx = bossShake > 0 ? JS.sin(bossShake * 60) * 8 * bossShake / 0.4 : 0;
 		rr(cx - cw / 2 + sx, cy - chh / 2, cw, chh, 22); g.fillStyle = CARD; g.fill(); g.strokeStyle = "rgba(255,42,109,0.5)"; g.lineWidth = 2; g.stroke();

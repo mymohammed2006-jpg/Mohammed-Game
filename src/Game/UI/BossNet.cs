@@ -52,7 +52,7 @@ public static partial class G
 	// ---------- the room ----------
 	static async void bnHost()
 	{
-		var L = BOSSLV.FirstOrDefault(); if (L == null) return;
+		var L = bossL; if (L == null) return;
 		var n = net = new NetRun { host = true, vs = true, boss = true, vseat = 0, BL = L }; for (int s = 1; s < VS_N; s++) n.vp[s] = new Peer();
 		n.vnm[0] = acc?.name ?? ""; n.vsk[0] = skin; n.vin[0] = true; netSetPhase("make"); state = "pltRoom";
 		try

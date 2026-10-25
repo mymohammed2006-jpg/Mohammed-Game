@@ -244,7 +244,7 @@ public static partial class G
 		if (state == "modes")
 		{
 			int nm = BOSSLV.Count > 0 ? 3 : 2; if (inp.left) modeSel = Math.Min(nm - 1, modeSel + 1); if (inp.right) modeSel = Math.Max(0, modeSel - 1);   // right to left, like the lists
-			if (inp.confirm) { if (modeSel == 0) state = "levels"; else if (modeSel == 2) { state = "bossMenu"; bossSel = 0; } else { state = "pltList"; plSel = Math.Min(plSel, Math.Max(0, PLATS.Count - 1)); } }
+			if (inp.confirm) { if (modeSel == 0) state = "levels"; else if (modeSel == 2) { state = "bossList"; bossLv = Math.Min(bossLv, Math.Max(0, BOSSLV.Count - 1)); } else { state = "pltList"; plSel = Math.Min(plSel, Math.Max(0, PLATS.Count - 1)); } }
 			else if (inp.back || inp.pz) state = "main";
 		}
 		else if (state == "pltList")

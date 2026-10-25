@@ -33,6 +33,18 @@ public class PvRun
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "rpt") { RptScene(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "radio") { RadioScene(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "rpp") { RppScene(now); G.last = now(); return; }
+		if (System.Environment.GetEnvironmentVariable("MG_PV") == "blist")
+		{
+			// the bosses' list by key presses: modes -> list -> a locked card (shakes) -> back to the boss -> its screen -> back -> back
+			void tap(string k) { G.OnKeyDown(k, false); rel.Add(k); }
+			at[1] = () => { G.gatePassed = true; G.state = "modes"; G.modeSel = 2; }; shots[40] = "b1-modes";
+			at[41] = () => tap("Enter"); shots[100] = "b2-list";
+			at[101] = () => tap("ArrowLeft"); shots[150] = "b3-list-locked"; at[151] = () => tap("Enter"); shots[158] = "b4-locked-shake";
+			at[200] = () => tap("ArrowRight"); at[230] = () => tap("Enter"); shots[290] = "b5-boss-screen";
+			at[291] = () => tap("Backspace"); shots[340] = "b6-back-to-list"; at[341] = () => tap("Backspace"); shots[390] = "b7-back-to-modes";
+			at[391] = () => System.IO.File.WriteAllText(System.IO.Path.Combine(outDir, "states.txt"), "end " + G.state);
+			endF = 400; G.last = now(); return;
+		}
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "v49") { V49Tour(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "hc2") { HcOrder(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "hcsk") { HcSkins(now); G.last = now(); return; }

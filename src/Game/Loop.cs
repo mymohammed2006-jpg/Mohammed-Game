@@ -24,8 +24,8 @@ public static partial class G
 	}
 
 	static readonly string[] IN_GAME = { "play", "paused", "pauseSet", "dead", "win", "starting", "replay", "rpGap", "rpEnd", "prEnd", "bnWipe" };
-	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins", "hcList", "myRp", "extras", "ratings" };
-	static readonly string[] FS_HINT = { "main", "levels", "modes", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "pltPause", "pltSet", "tmPause", "tmSet", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "chal", "skins", "hcList", "extras", "ratings" };
+	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "bossList", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins", "hcList", "myRp", "extras", "ratings" };
+	static readonly string[] FS_HINT = { "main", "levels", "modes", "bossList", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "pltPause", "pltSet", "tmPause", "tmSet", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "chal", "skins", "hcList", "extras", "ratings" };
 
 	public static void draw(double now)
 	{
@@ -157,7 +157,7 @@ public static partial class G
 		zonesFlip();
 	}
 
-	static readonly string[] MENU_MUSIC = { "main", "levels", "modes", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "practice", "news", "chal", "skins", "hcList", "myRp", "extras", "ratings" };
+	static readonly string[] MENU_MUSIC = { "main", "levels", "modes", "bossList", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "practice", "news", "chal", "skins", "hcList", "myRp", "extras", "ratings" };
 	public static void step(double now, bool nd = false)
 	{
 		double dt = Math.Min(0.05, Math.Max(0, now - last) / 1000); last = now; fdt = dt;

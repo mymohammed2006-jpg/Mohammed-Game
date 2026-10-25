@@ -99,7 +99,7 @@ public static partial class G
 		if (n.host && n.code != "" && (n.phase is "make" or "wait" || n.roomOpen)) _ = roomDel(n.code);   // a failed connection keeps its room (both sides' addresses, to see why; the code is free again after 10 minutes)
 		if (why != null) netNote(why);
 		if (why == null || !why.StartsWith("ما قدرنا")) netDiag = null;
-		if (n.boss) { stopMusic(); player = null; hazards = new List<Hz>(); particles = new List<Particle>(); bnMeDown = false; actx.resume(); state = "bossMenu"; if (n.bwon) rateAsk(n.BL, null); return; }   // a won boss room: its rating card
+		if (n.boss) { stopMusic(); player = null; hazards = new List<Hz>(); particles = new List<Particle>(); bnMeDown = false; actx.resume(); state = "bossMenu"; bossLv = Math.Max(0, BOSSLV.IndexOf(n.BL)); if (n.bwon) rateAsk(n.BL, null); return; }   // a won boss room: its rating card
 		if (state.StartsWith("plt") && state != "pltList") { plStopMusic(); player = null; particles = new List<Particle>(); actx.resume(); state = "pltList"; }
 		if (state.StartsWith("tm")) { tmStopMusic(); tm = null; tmMe = tmView = -1; particles = new List<Particle>(); actx.resume(); state = "pltList"; }
 		if (rl != null && state == "pltList") rateAsk(rl, null);
