@@ -91,7 +91,9 @@ hit(124, 0.3, 14); lightP(125, 56, T); lightP(126, 56, T)
 T = 1
 ev(128, "L13earth", keep=True, end=226)
 for (b0, b1, x0, y0, x1, y1, w) in [(128, 146, -170, 190, W + 170, 300, 0.9), (130, 148, W + 170, 560, -170, 440, -0.8), (134, 150, W * 0.55, -170, W * 0.45, H + 170, 1.1)]:
-    ev(b0 - 3, "L13sat", h=b0, end=b1, x0=x0, y0=y0, x1=x1, y1=y1, w=w)   # satellites float through the break
+    # satellites float through the break. The first one is out before the 0:55 save's restart point (2 beats before it): keepNew
+    # brings it back after a death there (v51, his ask 10-26: it vanished)
+    ev(b0 - 3, "L13sat", h=b0, end=b1, x0=x0, y0=y0, x1=x1, y1=y1, w=w, keepNew=b0 == 128)
 an = 0.3
 for b in [128.5, 133, 134, 134.5, 135, 139, 139.5, 141, 142, 143]:   # beacon lights on the notes
     light(b, W / 2 + math.cos(an) * 270, H / 2 + math.sin(an) * 210, 50, T, 0.5); an += 2.4

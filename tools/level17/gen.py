@@ -114,7 +114,7 @@ a = 200
 times = [117.5 + i for i in range(18)]
 for i, b in enumerate(times):
     sb.append(b); a = (a + (70 if i % 2 == 0 else -110)) % 360; ga.append(a); w.append(0.35 if i % 2 == 0 else -0.35)
-ev(117.4, 'L17trails', sb=sb, ga=ga, w=w, r0=760, v=170, gw=68, th=18, to=136)
+ev(117.4, 'L17trails', sb=sb, ga=ga, w=w, r0=760, v=170, gw=68, th=18, to=136, keepNew=True)   # comes out before the 1:57 save's restart point: keepNew brings it back after a death (v51, his ask 10-26)
 
 # 2:11 the messages: bubbles slide in from both sides in lanes ("typing..." shows where), three to a beat on its hits, the lanes
 # stepping down and up the screen. From 2:18 two at a time

@@ -130,6 +130,7 @@ public static partial class G
 		ensureAudio();
 	}
 
+	public static bool cpKeepNew = true;   // false while a replay from before v51 starts an attempt (Replay.cs rpGo)
 	public static void beginRun(double cp, int? seed = null)
 	{
 		runSeed = seed ?? (testSeed != null ? testSeed() : i32(random() * 4294967296)); rngS = hstr(str(runSeed) + ":b");
@@ -138,16 +139,20 @@ public static partial class G
 		evIdx = events.FindIndex(e => e.b >= fromB); if (evIdx < 0) evIdx = events.Count; afkStart(fromB);
 		player = new Player { x = 200, y = H / 2, r = easy ? EZ_R : 5, hp = maxHp(cur), inv = 1.0, hurt = 0, dash = 0, cd = 0, fx = 1, fy = 0, ddx = 1, ddy = 0, ang = 0 };
 		playMusic(fromT); songT = fromT - 0.12; sim0 = songT; simN = 0; dashQ = false; inX = inY = 0;
-		// a checkpoint: long-lived things (backgrounds and such, keep) come back with the player
+		// a checkpoint: long-lived things (backgrounds and such, keep) come back with the player. keepNew (v51): an attack that is already out
+		// at the restart point and goes on well past the save (L17's star rings, L13's first satellite) comes back too, where it would be by
+		// then; replays recorded before v51 (v < 6) play without it, as they were recorded
 		if (cp > 0)
 		{
 			int r0 = rngS;
 			for (int j = 0; j < evIdx; j++)
-				if (events[j].keep)
+				if (events[j].keep || (events[j].keepNew && cpKeepNew))
 				{
 					int k = hazards.Count; rngS = hstr(str(runSeed) + ":e" + j); events[j].f();
 					for (int i = k; i < hazards.Count; i++) hazards[i].rid = "e" + j + "." + (i - k);
 					if (easy) ezCut(k, "e" + j, ezKE[j] != 0);
+					// keepNew: one that is already over (a later save) goes at once
+					if (!events[j].keep) { for (int i = k; i < hazards.Count; i++) hazards[i].update(songT, 0); for (int i = hazards.Count - 1; i >= k; i--) if (hazards[i].dead) hazards.RemoveAt(i); }
 				}
 			rngS = r0;
 		}

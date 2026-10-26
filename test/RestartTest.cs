@@ -41,6 +41,8 @@ public class RestartTest
 		else if (ids[0] == "CUT") { try { CutRp(); } catch (Exception e) { Ok(false, "cut threw " + e); } }
 		else if (ids[0] == "TRP") { try { TeamRp(); } catch (Exception e) { Ok(false, "team rp threw " + e); } }
 		else if (ids[0] == "PRP") { foreach (var id in ids.Skip(1)) try { PracRp(id); } catch (Exception e) { Ok(false, "practice rp threw " + e); } }
+		else if (ids[0] == "CPS") { foreach (var id in ids.Skip(1)) foreach (bool ez in new[] { System.Environment.GetEnvironmentVariable("CPEZ") == "1" }) try { CpScan(id, ez); } catch (Exception e) { Ok(false, id + " cps threw " + e); } }
+		else if (ids[0] == "KNV") { foreach (var id in ids.Skip(1)) try { KeepNewRp(id); } catch (Exception e) { Ok(false, id + " knv threw " + e); } }
 		else if (ids[0] == "RPP") { try { PlatRp(); } catch (Exception e) { Ok(false, "plat rp threw " + e); } }
 		else
 		{
@@ -87,6 +89,87 @@ public class RestartTest
 		Until(() => G.state == "play", 2000); for (int j = 0; j < 100; j++) Frame();
 		Pause(G.pauseList().Length - 1); G.player = null;   // the exit (the last item)
 		log.Append($"   ({frames} frames at 240 Hz)\n");
+	}
+
+	// ---------- v51: what a death loses. At each save the game restarts 2 beats before it and only the "keep" things come back; this lists the
+	// attacks that were already out before that and still hurt after it (a clean run vs the restart). Usage: -- --restart-test <outFile> CPS <ids,...>
+	void CpScan(string id, bool ez)
+	{
+		var L = G.ALL_LV().Concat(G.HCLV).Concat(G.BOSSLV).First(x => x.id == id); if (ez && L.boss) return;
+		G.easy = ez; G.cur = L; G.fromList = "levels"; G.levelTiming(L); if (L.buf == null) L.buf = G.LoadSong(G.SONG_FILE[L.id]); G.noMus = false;
+		foreach (var cp in L.cps.Where(c => c > 0))
+		{
+			G.requestStart(0); Until(() => G.state == "play", 2000);
+			double fromB = cp - 2, fromT = G.B(fromB); int idx = G.events.FindIndex(e => e.b >= fromB); if (idx < 0) idx = G.events.Count;
+			Until(() => G.songT >= fromT, 240 * 400);
+			bool lost(Hz h) { if (h.rid == null || !h.rid.StartsWith("e")) return false; int j = int.Parse(new string(h.rid.Skip(1).TakeWhile(char.IsDigit).ToArray())); return j < idx && !G.events[j].keep && !G.events[j].keepNew; }
+			var gone = G.hazards.Where(h => !h.dead && lost(h)).ToList();
+			var keepN = G.hazards.Where(h => !h.dead && h.rid != null && h.rid.StartsWith("e")).Where(h => { int j = int.Parse(new string(h.rid.Skip(1).TakeWhile(char.IsDigit).ToArray())); return j < idx && G.events[j].keepNew; }).ToList();
+			if (System.Environment.GetEnvironmentVariable("CPDBG") != null) log.Append($"   dbg state {G.state} songT {G.songT:F2} fromT {fromT:F2} idx {idx} n {G.hazards.Count}: {string.Join(" ", G.hazards.Select(h => h.rid + "/" + h.kind + (h.dead ? "+" : "")))}\n");
+			var first = new Dictionary<Hz, double>(); var last = new Dictionary<Hz, double>(); var p = new Player { r = ez ? G.EZ_R : 5 };
+			double end = fromT + 25;
+			while (G.songT < end && G.state == "play" && gone.Any(h => !h.dead))
+			{
+				for (int f = 0; f < 12; f++) Frame();
+				double t = G.songT;
+				foreach (var h in gone.Where(h => !h.dead))
+				{
+					bool hit = false;
+					for (int gx = 0; gx < 64 && !hit; gx++) for (int gy = 0; gy < 36 && !hit; gy++) { p.x = gx * 20 + 10; p.y = gy * 20 + 10; hit = h.hit(p, t); }
+					if (hit) { if (!first.ContainsKey(h)) first[h] = t; last[h] = t; }
+				}
+			}
+			// the keepNew attacks: the restart's copy must hurt exactly where the clean run's one does
+			var origSet = keepN;
+			if (G.events.Any(e => e.keepNew))
+			{
+				G.requestStart(cp); Until(() => G.state == "play", 2000);
+				var back = G.hazards.Where(h => h.rid != null && h.rid.StartsWith("e") && G.events[int.Parse(new string(h.rid.Skip(1).TakeWhile(char.IsDigit).ToArray()))].keepNew).Select(h => h.rid).OrderBy(x => x);
+				Ok(back.SequenceEqual(origSet.Select(h => h.rid).OrderBy(x => x)), $"{id} save {cp}: after the restart the keepNew ones are just the live ones ({string.Join(" ", back)})");
+				var copy = origSet.Select(o => G.hazards.FirstOrDefault(h => h.rid == o.rid)).ToList(); int same = 0, diff = 0;
+				Ok(copy.All(c => c != null), $"{id} save {cp}: {origSet.Count} keepNew attacks come back ({string.Join(" ", origSet.Select(o => o.rid + " " + o.kind))})");
+				for (int s2 = 0; s2 < 200 && G.state == "play"; s2++)
+				{
+					for (int f = 0; f < 12; f++) Frame();
+					for (int q = 0; q < origSet.Count; q++) { if (copy[q] == null) continue; for (int gx = 0; gx < 64; gx++) for (int gy = 0; gy < 36; gy++) { p.x = gx * 20 + 10; p.y = gy * 20 + 10; if (origSet[q].hit(p, G.songT) == copy[q].hit(p, G.songT)) same++; else diff++; } }
+				}
+				Ok(diff == 0, $"{id} save {cp}: the copies hurt in the same places as the clean run for 10 s ({same} same, {diff} different)");
+			}
+			var bad = gone.Where(h => first.ContainsKey(h)).ToList();
+			log.Append($"{id} {(ez ? "e" : "n")} save beat {cp}: {gone.Count} things not rebuilt, {bad.Count} still hurt after the restart\n");
+			foreach (var h in bad) log.Append($"     {h.rid} {h.kind} hurts beat {G.BT(first[h]):F1} .. {G.BT(last[h]):F1} (save {cp}, restart {fromB})\n");
+			File.WriteAllText(outFile, log.ToString());
+		}
+	}
+
+	// v51: a replay with a death after the save: recorded now (v6) the keepNew attack is there on the replay too; the same moves as an old
+	// (v5) replay play the way v50 did, without it. Usage: -- --restart-test <outFile> KNV <ids,...>
+	void KeepNewRp(string id)
+	{
+		var L = G.ALL_LV().First(x => x.id == id); log.Append($"== {id} keepNew replay\n");
+		G.easy = false; G.cur = L; G.fromList = "levels"; G.levelTiming(L); if (L.buf == null) L.buf = G.LoadSong(G.SONG_FILE[L.id]); G.noMus = false;
+		var evs = L.build(); double cp = L.cps.First(c => c > 0 && evs.Any(e => e.keepNew && e.b < c - 2 && e.b > c - 8));
+		G.requestStart(0); Until(() => G.state == "play", 2000);
+		Until(() => G.checkpoint >= cp, 240 * 400); Until(() => G.songT > G.B(cp) + 1, 2000); Pause(1); Until(() => G.state == "play", 2000);
+		bool live = G.hazards.Any(h => h.rid != null && G.events[int.Parse(new string(h.rid.Skip(1).TakeWhile(char.IsDigit).ToArray()))].keepNew);
+		Ok(live, $"  playing: back at save {cp} the keepNew attack is there");
+		Until(() => G.songT > G.B(cp) + 4, 4000);
+		var segs = G.rec.segs.Where(s => s.n > 0).Select(s => new RpSeg { cp = s.cp, seed = s.seed, t0 = s.t0 ?? 0, n = s.n, b = s.b.Select(x => (ushort)x).ToArray() }).ToList();
+		foreach (int v in new[] { G.RP_V, 5 })
+		{
+			G.rp.doc = new RpDoc { r = "B", hz = G.RP_HZ, v = v, segs = segs }; G.rp.bot = false; G.rp.back = "levels"; G.rp.L = L; G.rp.m = "n"; G.rp.hide = true;
+			G.rp.saveEasy = G.easy; G.cur = L; G.levelTiming(L); G.rp.paused = false; G.rp.rate = 1; G.rp.barT = 4; G.rpTimeline(); G.rpGo(0);
+			bool seen = false;
+			for (int j = 0; j < 240 * 400 && G.state != "rpEnd"; j++)
+			{
+				AudioCtx.manualTime += 1.0 / 240; performance.manual += 1000.0 / 240;
+				if (G.state == "rpGap") G.rpSeg(G.rp.seg + 1); else G.updateReplay(1.0 / 240);
+				if (G.rp.seg == segs.Count - 1 && G.state == "replay" && G.songT > G.B(cp) + 2) { seen = G.hazards.Any(h => h.rid != null && G.events[int.Parse(new string(h.rid.Skip(1).TakeWhile(char.IsDigit).ToArray()))].keepNew); break; }
+			}
+			log.Append($"     (replay stopped: seg {G.rp.seg}/{segs.Count} state {G.state} songT {G.songT:F2} cpT {G.B(cp):F2} segs {string.Join(",", segs.Select(q => q.cp + ":" + q.n))} hz {string.Join(" ", G.hazards.Select(h => h.rid + "/" + h.kind))})\n");
+			G.exitReplay(); Ok(seen == (v >= 6), $"  replay v{v}: the keepNew attack {(seen ? "is there" : "is not there")} after the death");
+		}
+		G.player = null;
 	}
 
 	// ---------- v46: a long Hardcore win keeps only the attempts that won; short ones and the other levels as before ----------

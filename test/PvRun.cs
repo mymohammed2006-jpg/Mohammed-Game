@@ -45,6 +45,21 @@ public class PvRun
 			at[391] = () => System.IO.File.WriteAllText(System.IO.Path.Combine(outDir, "states.txt"), "end " + G.state);
 			endF = 400; G.last = now(); return;
 		}
+		if (System.Environment.GetEnvironmentVariable("MG_PV") == "v51")
+		{
+			// v51 check: what's new for a v50 player, then the bosses' list with a PlayStation controller's buttons: left/right do nothing (one card), confirm opens the boss, back, back
+			void tap(string k) { G.OnKeyDown(k, false); rel.Add(k); }
+			at[1] = () => { G.gatePassed = true; localStorage.setItem("mg_news", "50"); G.goMain(now()); }; shots[120] = "1-news-v50-player";
+			at[121] = () => { G.kindForce = "ps"; G.state = "modes"; G.modeSel = 2; }; at[150] = () => tap("Enter"); shots[200] = "2-boss-list-ps";
+			at[201] = () => tap("ArrowLeft"); at[220] = () => tap("ArrowRight"); at[240] = () => tap("ArrowRight"); shots[270] = "3-after-left-right";
+			at[271] = () => File.WriteAllText(Path.Combine(outDir, "states.txt"), $"after left/right: state {G.state} bossLv {G.bossLv}\n");
+			at[280] = () => tap("Enter"); shots[330] = "4-boss-screen-ps";
+			at[331] = () => File.AppendAllText(Path.Combine(outDir, "states.txt"), $"after confirm: state {G.state}\n");
+			at[340] = () => tap("Backspace"); at[370] = () => tap("Backspace"); shots[400] = "5-back-to-modes";
+			at[401] = () => File.AppendAllText(Path.Combine(outDir, "states.txt"), $"after back x2: state {G.state}\n");
+			endF = 410; G.last = now(); return;
+		}
+		if (System.Environment.GetEnvironmentVariable("MG_PV") == "cpfix") { CpFix(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "v49") { V49Tour(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "hc2") { HcOrder(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "hcsk") { HcSkins(now); G.last = now(); return; }
@@ -473,6 +488,22 @@ public class PvRun
 		var g = G.g; g.setTransform(1, 0, 0, 1, 0, 0); g.strokeStyle = "rgba(60,255,120,0.9)"; g.lineWidth = 2;
 		foreach (var z in G.zonesNow) { g.beginPath(); g.rect(z.x, z.y, z.w, z.h); g.stroke(); }
 	}
+	// v51: after a death at L17's last save and L13's middle save, a few pictures (OLD=1: the way it was, without keepNew)
+	Func<string> dyn;
+	void CpFix(Func<double> now)
+	{
+		var todo = new List<(string id, double cp, double[] at)> { ("L17", 120, new[] { 121.0, 125, 130 }), ("L13", 128, new[] { 129.0, 133, 140 }) };
+		bool old = System.Environment.GetEnvironmentVariable("OLD") == "1"; G.cpKeepNew = !old; int ti = -1, ai = 0;
+		void next() { ti++; ai = 0; if (ti >= todo.Count) { endF = i + 2; return; } var L = G.ALL_LV().First(x => x.id == todo[ti].id); G.easy = false; G.cur = L; G.fromList = "levels"; G.levelTiming(L); if (L.buf == null) L.buf = G.LoadSong(G.SONG_FILE[L.id]); G.gatePassed = true; G.requestStart(todo[ti].cp); }
+		at[1] = next; endF = 100000;
+		dyn = () =>
+		{
+			if (ti < 0 || ti >= todo.Count) return null;
+			if (G.state == "play" && G.player != null) G.player.inv = 1e9;
+			if (G.state == "play" && G.BT(G.songT) >= todo[ti].at[ai]) { var n = $"{todo[ti].id}-{(old ? "old" : "new")}-b{todo[ti].at[ai]}"; if (++ai >= todo[ti].at.Length) next(); return n; }
+			return null;
+		};
+	}
 	public void Process()
 	{
 		if (pending != null) { G.gfx.game.GetTexture().GetImage().SavePng(Path.Combine(outDir, pending + ".png")); pending = null; }
@@ -492,6 +523,7 @@ public class PvRun
 		if (at.TryGetValue(f, out var a)) a();
 		int k = int.TryParse(System.Environment.GetEnvironmentVariable("MG_PV_HZ"), out var hz) ? hz / 60 : 1;   // 240 Hz like Mohammed's screen: 4 steps per picture frame
 		for (int j = 0; j < k; j++) { AudioCtx.manualTime += 1.0 / 60 / k; performance.manual += 1000.0 / 60 / k; G.gfx.BeginFrame(); G.step(performance.manual.Value); if (showZones && j == k - 1) drawZones(); if (over != null && j == k - 1) over(); G.gfx.EndFrame(); }
+		{ var dn = dyn?.Invoke(); if (dn != null) pending = dn; }
 		if (shots.TryGetValue(f, out var s)) { pending = s; if (s.StartsWith("v/") && G.player != null) File.AppendAllText(Path.Combine(outDir, "pos.txt"), $"{s} {G.player.x:F1} {G.player.y:F1}\n"); }
 	}
 }

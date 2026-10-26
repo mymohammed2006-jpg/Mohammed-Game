@@ -46,7 +46,7 @@ public class Player
 public class Particle { public double x, y, vx, vy, life, max, s; public string col; }
 
 // level event: at beat b run f (keep = comes back after a checkpoint)
-public class Ev { public double b; public Action f; public bool keep; public bool rnd; }   // rnd: aimed at the player (the test bot learns it only once it fires)
+public class Ev { public double b; public Action f; public bool keep; public bool keepNew; public bool rnd; }   // rnd: aimed at the player (the test bot learns it only once it fires); keepNew: see beginRun
 
 public static partial class G
 {

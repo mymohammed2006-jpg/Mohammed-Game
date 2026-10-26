@@ -22,7 +22,8 @@ public class RpState
 public static partial class G
 {
 	public const int RP_MAX_SEGS = 100, RP_MAX_BYTES = 900000;
-	public const int RP_V = 5;   // 4 = recorded with fixed steps (v41); 1-3 play back the old way; 5 (v44) = every gap is a death (pause "back to the last save" counts one)
+	public const int RP_V = 6;   // 4 = recorded with fixed steps (v41); 1-3 play back the old way; 5 (v44) = every gap is a death (pause "back to the last save" counts one);
+	                             // 6 (v51) = the keepNew attacks come back after a death (Play.cs beginRun)
 	public static readonly RpState rp = new();
 	public static readonly double[] RP_RATES = { 0.25, 0.5, 0.75, 1, 1.5, 2 };
 	public const double RP_JUMP = 5, RP_SMALL = 1, RP_FINE = 0.1, RP_ST = 1.0 / 120;
@@ -44,7 +45,7 @@ public static partial class G
 	{
 		if (rp.plat) { plRpGo(i, T); return; }   // v46: the platformer's (Plat/PlatRp.cs)
 		rp.seg = i; rp.hitI = -1; var s = rp.doc.segs[i]; double T0 = rpFrom(s); checkpoint = s.cp; stopMusic();
-		afkV = rp.bot ? 3 : Math.Min(3, rp.doc.v != 0 ? rp.doc.v : 1); afkOff = afkV != 2; beginRun(s.cp, s.seed); afkV = 3; afkOff = true; rpKill(); state = "replay"; player.inv = 1e9;
+		afkV = rp.bot ? 3 : Math.Min(3, rp.doc.v != 0 ? rp.doc.v : 1); afkOff = afkV != 2; cpKeepNew = rp.doc.v >= 6; beginRun(s.cp, s.seed); cpKeepNew = true; afkV = 3; afkOff = true; rpKill(); state = "replay"; player.inv = 1e9;
 		double t1 = T == null ? T0 : Math.Max(T0, T.Value);
 		if (rpFixed())
 		{

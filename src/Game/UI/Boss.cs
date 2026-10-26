@@ -28,8 +28,8 @@ public static partial class G
 	public static int bossSel = 0, bossLv = 0; static bool joinBoss;
 	static double bossShake;
 	// the bosses' list (his ask 13:21 10-25, "اعتمد" + now 13:53): a card per boss, then the boss's own screen; BOSS_LOCKED cards after them
-	// show a lock and ؟؟؟ (the bosses still to come)
-	const int BOSS_LOCKED = 2;
+	// show a lock and ؟؟؟ (the bosses still to come); none since v51 (his ask 21:59 10-26: only the boss that is there, no "قريب" cards)
+	const int BOSS_LOCKED = 0;
 	static int bossSlots => BOSSLV.Count + BOSS_LOCKED;
 	static Level bossL => bossLv < BOSSLV.Count ? BOSSLV[bossLv] : BOSSLV.FirstOrDefault();
 	public static bool stepBoss(Inp inp, double now, double dt)

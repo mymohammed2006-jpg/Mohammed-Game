@@ -10,6 +10,7 @@ namespace MG;
 //   id, name, song (shown on the card), by and ver (a friends' level: who picked it, who verified it), file (songs/<file>.mp3), bpm + off (or beats), end (beat of the win), cps (checkpoint beats),
 //   ez: the easy settings by name (ezg, ezc, ez, ezlong, ezsp, ezwn, ezgw), energy: one number per bar (0-1, the pulse),
 //   events: [{ "b": beat, "k": kind, "keep": true|false, ...the kind's own fields }], sorted by b.
+//   (keepNew: true = also comes back after a death when it is already out at the restart point, v51; see Play.cs beginRun)
 //   (or no events: the level's own code makes them, registered with DodgeBuild(id, ...))
 // A kind is code: DodgeKind("name", e => () => { ...add hazards... }) in the level's own file (src/Game/Dodge/<id>.cs).
 // The handler gets the event's fields (e.num("x"), e.str("dir"), e.nums("cols")) and returns what runs at beat b.
@@ -80,7 +81,7 @@ public static partial class G
 				foreach (var e in evs)
 				{
 					if (!DK.TryGetValue(e.k ?? "", out var mk)) { GD.PushWarning($"dodge {D.id}: no kind '{e.k}'"); continue; }
-					E.Add(new Ev { b = e.b, keep = e.flag("keep"), f = mk(e) });
+					E.Add(new Ev { b = e.b, keep = e.flag("keep"), keepNew = e.flag("keepNew"), f = mk(e) });
 				}
 				JS.sort(E, (a, b) => a.b - b.b); return E;
 			},
