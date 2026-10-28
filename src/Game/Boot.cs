@@ -21,6 +21,7 @@ public static partial class G
 			localStorage.removeItem("mg_bestez_" + L.name);
 			var ve = localStorage.getItem("mg_beste_" + L.name); if (RANKS.Contains(ve)) L.bestE = ve;
 		}
+		redoneSnap();   // v52: the redesigned levels played before (UI/Redone.cs)
 	}
 
 	public static AudioStream LoadSong(string file)

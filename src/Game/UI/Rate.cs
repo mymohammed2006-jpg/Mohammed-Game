@@ -99,6 +99,8 @@ public static partial class G
 	{
 		if (rated != null) return rated;
 		try { rated = JsonSerializer.Deserialize<Dictionary<string, RateQ>>(localStorage.getItem("mg_rated") ?? "{}") ?? new(); } catch (Exception) { rated = new(); }
+		// v52: the redesigned levels are asked again (once, the first time v52 starts; UI/Redone.cs)
+		if (localStorage.getItem("mg_rated52") == null) { foreach (var id in rated.Keys.Where(redoneLv).ToList()) rated.Remove(id); saveRated(); localStorage.setItem("mg_rated52", "1"); }
 		return rated;
 	}
 	static void saveRated() => localStorage.setItem("mg_rated", JsonSerializer.Serialize(rated));
@@ -122,6 +124,7 @@ public static partial class G
 			{
 				if (acc == null) return;
 				var f = new JsonObject { ["uid"] = new JsonObject { ["stringValue"] = acc.uid }, ["lvl"] = new JsonObject { ["stringValue"] = id }, ["lk"] = new JsonObject { ["booleanValue"] = q.lk }, ["st"] = new JsonObject { ["integerValue"] = str(q.st) } };
+				if (redoneLv(id)) f["v"] = new JsonObject { ["integerValue"] = "2" };   // v52: a rating of the new design (the rules want it on these levels)
 				try { await commit(new JsonObject { ["update"] = new JsonObject { ["name"] = $"{FS_DOC}/ratings/{acc.uid}_{id}", ["fields"] = f }, ["updateTransforms"] = new JsonArray(new JsonObject { ["fieldPath"] = "at", ["setToServerValue"] = "REQUEST_TIME" }) }); q.sent = true; saveRated(); rateList.at = 0; }
 				catch (Exception e) { if (e.Message == "NET") return; q.sent = true; saveRated(); }
 			}
@@ -163,18 +166,21 @@ public static partial class G
 		rateLoading = true; rateErr = false;
 		try
 		{
-			var o = new List<(string, bool, int)>(); string tok = "";
+			var o = new List<(string, bool, int)>(); var old = new List<string>(); string tok = "";
 			do
 			{
 				var j = await jfetch($"{FS_URL}/ratings?pageSize=300{(tok != "" ? "&pageToken=" + Uri.EscapeDataString(tok) : "")}");
 				if (j["documents"] is JsonArray ds) foreach (var d in ds)
 					{
 						var fl = d["fields"]; string lv = S(fl?["lvl"]?["stringValue"]); bool lk = fl?["lk"]?["booleanValue"]?.GetValue<bool>() ?? false; int st = int.TryParse(S(fl?["st"]?["integerValue"]), out var v) ? v : -1;
+						// v52: a redesigned level's ratings from before (no v) are left out, and deleted (the rules let any player delete them)
+						if (lv != null && redoneLv(lv) && fl?["v"] == null) { if (S(d["name"]) is string nm) old.Add(nm); continue; }
 						if (lv != null && st >= 0 && st <= 5) o.Add((lv, lk, st));
 					}
 				tok = S(j["nextPageToken"]) ?? "";
 			} while (tok != "");
 			rateList.all = o; rateList.at = performance.now();
+			if (acc != null) foreach (var nm in old.Take(300)) { try { await commit(new JsonObject { ["delete"] = nm }); } catch (Exception) { } }
 		}
 		catch (Exception) { rateErr = true; }
 		finally { rateLoading = false; rateSumUp(); }

@@ -59,6 +59,16 @@ public class PvRun
 			at[401] = () => File.AppendAllText(Path.Combine(outDir, "states.txt"), $"after back x2: state {G.state}\n");
 			endF = 410; G.last = now(); return;
 		}
+		if (System.Environment.GetEnvironmentVariable("MG_PV") == "redone")
+		{
+			// v52: the yellow "تم إعادة تصميمها" tag on the redesigned levels a player had letters on (main, friends, bosses)
+			at[1] = () => { G.gatePassed = true; foreach (var L in G.ALL_LV()) if (L.id is "L17" or "L20" or "L21" or "F10" or "F11" or "B1") L.best ??= "A"; G._redoneSeen = new HashSet<string> { "L17", "L20", "L21", "F10", "F11", "B1" };
+				G.state = "levels"; G.lvlSel = 19; G.lvlScr = 18; };
+			shots[60] = "1-main-levels";
+			at[61] = () => { G.state = "friends"; G.friSel = 9; G.friScr = 7; }; shots[120] = "2-friends";
+			at[121] = () => { G.state = "bossList"; G.bossLv = 0; }; shots[180] = "3-bosses";
+			endF = 190; G.last = now(); return;
+		}
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "b2list")
 		{
 			// boss 2: the bosses' list with a PlayStation controller's buttons: the first boss, left (the list goes right to left) -> رقصة الموت, confirm opens it, back, back
