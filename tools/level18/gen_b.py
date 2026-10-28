@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # Makes data/dodge_L18.json: L18 "اعوف الدنيا" (Mohamed Alsalim), the second design (v52; the first is data/dodge_L18_v51.json from gen.py,
 # kept for old replays). Same song, start, end, checkpoints and ids as before. Kinds in src/Game/Dodge/L18b.cs.
-# The strings that hold me to the world: part 1 they sound, part 2 I cut them, part 3 only the red thread to you is left.
+# A sad Iraqi song: the level is SADNESS and MUSIC, and every time the song changes its sound, the attack and the look change (Mohammed 10-28).
 # 102 BPM, beat 0 = song 0:50.15, a beat = 0.58825 s; the song's three hits in a beat land at 0, 0.43 and 0.74 of it.
-# Song map (beats): verse 0-23 (0:50) | verse b 24-47 (1:04) | chorus 48-79 (1:18) | chorus b 80-114 (1:37) | quiet break 115-127 (1:58)
-# | verse 2 128-162 (2:05) | the soft part 163-198 (2:26) | the build 199-223 (2:47) | last chorus 224-255 (3:01) | its second half 256-287 (3:20)
-# | the end 288 (3:39.5), win 289 (3:40.2). Checkpoints 0, 115, 224. Nothing is random or aimed.
+# Where the sound changes (beats, found from the song's own sound bands, beat by beat):
+#   0 calm (0:50) | 12 the beat comes in (0:57.2) | 49 the chorus, loud (1:19.0) | 81 its second half (1:37.8) | 114 quiet (1:57.2)
+#   | 130 the groove (2:06.6) | 162 soft (2:25.4) | 187 rising (2:40.2) | 225 the last chorus (3:02.5) | 256 its second half (3:20.7) | win 289 (3:40.2)
+# Checkpoints 0, 115, 224. Nothing is random or aimed.
 import json, math, os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -21,159 +22,158 @@ def ev(b, k, **kw):
     d = {'b': round(b, 4), 'k': k}
     for a, v in kw.items(): d[a] = [r4(x) for x in v] if isinstance(v, (list, tuple)) else r4(v)
     EV.append(d)
-def stage(part, b0, b1): ev(max(0, b0 - 4), 'L18bstage', part=part, fr=b0, to=b1, keep=True)
+def scene(sc, b0, b1, **kw): ev(max(0, b0 - 4), 'L18bscene', sc=sc, fr=b0, to=b1, keep=True, **kw)
 def fx(b, v=0.3, s=8, dur=1.2): ev(b, 'L18bfx', v=v, s=s, dur=dur)
-def strings(tw, to, wn, **kw): ev(tw - 0.5, 'L18bstr', tw=tw, to=to, wn=wn, **kw)
-def song(b): s = 50.15 + 0.58825 * b; return '%d:%04.1f' % (s // 60, s % 60)
 
-# ================= part 1: the strings sound (0-114) =================
-stage(1, 0, 115)
-fx(0, 0.15, 5, 1.0)
-
-# 0:50 eleven strings stand across the screen (grey, harmless). On the three hits of a beat three of them are plucked, far apart (a wave
-# across the screen); a plucked string shakes inside a pink lens that fills most of the way to its neighbours and dies away over a beat.
-# Every beat the wave moves one string on; every 4 beats it turns back. Walk with the gap
-V = [-580 + 116 * i for i in range(11)]
-pi, pb, pa = [], [], []
-pos, d = 0, 1
-for b in range(3, 24):
+# ---------- 0:50 calm: the dark room, the candle, the oud. The tears fall, three on the three hits of each beat, walking across ----------
+scene(1, 0, 12)
+fx(0, 0.15, 4, 1.0)
+xs, tb = [], []
+for b in range(2, 12):
     for j, f in enumerate(HITS):
-        i = pos + 4 * j
-        if i > 10: i -= 11
-        pi.append(i); pb.append(b + f); pa.append(90 if b < 12 else 96)
-    if b >= 8 and b % 2 == 0:   # 0:54.9 the low note: the middle of the gap shakes too, wide
-        g = (pos + 2) % 11; pi.append(g); pb.append(b + 0.74); pa.append(110)
-    if (b - 1) % 4 == 0: d = -d
-    pos = (pos + d) % 11
-strings(0.5, 24, 1.0, a0=90, v=V, lh=560, pi=pi, pb=pb, pa=pa, pd=1.4)
+        xs.append(110 + 132 * ((b * 2 + j * 3) % 9)); tb.append(b + f)
+        if b >= 3 and j != 1: xs.append(W - (110 + 132 * ((b * 2 + j * 3) % 9)) + 66); tb.append(b + f)
+ev(0.2, 'L18btears', x=xs, tb=tb, ft=1.4, r=17, wn=1.0, to=13.8)
 
-# 1:04 the loom: the strings stay and seven strings cross them; the hits alternate (0 and 0.74 the standing strings, 0.43 the lying ones).
-# From 1:11 (b36) the whole loom tilts one way and back
-Vh = [-312 + 104 * i for i in range(7)]
-pv, pvb, pva, ph, phb, pha = [], [], [], [], [], []
-for b in range(24, 48):
-    k = b - 24
-    pv.append((k * 3) % 11); pvb.append(b); pva.append(100)
-    pv.append((k * 3 + 6) % 11); pvb.append(b + 0.74); pva.append(100)
-    ph.append((k * 2) % 7); phb.append(b + 0.43); pha.append(88)
-    if b >= 30 and b % 2 == 1: ph.append((k * 2 + 4) % 7); phb.append(b + 0.74); pha.append(88)
-tilt = dict(sb=[24, 36, 40, 44], sw=[0, 0.05, -0.05, 0.05])
-strings(23.0, 48, 1.0, a0=90, v=V, lh=560, pi=pv, pb=pvb, pa=pva, pd=1.1, **tilt)
-strings(23.0, 48, 1.0, a0=0, v=Vh, lh=800, pi=ph, pb=phb, pa=pha, pd=1.1, **tilt)
-fx(24, 0.12, 4, 0.8)
-
-# 1:18 the string art: 20 pegs on a ring round the screen, peg i tied to peg k*i (k = 2 the heart curve, 3, 4 ...). The ring turns, and on every
-# second beat the threads are tied again another way (shown in grey a beat before): find a hole in the next pattern
-fx(48, 0.3, 9, 1.4)
-pbs = list(range(48, 64, 2)) + list(range(64, 80))
-muls = [2, 3, 4, 5, 7, 9, 2, 6, 3, 8, 4, 11, 5, 7, 9, 13, 2, 6, 4, 3, 7, 5, 9, 8]
-offs = [0, 1, 3, 0, 2, 5, 7, 1, 4, 0, 6, 2, 9, 3, 1, 5, 8, 2, 6, 0, 4, 7, 3, 1]
-ev(46.0 - 1.0 * EZW, 'L18bart', tw=46.0, to=80, wn=1.0, M=20, ezM=16, R=760, a0=0, sb=[46, 56, 64, 72], sw=[0.12, -0.12, 0.14, -0.14],
-   pb=pbs, mul=muls, off=offs, w=9)
-
-# 1:37 the star: 16 pegs on a ring, each tied to the peg o further on, so the threads make a turning star with an empty circle in its middle
-# (the bigger o, the smaller the circle; o = 8 is threads through the middle). Every second beat it is tied again with another o (grey a beat
-# before): go into the circle when it opens, out between the points when it closes. From 1:47 (b97) it turns the other way, faster
-fx(80, 0.25, 8, 1.2)
-sb_ = list(range(80, 115, 2)); so_ = [5, 7, 4, 6, 8, 5, 7, 6, 4, 7, 5, 8, 6, 4, 7, 5, 8, 6]
-ev(78.5 - 1.0 * EZW, 'L18bart', tw=78.5, to=114.5, wn=1.0, M=16, ezM=12, R=820, a0=0, sb=[78, 97], sw=[0.26, -0.34],
-   pb=sb_, mul=[1] * len(sb_), off=so_[:len(sb_)], w=9)
-
-# ================= part 2: I cut them (115-223) =================
-stage(2, 115, 224)
-fx(115, 0.35, 10, 1.5)
-
-# 1:58 the strings snap one by one: each breaks in the middle and both halves whip away (the top half one way, the bottom half the other)
-def whip(hit, x, y, L, a0, da, wn=1.25, w=10, curl=0.5, dur=0.32, hold=0.35, ezskip=False):
-    ev(hit - wn * EZW, 'L18bwhip', hit=hit, wn=wn, x=round(x, 1), y=round(y, 1), L=L, a0=a0, da=da, w=w, curl=curl, dur=dur, hold=hold, ezskip=ezskip)
-order = [5, 1, 9, 3, 7, 0, 10, 4, 6, 2, 8]
-for k, b in enumerate(range(116, 128)):
-    x = CX + V[order[k % 11]]; sg = 1 if k % 2 == 0 else -1
-    whip(b, x, -10, 370, 90, 125 * sg, wn=1.5, dur=0.4)
-    whip(b, x, H + 10, 370, -90, 125 * sg, wn=1.5, dur=0.4)
-    if b >= 122 and b % 2 == 0:
-        x2 = CX + V[order[(k + 5) % 11]]
-        whip(b + 0.74, x2, -10, 370, 90, -125 * sg, wn=1.5, dur=0.4, ezskip=True)
-        whip(b + 0.74, x2, H + 10, 370, -90, -125 * sg, wn=1.5, dur=0.4, ezskip=True)
-
-# 2:05 the cut ends whip in from the edges: two a beat (on its first and last hit), half way round the frame from each other, lying along the wall and sweeping in;
-# every beat the three move on round the frame and every other beat they sweep the other way
-P = 2 * (W + H)
-def perim(s):
-    s %= P
-    if s < W: return s, 0, 0          # top edge, going right
-    s -= W
-    if s < H: return W, s, 90         # right edge, going down
-    s -= H
-    if s < W: return W - s, H, 180    # bottom, going left
-    s -= W
-    return 0, H - s, 270              # left, going up
-s0 = 0
-for k, b in enumerate(range(129, 163)):
-    for j, f in enumerate((0, 0.74)):
-        x, y, tang = perim(s0 + j * P / 2 + (P / 4 if k % 2 else 0))
-        sg = 1 if (k // 2) % 2 == 0 else -1
-        a0 = tang if sg > 0 else tang + 180
-        whip(b + f, x, y, 440, a0, 110 * sg, wn=1.25, w=10, dur=0.4, hold=0.25, ezskip=(j == 1))
-    s0 += P / 14
-
-# 2:26 the needle sews the world shut round you: two needles, one along rows and one down columns (a third from 2:32, b174, a fourth from 2:39, b186), lunge a stitch on the hits (and on the
-# 0.74 hits too from 2:29, b168). The thread is stitched over and under the cloth: slip through the gaps between the stitches
-def rows(ys, x0, x1, start_left=True):
-    pts = []; left = start_left
-    for i, y in enumerate(ys):
-        a, b = (x0, x1) if left else (x1, x0)
-        if i == 0: pts.append((a - 260 if left else a + 260, y))
-        pts.append((a, y)); pts.append((b, y)); left = not left
-    return pts
-def cols(xs, y0, y1):
-    pts = []; top = True
-    for i, x in enumerate(xs):
-        a, b = (y0, y1) if top else (y1, y0)
-        if i == 0: pts.append((x, a - 260))
-        pts.append((x, a)); pts.append((x, b)); top = not top
-    return pts
-def steps(b0, b1, fast_from):
-    sb = []
-    for b in range(b0, b1):
-        sb += [b, b + 0.43] + ([b + 0.74] if b >= fast_from else [])
-    return sb
-na = rows([110, 290, 470, 630, 200, 560], 60, 1220)
-nb = cols([1180, 930, 680, 430, 180, 1060, 560], 50, 670)
-nc = [(-260, 380), (60, 380), (1220, 380), (1220, 30), (300, 690), (300, 30), (980, 690), (980, 30), (640, 690)]
-nd = [(1540, 200), (1220, 200), (60, 520), (1220, 520), (60, 200), (640, 690)]
-for pts, sb, tw in ((na, steps(164, 199, 168), 163), (nb, steps(165, 199, 170), 163), (nc, steps(174, 199, 174), 172), (nd, steps(186, 199, 186), 184)):
-    ev(tw - 0.5, 'L18bneedle', tw=tw, to=199, px=[round(p[0], 1) for p in pts], py=[round(p[1], 1) for p in pts], sb=sb, st=78, lunge=0.16,
-       so=46, su=27, w=9, nl=170)
-fx(163, 0.3, 8, 1.4)
-
-# 2:47 the harp: six strings through the middle turn like spokes, faster and faster with the build; on every hit one is plucked (round the
-# harp). 3:01 they all snap
-fx(199, 0.25, 8, 1.2)
-pi, pb, pa = [], [], []
-for k, b in enumerate(range(200, 224)):
+# ---------- 0:57 the beat comes in: the sad song's notes run along the staff from the right, on the hits; a melody that goes up and down,
+# from 1:04 (b24) chords on the first hit, from 1:11 (b36) a second voice ----------
+scene(2, 12, 49)
+fx(12, 0.12, 4, 0.8)
+mel = [2, 4, 6, 8, 7, 5, 3, 5, 9, 7, 5, 3, 1, 3, 5, 4]
+pl, tb, fl = [], [], []
+k = 0
+for b in range(13, 49):
     for j, f in enumerate(HITS):
-        pi.append((k * 2 + j * 2) % 6); pb.append(b + f); pa.append(90 + 30 * (b - 200) / 23)
-strings(198.0, 223.6, 1.0, mode='rad', n=6, da=30, r0=-820, r1=820, a0=90, sb=[198, 207, 215, 219], sw=[0.12, 0.22, 0.32, 0.42], pi=pi, pb=pb, pa=pa, pd=1.35)
+        q = mel[k % len(mel)]; k += 1
+        pl.append(q); tb.append(b + f); fl.append(1 if j else 0)
+        if b >= 18 and j == 0:
+            for c in (4, 7) if b % 2 == 0 else (-4, 3):
+                if 0 <= q + c <= 10: pl.append(q + c); tb.append(b + f); fl.append(0)
+        if b >= 30 and j == 2: pl.append(10 - q); tb.append(b + f); fl.append(1)
+ev(10.5, 'L18bstaff', sp=55, pl=pl, tb=tb, fl=fl, v=650, r=16, wn=1.0, tw=11.5, to=50.5)
 
-# ================= part 3: only the red thread to you (224-289) =================
-stage(3, 224, 289.5)
-fx(224, 0.45, 12, 1.6)
+# ---------- 1:19 the chorus: the violin cries. Its bow sweeps on every beat (the grey line shows where it goes), its sound goes out in rings
+# (with a gap) on the other two hits; every 8 beats the violin moves ----------
+scene(3, 49, 81)
+fx(49, 0.3, 9, 1.4)
+mb = [47, 55.5, 63.5, 71.5]; mx = [900, 380, 760, 470]; my = [380, 330, 300, 420]
+sb, ba = [47], [200]
+a = 200
+for i, b in enumerate(range(49, 81, 2)):
+    a += 95 if i % 2 == 0 else -95
+    if i % 4 == 3: a += 50
+    sb.append(b); ba.append(a)
+rb, ga = [], []
+g0 = 0
+for i, b in enumerate(range(50, 81)):
+    rb.append(b + 0.43); ga.append(g0); g0 = (g0 + (40 if (i // 4) % 2 == 0 else -40)) % 360
+ev(46.0, 'L18bviolin', mb=mb, mx=mx, my=my, sb=sb, ba=ba, rb=rb, ga=ga, bl=1150, bw=16, sdur=0.45, rv=330, rth=14, gw=95, ezk=2, wn=1.0, tw=47.2, to=81.3)
 
-# 3:01 two hearts on their orbits (the near one fast one way, the far one, mostly past the screen's edge, slow the other) with the red thread between them; it always hurts
-# and it sounds on the hits. 3:06.6 (b232) a second pair joins, turning the other way. 3:20 (b256) a third pair, and the heart drawn in strings beats in the middle
-# and turns a step on every beat
-pi, pb, pa = [], [], []
-for b in range(226, 288):
+# ---------- 1:37 its second half: the old record turns. Its grooves burn (a new set every 2 beats, grey the beat before), its arm swings over it,
+# notes jump off its rim in fans to the sides on the second and third hits; every 8 beats it slides ----------
+scene(4, 81, 114)
+fx(81, 0.25, 8, 1.2)
+rings = [100, 150, 200, 250, 300]
+ar, aa, aw, on, off = [], [], [], [], []
+for i, b in enumerate(range(82, 114, 2)):
+    for k, r in enumerate(rings):
+        start = (i * 67 + k * 71) % 360
+        span = 150 + 40 * ((i + k) % 3)
+        ar.append(r); aa.append(start); aw.append(span); on.append(b); off.append(b + 2)
+qb, qa = [80], [150]
+for i, b in enumerate(range(82, 114, 2)):
+    qb.append(b + 1); qa.append([152, 128, 140, 118, 160, 132][i % 6])
+nb, na = [], []
+for i, b in enumerate(range(83, 114)):
+    # on the second hit a fan of 8 notes jumps off the rim to the right, on the third to the left; the fan swings up and down and its notes
+    # step half a place every beat, so the sides are never quiet
+    c = 22 * math.sin(i * 0.9)
+    for f, side in ((0.43, 0), (0.74, 180)):
+        for j in range(8): nb.append(b + f); na.append(round((side + c * (1 if side == 0 else -1) + (j - 3.5 + (0.5 if i % 2 else 0)) * 15) % 360, 2))
+# every 8 beats the record slides to another place (its new place shows in grey 2 warnings before), so no corner stays safe
+ev(79.5, 'L18brecord', RR=325, th=12, nv=380, nr=13, armL=560, armW=16, qx=1100, qy=60, a0=0, ssb=[80, 97], ssw=[0.45, -0.55],
+   mb=[80, 89, 97, 105], mx=[640, 440, 800, 520],
+   ar=ar, aa=aa, aw=aw, on=on, off=off, qb=qb, qa=qa, nb=nb, na=na, wn=1.0, tw=80.5, to=114.3)
+
+# ---------- 1:57 quiet: the rain on the window, slow drops that sway down the glass ----------
+scene(5, 114, 130)
+fx(114, 0.2, 5, 1.2)
+xs, tb, wa = [], [], []
+for b in range(115, 130):
     for j, f in enumerate(HITS):
-        th = 0 if b < 232 else (j + b) % 2 if b < 256 else (j + b) % 3
-        pi.append(th); pb.append(b + f); pa.append(84 if b < 256 else 90)
-ev(222.0, 'L18bthread', tw=222.5, ta=224, to=288.5, wn=1.0, rx=[260, 900, 330, 900, 200, 900], ry=[170, 560, 210, 560, 140, 560], ha0=[0, 200, 90, 300, 45, 160],
-   sb=[222, 256], hsw=[0.48, -0.25, -0.44, 0.28, 0.6, -0.2, 0.54, -0.3, -0.5, 0.33, 0.66, -0.22], on=[224, 232, 256], off=[288.5, 288.5, 288.5], core=6, hr=20,
-   pi=pi, pb=pb, pa=pa, pd=1.0)
-hb = list(range(256, 288)); ho = [(i * 4) % 30 for i in range(len(hb))]
-ev(254.0, 'L18bart', tw=254.5, to=288.5, wn=1.0, M=30, ezM=22, R=370, a0=0, sb=[254], sw=[0.25], pb=hb, mul=[2] * len(hb), off=ho, w=6)
+        xs.append(30 + 122 * ((b * 4 + j * 5) % 11)); tb.append(b + f); wa.append(40 + 10 * ((b + j) % 3))
+        xs.append(30 + 122 * ((b * 4 + 7 + j) % 10) + 61); tb.append(b + f); wa.append(55)
+        xs.append(30 + 122 * ((b * 4 + 3 + j * 2) % 10) + 30); tb.append(b + f + 0.2); wa.append(48)
+ev(113.3, 'L18brain', x=xs, tb=tb, wa=wa, vy=480, wf=0.55, r=13, wn=1.0, to=130.5)
+
+# ---------- 2:06 the groove: the radio's sound bars; their opening is a melody that moves on one bar every beat (from 2:13, b142, twice a beat),
+# the bars close in a little on the last hit ----------
+scene(6, 130, 162)
+fx(130, 0.25, 8, 1.2)
+pc = []
+for i in range(80):
+    pc.append(round(CY + 200 * math.sin(i * 0.42) * (0.6 + 0.4 * math.sin(i * 0.11 + 1)), 1))
+sb = []
+for b in range(132, 162):
+    sb.append(b)
+    if b >= 142: sb.append(b + 0.43)
+pb = [b + 0.74 for b in range(132, 162)]
+ev(128.5, 'L18beq', nc=16, pc=pc, sb=sb, pb=pb, gap=165, pg=34, tw=129.3, ta=130.6, to=162.2)
+
+# ---------- 2:25 soft: the tears fall on the river under the moon; each makes two rings that spread (a gap in them) ----------
+scene(7, 162, 187)
+fx(162, 0.2, 5, 1.2)
+xs, ys, tb, gs = [], [], [], []
+for i, b in enumerate(range(163, 187)):
+    for j, f in enumerate(HITS):
+        u = i * 3 + j
+        xs.append(round(CX + 540 * math.sin(u * 0.83), 1)); ys.append(round(360 + 265 * math.sin(u * 1.31 + 0.5), 1)); tb.append(b + f); gs.append((u * 97) % 360)
+ev(161.0, 'L18bripple', x=xs, y=ys, tb=tb, ga=gs, rv=260, rmax=360, th=11, gw=70, wn=1.0, to=188)
+
+# ---------- 2:40 rising: the heart beats faster and faster (every beat, then twice, then on every hit); each beat sends a heart-shaped wave out,
+# its arteries burn on the last hit ----------
+scene(8, 187, 225)
+fx(187, 0.25, 7, 1.2)
+hb = [b for b in range(188, 206)] + [b + f for b in range(206, 216) for f in (0, 0.5)] + [b + f for b in range(216, 225) for f in HITS]
+wb = [b for b in range(189, 206, 2)] + [b for b in range(206, 224)]
+wg = []
+g = 90
+for i in range(len(wb)):
+    wg.append(g % 360); dg = 24 if wb[i] < 206 else 13          # every beat from b206: the gap moves less, so far from the heart you can still follow it
+    g += dg if (i // 5) % 2 == 0 else -dg
+vb = [b + 0.74 for b in range(197, 224, 2)]
+ev(185.5, 'L18bbeat', hs=62, wv=240, wth=14, gw=100, vw=12, vd=0.25, na=6, a0=0, ssb=[186, 206, 216], ssw=[0.15, -0.2, 0.22],
+   hb=hb, wb=wb, wg=wg, vb=vb, wn=1.0, tw=186.5, ta=187.5, to=225)
+
+# ---------- 3:02 the last chorus: the heart breaks in two; the halves go round, apart and back, and shards fly out of the crack on the hits ----------
+scene(9, 225, 256)
+fx(225, 0.45, 12, 1.6)
+sb, sa = [], []
+a = 0
+for b in range(226, 256):
+    for f in HITS:
+        for m in range(3): sb.append(b + f); sa.append((a + m * 120) % 360)
+        a = (a + 47) % 360
+ev(222.5, 'L18bbroke', hs=150, d0=320, d1=130, sv=500, sr=12, fw=50, ns=7, a0=0, ssb=[222, 240], ssw=[0.7, -0.8], rsw=[0.9, -1.0],
+   sb=sb, sa=sa, wn=1.0, tw=223, ta=225, to=256.3)
+
+# ---------- 3:20 its second half: the last song. The staff bent into rings, the notes run round them (each ring the other way); the tears fall
+# again; at 3:39.6 (b288) it all stops and the candle goes out ----------
+scene(10, 256, 289.5, out=289)
 fx(256, 0.35, 10, 1.4)
+rr = [150, 245, 340, 435, 530, 625, 720]
+ri, a0, tb, te, w = [], [], [], [], []
+for i, b in enumerate(range(257, 288)):
+    for j, f in enumerate(HITS):
+        for m in range(3):
+            k = (i + j * 2 + m * 3) % 7
+            ri.append(k); a0.append((i * 71 + j * 120 + m * 120) % 360); tb.append(b + f); te.append(min(b + f + 4.5, 288.3)); w.append(2.5 if k % 2 == 0 else -2.5)
+ev(254.5, 'L18bround', rr=rr, ri=ri, a0=a0, tb=tb, te=te, w=w, r=15, wn=1.0, tw=255.2, to=288.5)
+xs, tb = [], []
+for b in range(258, 288, 1):
+    for f in HITS:
+        xs.append(80 + 140 * ((b * 3 + int(f * 10)) % 9)); tb.append(b + f)
+ev(256.0, 'L18btears', x=xs, tb=tb, ft=1.6, r=16, wn=1.0, to=289.5)
 fx(288, 0.5, 6, 2.0)
 
 # ---------------- out ----------------
