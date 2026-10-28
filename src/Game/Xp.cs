@@ -27,6 +27,7 @@ public static partial class G
 		["L21"] = 4.0,   // Barracuda: as hard as Abra Macabre
 		["L22"] = 4.0,   // Shiawase VIP: as hard as Abra Macabre
 		["B1"] = 4.0,   // the boss mode's first level (proposed in the plan: like Abra Macabre)
+		["B2"] = 4.6,   // the boss mode's second, 15% harder than B1 (his يالله 05:45 10-28 on the plan's x4.6)
 		["P1"] = 1.5,   // the platformer's first level
 		["P2"] = 2.0,   // the co-op level for three (harder than P1, easier than Link)
 		["P3"] = 3.0,   // the radio, co-op for two (harder than P2): Mohammed 00:29 10-24
