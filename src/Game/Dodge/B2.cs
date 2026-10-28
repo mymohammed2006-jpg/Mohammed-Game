@@ -141,7 +141,7 @@ public static partial class G
 	static double B2MaskR(double bt) => bt < 0 ? 0 : bt < 2 ? 28 * bt / 2 : bt < 248 ? 28 : 0;
 	static Hz B2Boss()
 	{
-		var h = new Hz { kind = "B2Boss" };
+		var h = new Hz { kind = "B2Boss", z = -1 };   // under the hands (z -1, added before them), so its robe never covers them
 		h.hit = (p, t) => { double r = B2MaskR(BT(t)); return r > 0 && hypot(p.x - B2X, p.y - B2Y) < r + p.r; };
 		h.draw = t => { double bt = BT(t), r = B2MaskR(bt); if (r > 0) B2BossDraw(B2X, B2Y, r, bt); };
 		return h;
@@ -261,7 +261,7 @@ public static partial class G
 			}
 			double am = Amp(t); if (am < 10) return; double q = am / A;
 			g.save(); g.beginPath(); g.moveTo(cx + nx * am - ux * 900, cy + ny * am - uy * 900); g.lineTo(cx + nx * am + ux * 900, cy + ny * am + uy * 900);
-			g.lineTo(cx - nx * am + ux * 900, cy - ny * am + uy * 900); g.lineTo(cx - nx * am - ux * 900, cy - ny * am - uy * 900); g.closePath(); g.fillStyle = L15P(0.28 + 0.2 * q); g.fill(); g.restore();
+			g.lineTo(cx - nx * am + ux * 900, cy - ny * am + uy * 900); g.lineTo(cx - nx * am - ux * 900, cy - ny * am - uy * 900); g.closePath(); g.fillStyle = L15P(0.55 + 0.2 * q); g.fill(); g.restore();
 			g.strokeStyle = PINK; g.lineWidth = 4; g.shadowColor = PINK; g.shadowBlur = 12; g.beginPath(); double ph = t * 40;
 			for (double s = -900; s <= 900; s += 18) { double o = am * JS.sin(s * 0.035 + ph); double x = cx + ux * s + nx * o, y = cy + uy * s + ny * o; if (s == -900) g.moveTo(x, y); else g.lineTo(x, y); }
 			g.stroke(); g.shadowBlur = 0;
@@ -310,7 +310,7 @@ public static partial class G
 			// the shaking hair behind the bow (it hurts too)
 			{
 				double s = Pos(bt), sg = dir < 2 ? -1 : 1, e = s + sg * (TH / 2 + TRAIL);
-				var lg = vert ? g.createLinearGradient(s, 0, e, 0) : g.createLinearGradient(0, s, 0, e); lg.addColorStop(0, L15P(0.55)); lg.addColorStop(1, L15P(0.22)); g.fillStyle = lg;
+				var lg = vert ? g.createLinearGradient(s, 0, e, 0) : g.createLinearGradient(0, s, 0, e); lg.addColorStop(0, L15P(0.8)); lg.addColorStop(1, L15P(0.55)); g.fillStyle = lg;
 				double lo = Math.Min(s, e), hi = Math.Max(s, e);
 				if (vert) { g.fillRect(lo, -10, hi - lo, gc - gh + 10); g.fillRect(lo, gc + gh, hi - lo, H + 10 - gc - gh); }
 				else { g.fillRect(-10, lo, gc - gh + 10, hi - lo); g.fillRect(gc + gh, lo, W + 10 - gc - gh, hi - lo); }
@@ -559,8 +559,8 @@ public static partial class G
 
 		at(0, () => add(B2Stage()), true);
 		at(0, () => add(B2Strings()), true);
-		at(0, () => add(B2Hands()), true);
 		at(0, () => add(B2Boss()), true);
+		at(0, () => add(B2Hands()), true);   // over the violinist's robe, so the hands are never covered
 
 		// ===== 1. midnight (b0-128) =====
 		// the twelve chimes (b4-28 every 4 beats, b32-40 every 2): rings coming in, the gap just behind the minute hand when the ring is
