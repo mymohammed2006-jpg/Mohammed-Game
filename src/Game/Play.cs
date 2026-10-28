@@ -24,6 +24,7 @@ public class Level
 	public bool boss;             // a boss level (UI/Boss.cs): 3 hearts, no Easy, no checkpoint
 	public bool plat;             // a platformer level (data/plat_<id>.json): only its letter is here, for XP, points, the board and the profile
 	public Dictionary<string, double> ezLifeOld, ezLifeNew, ezLife;
+	public Level v51; public bool isV51;   // v52: a level with new attacks keeps its v51 design (data/dodge_<id>_v51.json) for the replays recorded before (Replay.cs rpLevel)
 	public static Func<double> K(double v) => () => v;
 }
 
