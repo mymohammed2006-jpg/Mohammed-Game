@@ -134,6 +134,7 @@ public static partial class G
 	public static bool cpKeepNew = true;   // false while a replay from before v51 starts an attempt (Replay.cs rpGo)
 	public static void beginRun(double cp, int? seed = null)
 	{
+		if (state is not ("replay" or "rpLoad")) redoneClear(cur);   // v52: the yellow tag goes once the player goes in (UI/Redone.cs)
 		runSeed = seed ?? (testSeed != null ? testSeed() : i32(random() * 4294967296)); rngS = hstr(str(runSeed) + ":b");
 		hazards = new List<Hz>(); particles = new List<Particle>(); gloom = gloomT = 0; events = cur.build(); ezStart();
 		double fromB = cp == 0 ? 0 : cp - 2, fromT = cp == 0 ? 0 : B(fromB);

@@ -7,7 +7,8 @@ using static MG.JS;
 namespace MG;
 
 // v52 (his words 11:29 UTC 10-28): the levels with a new design (they keep their v51 design for old replays, Level.v51) get a yellow
-// "تم إعادة تصميمها" tag on their card for the players who had played them before (a letter on this PC when v52 first started),
+// "تم إعادة تصميمها" tag on their card for the players who had won them before (a letter on this PC when v52 first started) until
+// they go into the level,
 // and their ratings start again: asked again on the next win, the old design's ratings left out and deleted (Rate.cs)
 public static partial class G
 {
@@ -18,6 +19,12 @@ public static partial class G
 		if (localStorage.getItem("mg_redone52") is string s) { try { _redoneSeen = JsonSerializer.Deserialize<HashSet<string>>(s); } catch (Exception) { } }
 		if (_redoneSeen != null) return;
 		_redoneSeen = LEVELS.Concat(FRIENDS).Concat(BOSSLV).Where(L => L.v51 != null && (L.best != null || L.bestE != null)).Select(L => L.id).ToHashSet();
+		localStorage.setItem("mg_redone52", JsonSerializer.Serialize(_redoneSeen));
+	}
+	// his words 11:58 UTC 10-28: the tag goes when the player goes into the level (a run or the practice), finished or not
+	public static void redoneClear(Level L)
+	{
+		if (L == null || _redoneSeen == null || !_redoneSeen.Remove(L.id)) return;
 		localStorage.setItem("mg_redone52", JsonSerializer.Serialize(_redoneSeen));
 	}
 	public static bool redoneTagOn(Level L) => L?.v51 != null && _redoneSeen != null && _redoneSeen.Contains(L.id);
