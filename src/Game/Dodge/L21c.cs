@@ -245,7 +245,7 @@ public static partial class G
 	}
 
 	// ---------- the events ----------
-	static readonly int _brb = DodgeBuild("L21", () => buildBR());
+	static readonly int _brb = DodgeBuild("L21_v51", () => buildBR());   // the old design (v49-v51), kept for the old replays
 	static List<Ev> buildBR()
 	{
 		var E = new List<Ev>(); bool ez = easy;
