@@ -11,7 +11,7 @@
 import json, math, os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, '..', '..', 'data', 'dodge_L18.json')
+OUT = os.path.join(HERE, '..', '..', 'data', 'dodge_L18_v51.json')
 W, H = 1280, 720
 CX, CY = W / 2, H / 2
 EZW = 1.3
