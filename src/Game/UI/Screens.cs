@@ -410,6 +410,7 @@ public static partial class G
 				if (L.err) txt("الأغنية ما اشتغلت", x, cy + 125 + lf, 20, RED3, 500);
 				else if (L.buf == null) txt("جاري التجهيز…", x, cy + 125 + lf, 20, "rgba(255,255,255,0.6)", 500);
 				else if (L.best != null || L.bestE != null) drawBests(L, x, cy + lf);
+				if (redoneTagOn(L)) redoneTag(x, cy - chh / 2 + lf, now);
 			}
 			else { lockIcon(x, cy + 20 + lf); txt("قريبًا...", x, cy + 95 + lf, 26, "rgba(255,255,255,0.4)", 500); }
 			g.globalAlpha = 1;
@@ -532,6 +533,7 @@ public static partial class G
 				g.strokeStyle = RED; g.lineWidth = 3; g.lineCap = "round"; g.lineJoin = "round"; g.beginPath(); g.moveTo(right - 16, vy); g.lineTo(right - 10, vy + 6); g.lineTo(right - 1, vy - 6); g.stroke();
 				txt(lab, right - 26, vy, 17, "rgba(255,255,255,0.6)", 500, "right"); g.font = $"17px {TFONT}"; g.fillStyle = RED3; g.textAlign = "left"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText(L.ver, x - tot / 2, vy + 1);
 			}
+			if (redoneTagOn(L)) redoneTag(x, cy - chh / 2 + lf, now);
 			g.globalAlpha = 1;
 		}
 		if (friScr > 0.01) zone(W - 66, cy - 40, 56, 80, null, null, () => friSel = Math.Max(0, (int)round(friScr) - 1));

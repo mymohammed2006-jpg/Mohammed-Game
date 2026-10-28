@@ -80,6 +80,7 @@ public static partial class G
 				{ double fs = 32; g.font = $"800 {str(fs)}px {FONT}"; while (fs > 18 && g.measureText(L.name).width > cw - 24) { fs--; g.font = $"800 {str(fs)}px {FONT}"; } txt(L.name, x, cy + 45 + lf, fs, "#fff", 800); }
 				{ string sl = bossArtist(L) + " - " + L.song; double fs = 20; g.font = $"{str(fs)}px {TFONT}"; while (fs > 12 && g.measureText(sl).width > cw - 24) { fs--; g.font = $"{str(fs)}px {TFONT}"; } g.fillStyle = PINK; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText(sl, x, cy + 88 + lf); }
 				txt(L.best != null ? "أفضل حرف: " + L.best : "ما خلصتها للحين", x, cy + 135 + lf, 22, L.best != null ? NGOLD : "rgba(255,255,255,0.5)", 700);
+				if (redoneTagOn(L)) redoneTag(x, cy - chh / 2 + lf, now);
 			}
 			else { lockIcon(x, cy - 30 + lf); txt("؟؟؟", x, cy + 55 + lf, 32, "rgba(255,255,255,0.4)", 800); txt("قريب", x, cy + 105 + lf, 22, "rgba(255,255,255,0.35)", 600); }
 		}

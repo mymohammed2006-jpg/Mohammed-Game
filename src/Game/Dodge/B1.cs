@@ -389,7 +389,7 @@ public static partial class G
 	}
 
 	// ---------- the events ----------
-	static readonly int _b1 = DodgeBuild("B1", () => buildB1());
+	static readonly int _b1 = DodgeBuild("B1_v51", () => buildB1());   // v52: the old design, for the replays made before (the new one: B1b.cs)
 	// a shard's speed through the awakening: 260 -> 380 px/s by the first slam
 	static double B1Sp(double b) => 260 + 120 * clamp(b / 28, 0, 1);
 	// the tile patterns of the silence: k = the beat's number inside its run
