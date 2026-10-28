@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-# Makes data/dodge_L17.json: L17 "حالف لا ما انام" (Jafar Al-Ghazal and Mohammed Jamal), the night that won't end.
+# Makes data/dodge_L17.json: L17 "حالف لا ما انام" (Jafar Al-Ghazal and Mohammed Jamal), the second design (10-28): "سهرة ما تنام",
+# the party that swore not to sleep. (The first design is gen_v51.py -> data/dodge_L17_v51.json, for the replays recorded with it.)
 # The level is the song from 0:24 to 2:44 (songs/SONG_L17.mp3 is cut from 0:23.77). 76 BPM, beat 0 = 0.205 s in the cut file, a beat = 0.7895 s.
-# Each beat has hits at +0, +0.42 and +0.74 (the strongest at +0 and +0.74), and a softer one at +0.25.
-# Song map (beats): verse 0-64 (0:24) | 64-96 (1:14.5) | the quiet dip 96-98 (1:39.8) | 98-120 (1:41.4) | 120-177 (1:58.8) | win 177.42 (2:44.0)
-# Parts: 1 the clock (0-64), 2 the eyelids (64-120), 3 till dawn (120-177.42). Checkpoints 0, 64, 120.
-# Nothing here is random: every attack is a fixed pattern on the beat (only the eye's stare aims at the square: "rnd").
-# Times are beats; an event fires at its start minus EZW times its warning (Easy shows the warning longer).
+# The drum: each beat hits at +0 (dum) and +0.74 (the strongest), with +0.42 between them.
+# Song map (beats): intro 0-16 (lighter) | the full beat from 16 (0:36.6), a big hit every 16 (16, 32, 56, 80) | the bass drops 96-98 (1:39.8) |
+#   quieter verse 98-120 | no bass 120-136 (1:58.7) | the full beat again from 136 (2:11.3), big hits 152, 176 | win 177.42 (2:44.0)
+# Parts: 1 the drum and the claps (0-64), 2 the record (64-120), 3 till morning (120-177.42). Checkpoints 0, 64, 120.
+# Nothing is random or aimed. Every event of a part starts after the part's restart point (checkpoint - 2), so a restart rebuilds it.
+# Times are beats; an event fires at its first danger minus EZW times its warning (Easy shows the warning longer).
 import json, math, os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -21,131 +23,247 @@ def ev(b, k, **kw):
     d = {'b': round(b, 4), 'k': k}
     for a, v in kw.items(): d[a] = [r4(x) for x in v] if isinstance(v, (list, tuple)) else r4(v)
     EV.append(d)
-def at(hit, wn, k, **kw): ev(hit - wn * EZW - 0.05, k, hit=hit, wn=wn, **kw)
-def fx(b, v=0.3, s=8, dur=1.2): ev(b, 'L17fx', v=v, s=s, dur=dur)
+def fx(b, v=0.3, s=8, dur=1.2): ev(b, 'L17bfx', v=v, s=s, dur=dur)
+def first(b, wn): return max(0, b - wn * EZW - 0.05)
 
-ev(0, 'L17stage', to=END + 1, keep=True)
+class Drums:
+    def __init__(s): s.l = []
+    def add(s, b, x, y, r, ez=0): s.l.append((b, x, y, r, ez))
+    def put(s, wn=1.0, hold=0.3):
+        l = sorted(s.l); ev(first(l[0][0], wn), 'L17bdrums', sb=[a[0] for a in l], x=[a[1] for a in l], y=[a[2] for a in l], r=[a[3] for a in l], ez=[a[4] for a in l], hold=hold, wn=wn)
+class Claps:
+    def __init__(s): s.l = []
+    def add(s, b, x, y, a, hw, ez=0): s.l.append((b, x, y, a, hw, ez))
+    def put(s, wn=1.0):
+        l = sorted(s.l); ev(first(l[0][0] - 0.34, wn), 'L17bclap', cb=[a[0] for a in l], x=[a[1] for a in l], y=[a[2] for a in l], a=[a[3] for a in l], hw=[a[4] for a in l], ez=[a[5] for a in l], wn=wn)
+class Fire:
+    def __init__(s): s.l = []
+    def add(s, b, x, y, n, sp, a0=0, lx=None, dl=0, sg=1, ez=0): s.l.append((b, x if lx is None else lx, x, y, n, a0, sg, dl, sp, ez))
+    def put(s, fu=0.8, sr=11, wn=1.0, rng=560):
+        l = sorted(s.l); ks = ['fb', 'lx', 'fx', 'fy', 'n', 'a0', 'sg', 'dl', 'sp', 'ez']
+        ev(first(l[0][0] - fu, wn), 'L17bfire', fu=fu, sr=sr, wn=wn, rng=rng, **{k: [a[i] for a in l] for i, k in enumerate(ks)})
+def chobi(vert, sb, ps, hc, hs=75, dr=25, sp=84, lw=16, wn=1.0):
+    assert len(ps) == len(sb) + 1 and len(hc) == len(sb) + 1
+    ev(first(sb[0], wn), 'L17bchobi', vert=vert, sb=sb, ps=ps, hc=hc, hs=hs, dr=dr, sp=sp, lw=lw, wn=wn, to=sb[-1] + 0.3)
+def laser(ox, oy, kb, ka, hit, to, bw=26, mv=0.2, wn=0.9):
+    ev(first(hit, max(wn, 1)), 'L17blaser', ox=ox, oy=oy, kb=kb, ka=ka, mv=mv, bw=bw, wn=wn, hit=hit, to=to)
 
-# ================= part 1: the clock (0-64) =================
+ev(0, 'L17bstage', to=END + 1, keep=True)
+
+# ================= part 1: the drum and the claps (0-64) =================
 fx(0, 0.2, 6, 1.0)
-# 0:24 the minute hand ticks round on every beat and the wedge it jumps across burns: keep behind it. From 0:31 the hour hand ticks
-# the other way every two beats: when they meet, slip through a hand's white window to the other side
-ev(0.2, 'L17hand', hit=1.5, wn=0.6, a0=-90, st=30, tk=list(range(2, 18)), len=900, w=22, hc=200, hw=34, burn=True, to=18)
-ev(7.2, 'L17hand', hit=8.5, wn=0.6, a0=90, st=-30, tk=list(range(9, 18, 2)), len=900, w=28, hc=300, hw=34, burn=True, to=18)
+# 0:24 the frame drums on the skin: a column of three slams on the strong hit, then two columns, then a wave across and back
+COL = [160, 400, 640, 880, 1120]; ROW = [150, 360, 570]
+d = Drums()
+def col(b, c, r=114, ez=0):
+    for y in ROW: d.add(b, COL[c], y, r, ez)
+SEQ = [(1, [2]), (1.74, [1, 3]), (2.42, [0]), (2.74, [4]), (3, [2]), (3.74, [0, 4]), (4.42, [1]), (4.74, [3]), (5, [2]), (5.42, [0]), (5.74, [4]),
+       (6, [1]), (6.42, [3]), (6.74, [0, 2]), (7.42, [4]), (7.74, [1, 3])]
+for j, (b, cs) in enumerate(SEQ):
+    for q, c in enumerate(cs): col(b, c, ez=1 if (q == 1 or j % 3 == 2) else 0)
+# 0:30 the claps come in on the dum (flat bands), the drums on the strong hit go on the diagonals
+cl = Claps()
+for j, y in enumerate([180, 540, 360, 200, 520, 300, 460, 360]): cl.add(9 + j, CX, y, 0, 82)
+for j in range(4): cl.add(9.42 + 2 * j, [320, 960, 480, 800][j], CY, 90, 70, ez=j % 2)
+for j in range(8):
+    b = 8.74 + j
+    pts = [(300, 170), (640, 360), (980, 550)] if j % 2 == 0 else [(300, 550), (640, 360), (980, 170)]
+    if j % 4 == 3: pts = [(160, 360), (1120, 360)]
+    for (x, y) in pts: d.add(b, x, y, 110, ez=1 if (x, y) == (640, 360) else 0)
+d.put(wn=1.0)
 
-# 0:38 the numerals throw daggers through the middle one after another on the strong hits, round the clock; from 0:44 the other way
-# round (and the minute hand ticks again, no wedge); from 0:48 two at once
-fb, fk = [], []
-k = 0
-for b in range(18, 26):
-    for o in (0, 0.74): fb.append(b + o); fk.append(k % 12); k += 1
-k = 4
-for b in range(26, 30):
-    for o in (0, 0.74): fb.append(b + o); fk.append(k % 12); k -= 1
-for b in range(30, 34):
-    fb += [b, b]; fk += [k % 12, (k + 4) % 12]; k -= 1
-    fb.append(b + 0.74); fk.append(k % 12); k -= 1
-at(18, 0.9, 'L17chime', R=262, fb=fb, fk=fk, sp=1500, dl=96, dw=34, to=34)
-ev(24.5, 'L17hand', hit=25.8, wn=0.6, a0=0, st=30, tk=list(range(26, 34)), len=900, w=22, hc=330, hw=36, burn=False, to=34)
+# 0:36 the chobi: the dancers' line steps in from the right on every dum; get through where they let go of hands. The claps shut the
+# columns in front of it on the strong hit
+fx(16, 0.15, 8, 1.0)
+# (two steps a beat: on the dum and on the middle hit)
+sb = [b + o for b in range(16, 25) for o in (0, 0.42)][:17]
+PS = [1400 - (1660 / 17) * k for k in range(18)]
+HC = [360, 200, 520, 300, 560, 180, 420, 250, 500, 340, 600, 160, 440, 280, 540, 220, 400, 360]
+chobi(True, sb, PS, HC, hs=62)
+for j in range(7):
+    xl = 1400 - (1660 / 17) * (2 * j + 2)
+    x = xl - 380 if xl - 380 > 120 else xl + 380
+    cl.add(16.74 + j, x, CY, 90, 70, ez=j % 2)
+# 0:42 two lines: one from the left on the dum, one from the top on the strong hit
+chobi(True, [b + o for b in range(24, 33) for o in (0, 0.42)][:17], [-80 + (1640 / 17) * k for k in range(18)],
+      [360, 200, 520, 300, 560, 180, 460, 260, 520, 340, 600, 220, 480, 160, 420, 300, 540, 540], hs=64)
+chobi(False, [24.74 + i for i in range(8)], [-60, 80, 180, 280, 380, 480, 580, 680, 800], [640, 300, 980, 520, 220, 860, 420, 1040, 1040], hs=70)
+cl.put(wn=1.0)
 
-# 0:51 the gears: the inner gear and the housing turn opposite ways; the inner teeth bite out, then the outer teeth bite in.
-# Be in a gap of the teeth that bite
-ib = list(range(36, 50, 2))
-ob = list(range(37, 50, 2))
-ev(32.4, 'L17gears', hit=34, wn=0.55, ri=96, ro=330, ni=8, no=12, hwi=8, hwo=6, wi=0.26, wo=-0.2, a0i=0, a0o=15,
-   restI=26, restO=26, punI=150, punO=150, ib=ib, ob=ob, to=50)
+# 0:49 the fireworks: a shell a beat bursts on the strong hit; from 0:52 a second, slower ring from the same shell
+fx(32, 0.15, 8, 1.0)
+f = Fire()
+P5 = [(320, 230), (960, 230), (640, 190), (420, 300), (860, 300), (640, 250), (300, 210), (980, 210)]
+for j, (x, y) in enumerate(P5):
+    b = 32.74 + j
+    f.add(b, x, y, 20, 350, a0=9 * (j % 2), lx=x + (60 if x < CX else -60))
+    if j >= 2: f.add(b, x, y, 14, 220, a0=13 + 9 * (j % 2), lx=x + (60 if x < CX else -60), ez=1)
+    if j % 2 == 1: f.add(b - 0.32, W - x, y + 60, 14, 330, a0=6, lx=W - x, ez=1)
+# 0:55 two at a time (left and right) on the dum and on the strong hit, and spirals from the middle; the claps cross on the diagonals
+for j in range(8):
+    b = 40 + j
+    if j in (4, 6):
+        f.add(b, CX, 200, 30, 330, a0=90, dl=0.028, sg=1 if j == 4 else -1)
+        continue
+    f.add(b, 280, 240, 18, 360, a0=10 * (j % 2), lx=200)
+    f.add(b + 0.74, 1000, 240, 18, 360, a0=10 * ((j + 1) % 2), lx=1080, ez=1)
+f.put()
+cl = Claps()
+for j in range(8): cl.add(40.42 + j, CX, CY, 45 if j % 2 == 0 else -45, 66, ez=j % 2)
 
-# 1:03 the alarm clock rings: rings of sound with one gap leave it; the two hits of a pair have their gaps close together.
-# From 1:10 the minute hand ticks again (with its wedge) while the alarm rings once a beat
-rb, ga, ez = [], [], []
-for j, b in enumerate(range(50, 57)):
-    base = 90 + 55 * j
-    rb += [b + 0.74, b + 1]; ga += [base, base + 14]; ez += [0, 1]
-for j, b in enumerate(range(58, 64)):
-    rb.append(b + 0.42); ga.append(200 + 47 * j); ez.append(0)
-ev(48.8, 'L17alarm', hit=50, wn=0.8, kb=[49, 53, 57, 60, 64], kx=[640, 420, 860, 640, 640], ky=[360, 250, 470, 360, 360],
-   rb=rb, ga=ga, ez=ez, gw=66, sp=410, th=18, to=64)
-ev(56.6, 'L17hand', hit=57.8, wn=0.6, a0=180, st=-30, tk=list(range(58, 64)), len=900, w=22, hc=150, hw=36, burn=True, to=64)
+# 1:01 the party lights from the four corners step on the dum and the strong hit and cross each other
+fx(48, 0.12, 6, 1.0)
+def steps(b0, b1, offs):
+    out = []
+    for b in range(b0, b1):
+        for o in offs: out.append(b + o)
+    return out
+# (the corners opposite each other move together: one pair on the dum, the other on the strong hit, every beat)
+TL = [22, 64, 30, 72, 40, 18, 66, 34, 76]
+TR = [158, 112, 150, 104, 140, 162, 116, 146, 100]
+laser(0, 0, [47] + [48 + i for i in range(8)], TL, 48, 56.2, mv=0.22)
+laser(W, 720, [47] + [48 + i for i in range(8)], [180 + a for a in TL], 48, 56.2, mv=0.22)
+laser(W, 0, [47] + [48.74 + i for i in range(8)], TR, 48.42, 56.2, mv=0.22)
+laser(0, 720, [47] + [48.74 + i for i in range(8)], [180 + a for a in TR], 48.42, 56.2, mv=0.22)
+for j in range(8): cl.add(48.42 + j, CX, CY, 0 if j % 2 == 0 else 90, 56, ez=j % 2)
+# 1:08 five spotlights from the top swing like scissors on the dum; from 1:11 the drums slam under them on the strong hit
+LX = [128, 384, 640, 896, 1152]
+for i, x in enumerate(LX):
+    sg = 1 if i % 2 == 0 else -1
+    ka = [90] + [90 + sg * (34 if j % 2 == 0 else -34) for j in range(16)]
+    laser(x, 0, [55.5] + [56 + j * 0.5 for j in range(16)], ka, 56.0, 61.9, bw=22, mv=0.26)
+d = Drums()
+for j in range(5):
+    b = 56.74 + j
+    xs = [256, 768] if j % 2 == 0 else [512, 1024]
+    for x in xs: d.add(b, x, 600, 110)
+d.put()
+cl.add(57.42, CX, 360, 0, 66); cl.add(59.42, CX, 360, 0, 66, ez=1); cl.add(61.42, CX, 360, 0, 66)
+cl.put()
 
-# ================= part 2: the eyelids (64-120) =================
+# ================= part 2: the record (64-120) =================
 fx(64, 0.12, 8, 1.2)
-# 1:14 the blink: the lids close and leave one slit; be in it. From 1:20 the slit slides while the lids hold (follow it)
-def blink(tb, x, y, sw, sh, dx=0, hold=0.5, wn=1.4):
-    at(tb, wn, 'L17blink', x=x, y=y, sw=sw, sh=sh, dx=dx, cl=0.35, hold=hold, op=0.2)
-blink(66, 640, 360, 260, 64, wn=1.9); blink(68, 420, 250, 230, 56); blink(70, 640, 480, 230, 56); blink(72, 860, 330, 220, 54)
-blink(74, 1000, 520, 220, 54, -260, 1.1); blink(76.5, 640, 340, 210, 52, -300, 1.1); blink(79, 260, 230, 210, 52, 0, 0.5)
+# 1:15 the record: four rings and the spindle turn (each its own way), with openings to stand in; the arrows show the way they go and blink
+# before they all turn back. The claps cross the record: change rings before your opening goes under them
+ev(first(65, 1.5), 'L17brecord', re=[60, 165, 270, 380, 820], w=[0.68, -0.56, 0.45, -0.34], no=[2, 3, 4, 6], hh=[42, 28, 21, 14], a0=[0, 30, 10, 45],
+   kb=[65, 68, 71, 73, 75, 76.74, 78.42], km=[1, -1, 1.5, -1, 1, -1.5, 1], wn=1.5, hit=65, to=80)
+cl = Claps()
+for j in range(13): cl.add(66.74 + j, CX, CY, [90, 0, 45, -45][j % 4], 46, ez=j % 2)
+cl.put(wn=1.2)
 
-# 1:17 the window blinds: rows of slats turn shut. Odd and even rows in turn, then all but two rows every two beats; from 1:24 the
-# columns too, a moment after the rows: be where an open row and an open column cross
-ROWS, COLS = 9, 16
-fb, fs, fz = [], [], []
-for b in range(80, 84):
-    for s in range(ROWS):
-        if s % 2 == b % 2: fb.append(b); fs.append(s); fz.append(0)
-OPEN = [(84, (3, 4)), (86, (6, 7)), (88, (3, 4)), (90, (1, 2)), (92, (4, 5)), (94, (6, 7))]
-for b, op in OPEN:
-    for s in range(ROWS):
-        if s not in op: fb.append(b); fs.append(s); fz.append(0)
-at(80, 0.7, 'L17blinds', vert=False, n=ROWS, fb=fb, fs=fs, ez=fz, hold=0.35, fl=0.12, to=95.2)
-fb, fs, fz = [], [], []
-OPC = [(88.42, (9, 10, 11, 12)), (90.42, (3, 4, 5, 6)), (92.42, (10, 11, 12, 13)), (94.42, (5, 6, 7, 8))]
-for j, (b, op) in enumerate(OPC):
-    for s in range(COLS):
-        if s not in op: fb.append(b); fs.append(s); fz.append(j % 2)
-at(88.42, 1.6, 'L17blinds', vert=True, n=COLS, fb=fb, fs=fs, ez=fz, hold=0.3, fl=0.12, to=95.2)
-
-# 1:39 the doze: the music drops, all goes dark but a circle of light. Stay in it; at 1:41 the eye snaps open and the lashes fly out
-at(96, 1.5, 'L17doze', kb=[96, 96.75, 97.5, 98], kx=[640, 540, 720, 640], ky=[360, 300, 400, 360], kr=[150, 130, 115, 110], to=98)
+# 1:27 the equalizer: the bars leave a tunnel that jumps on every dum (bar after bar, like the sound), and the bars bump in on the two
+# other hits. From 1:33 the bars come from the walls
+fx(80, 0.15, 8, 1.0)
+# (the tunnel moves at most ~110 px a step, so the old and the new tunnel always overlap)
+sb = [80.5] + [b + o for b in range(81, 89) for o in (0, 0.74)]
+C = [(360 + 190 * math.sin(k * 0.55), 360 + 190 * math.sin(k * 0.55 + 2.2)) for k in range(len(sb))]
+ev(first(80.5, 1.0), 'L17beq', side=False, nc=20, sb=sb, c0=[c[0] for c in C], c1=[c[1] for c in C], jag=28, gh=100,
+   bb=[b + 0.42 for b in range(81, 89)], bump=34, stg=0.03, wn=0.7, hit=80.5, to=88.7)
+sb = [88.9] + [b + o for b in range(89, 96) for o in (0, 0.74)]
+C = [(640 - 300 * math.sin(k * 0.5), 640 - 300 * math.sin(k * 0.5 + 2.6)) for k in range(len(sb))]
+ev(first(88.9, 1.0), 'L17beq', side=True, nc=12, sb=sb, c0=[c[0] for c in C], c1=[c[1] for c in C], jag=32, gh=112,
+   bb=[b + 0.42 for b in range(89, 96)], bump=34, stg=0.04, wn=0.7, hit=88.9, to=96)
+# 1:39 the bass drops: one clap flat, one standing, across the middle
+cl = Claps()
+cl.add(97, CX, CY, 0, 110); cl.add(97.74, CX, CY, 90, 150)
+cl.put(wn=1.0)
 fx(98, 0.15, 10, 1.0)
 
-# 1:41 the eye's stare: three beams on the three hits of a beat, each where the square was half a beat before. Keep moving.
-# The eye moves to the left (1:47), then to the right (1:50), where it fires once in the gaps between the blinks
-ev(97.2, 'L17stare', hit=98, wn=0.9, x=640, y=64, fb=[99, 99.42, 99.74, 101, 101.42, 101.74, 103, 103.42, 103.74], ez=[0, 1, 0, 0, 1, 0, 0, 1, 0], lk=0.5, bw=40, hold=0.22, to=104.4, rnd=True)
-ev(102.6, 'L17stare', hit=104, wn=0.9, x=64, y=360, fb=[105, 105.42, 105.74, 107, 107.42, 107.74], ez=[0, 1, 0, 0, 1, 0], lk=0.5, bw=40, hold=0.22, to=108.4, rnd=True)
-ev(106.4, 'L17stare', hit=108, wn=0.9, x=1216, y=360, fb=[109, 109.42, 111.42, 113.42, 115.42, 117.42], ez=[0, 1, 0, 0, 0, 0], lk=0.5, bw=40, hold=0.22, to=118.2, rnd=True)
-blink(110, 500, 300, 200, 50, 200, 0.8); blink(112, 760, 450, 200, 50, -200, 0.8); blink(114, 480, 330, 190, 50, 200, 0.8)
-blink(116, 760, 460, 190, 48, -180, 0.8); blink(118, 620, 330, 190, 48, 0, 0.5)
+# 1:41 the dance rings: two rings of dancers, one opening out and one closing in, step by step on the dum and the strong hit, turning
+# opposite ways; go through their holes as they pass you
+RA = [90, 230, 370, 510, 650, 790, 650, 510, 370, 230, 90]
+RB = [790, 650, 510, 370, 230, 90, 230, 370, 510, 650, 790]
+ev(first(98.5, 1.0), 'L17bdance', sb=[99 + i for i in range(10)], rr=RA, w=0.62, a0=0, nh=3, hh=16, nd=24, dr=22, lw=14, wn=1.0, hit=98.5, to=109.3)
+ev(first(98.5, 1.0), 'L17bdance', sb=[99.74 + i for i in range(10)], rr=RB, w=-0.52, a0=30, nh=3, hh=16, nd=24, dr=22, lw=14, wn=1.0, hit=98.5, to=110)
+# 1:49 again faster (two holes each, turning faster), and two lights from the top corners sweep slowly
+RA = [790, 650, 510, 370, 230, 90, 230, 370, 510, 650, 790]
+RB = [90, 230, 370, 510, 650, 790, 650, 510, 370, 230, 90]
+ev(first(109.5, 1.0), 'L17bdance', sb=[110 + i for i in range(8)] + [117.5], rr=RA[:10], w=0.85, a0=15, nh=2, hh=20, nd=22, dr=22, lw=14, wn=1.0, hit=109.5, to=117.9)
+ev(first(109.5, 1.0), 'L17bdance', sb=[110.74 + i for i in range(8)] + [118], rr=RB[:10], w=-0.75, a0=60, nh=2, hh=20, nd=22, dr=22, lw=14, wn=1.0, hit=109.5, to=117.9)
+laser(0, 0, [109.6] + [111 + j for j in range(7)], [10, 60, 25, 75, 30, 68, 20, 55], 110, 117.9, bw=24, mv=0.45, wn=1.0)
+laser(W, 0, [109.6] + [111.5 + j for j in range(6)], [170, 120, 155, 105, 150, 112, 160], 110, 117.9, bw=24, mv=0.45, wn=1.0)
 
-# ================= part 3: till dawn (120-177.42) =================
+# ================= part 3: till morning (120-177.42) =================
 fx(120, 0.12, 8, 1.2)
-# 1:58 the star trails: rings of stars close in on the moon, each turning the other way from the one before, with one gap.
-sb, ga, w = [], [], []
-a = 200
-times = [117.5 + i for i in range(18)]
-for i, b in enumerate(times):
-    sb.append(b); a = (a + (70 if i % 2 == 0 else -110)) % 360; ga.append(a); w.append(0.35 if i % 2 == 0 else -0.35)
-ev(117.4, 'L17trails', sb=sb, ga=ga, w=w, r0=760, v=170, gw=68, th=18, to=136, keepNew=True)   # comes out before the 1:57 save's restart point: keepNew brings it back after a death (v51, his ask 10-26)
+# 1:58 the fireworks show (no bass): a shell on every dum, sweeping over the roofs; from 2:05 a second one on the strong hit; then spirals
+f = Fire()
+for j in range(15):
+    b = 121 + j
+    x = [220, 450, 680, 910, 1060, 830, 600, 370][j % 8]; y = [220, 270, 200, 260, 220, 290, 210, 260][j % 8]
+    if b in (132, 134): continue
+    f.add(b, x, y, 22, 320, a0=8 * (j % 2))
+    if b >= 124 and b not in (131, 133, 135): f.add(b + 0.74, W - x, y + 30, 14, 380, a0=13, ez=1 if b < 128 else 0)
+f.add(132, 320, 250, 34, 330, a0=0, dl=0.026, sg=1)
+f.add(134, 960, 250, 34, 330, a0=180, dl=0.026, sg=-1)
+f.add(135.74, CX, 220, 20, 330, a0=9, ez=1)
+f.put()
 
-# 2:11 the messages: bubbles slide in from both sides in lanes ("typing..." shows where), three to a beat on its hits, the lanes
-# stepping down and up the screen. From 2:18 two at a time
-fb, fl, fs, fL, fz = [], [], [], [], []
-for j, b in enumerate(range(135, 152)):
-    base = (j * 3) % 6 if j % 4 < 2 else (5 - (j * 3) % 6)
-    for q, o in enumerate((0, 0.42, 0.74)):
-        lane = (base + (q if j % 2 == 0 else -q)) % 6
-        fb.append(b + o); fl.append(lane); fs.append((j + q) % 2); fL.append(380 + 60 * ((j + q) % 3)); fz.append(0)
-        if b >= 143 and q != 1:
-            fb.append(b + o); fl.append((lane + 3) % 6); fs.append(1 - (j + q) % 2); fL.append(340); fz.append(1)
-order = sorted(range(len(fb)), key=lambda i: fb[i])
-at(135, 1.0, 'L17msgs', n=6, bh=92, fb=[fb[i] for i in order], fl=[fl[i] for i in order], fs=[fs[i] for i in order], fL=[fL[i] for i in order],
-   ez=[fz[i] for i in order], sp=1050, to=152.5)
+# 2:11 the dancers from four sides: two standing lines cross the screen on the dum, two flat lines on the strong hit
+fx(136, 0.18, 10, 1.0)
+chobi(True, [136 + i for i in range(8)], [-60, 120, 300, 480, 660, 840, 1020, 1200, 1380], [360, 200, 520, 280, 560, 180, 440, 300, 300], hs=75)
+chobi(True, [136.42 + i for i in range(8)], [1340, 1160, 980, 800, 620, 440, 260, 80, -100], [360, 540, 220, 480, 160, 520, 260, 420, 420], hs=75)
+chobi(False, [136.74 + i for i in range(7)], [-60, 70, 180, 290, 400, 510, 620, 790], [640, 300, 940, 520, 200, 860, 420, 420], hs=85)
+# 2:17 the record again, faster and turning back more often
+ev(first(145, 1.5), 'L17brecord', re=[55, 150, 260, 380, 820], w=[-0.8, 0.66, -0.5, 0.38], no=[2, 3, 4, 6], hh=[42, 27, 20, 14], a0=[90, 0, 60, 20],
+   kb=[145, 147, 148.74, 150], km=[1, -1, 1.3, -1.3], wn=1.5, hit=145, to=152)
 
-# 2:12 .. 2:30 time racing: the hands come back and spin, the long one turning back on the strong beats (the arrows flash a beat
-# before). Slip through a window to cross
-SB = [152, 155, 157, 159.74, 161.74, 163, 164.74, 166]
-ev(150.6, 'L17race', hit=152, wn=1.0, len=[900, 330], wd=[22, 34], hc=[230, 140], hw=[38, 36], a0=[-90, 120], sb=SB,
-   sw0=[0.85, -0.9, 0.95, -1.0, 1.0, -1.05, 1.1, -1.1], sw1=[-0.32, 0.32, -0.36, 0.36, -0.4, 0.4, -0.42, 0.42], to=167.5)
+# 2:24 six lights from the floor fan out and close on the dum and the strong hit; the drums slam along the top between them
+fx(152, 0.18, 10, 1.0)
+FL = [107, 320, 533, 747, 960, 1173]
+st = steps(152, 160, (0, 0.74))
+for i, x in enumerate(FL):
+    u = (i - 2.5) / 2.5
+    ka = [-90]
+    for j in range(len(st)):
+        ph = j % 4
+        ka.append(-90 + [u * 32, -u * 32, 26 * (1 if i % 2 else -1), -26 * (1 if i % 2 else -1)][ph])
+    laser(x, 720, [151.5] + st, ka, 152, 160.2, bw=20, mv=0.18)
+d = Drums()
+for j in range(8):
+    b = 152.42 + j
+    xs = [213, 640, 1067] if j % 2 == 0 else [427, 853]
+    for x in xs: d.add(b, x, 150, 100, ez=1 if (j % 2 == 0 and x == 640) else 0)
+d.put()
+# 2:30 the claps cross on the diagonals on the dum and the strong hit, fireworks from the corners between them
+cl = Claps()
+for j in range(8):
+    b = 160 + j
+    cl.add(b, CX, CY, 34 if j % 2 == 0 else -34, 64)
+    if j % 2 == 1: cl.add(b + 0.74, CX, CY, 90 if j % 4 == 1 else 0, 50, ez=1)
+cl.put(wn=1.0)
+f = Fire()
+for j in range(8):
+    b = 160.42 + j
+    x = 190 if j % 2 == 0 else 1090
+    f.add(b, x, 200 if j % 4 < 2 else 520, 18, 350, a0=10 * (j % 3), lx=x)
+f.put(fu=0.7)
 
-# 2:31 the dawn: the horizon rises and burns under it; from 2:33 the sun's rays sweep the sky. At 2:44 the sun is up: the win
-at(167.5, 1.2, 'L17dawn', hb=[167.5, 176.5], hy=[720, 410], nr=5, spread=30, amp=24, per=4, ph=169, rw=24, rays=169, to=END)
+# 2:36 the last fireworks: spirals from three shells, rings between, the drums slam round the middle on the dum; the last at 2:43
+fx(168, 0.2, 10, 1.2)
+f = Fire()
+f.add(168, 320, 220, 28, 280, dl=0.03, sg=1); f.add(168.74, 960, 220, 28, 280, a0=180, dl=0.03, sg=-1, ez=1)
+f.add(170, CX, 240, 22, 330, a0=8); f.add(170.74, 300, 300, 16, 300, ez=1); f.add(171.42, 980, 300, 16, 300, a0=11)
+f.add(172, 960, 220, 28, 280, a0=180, dl=0.03, sg=-1); f.add(172.74, 320, 220, 28, 280, dl=0.03, sg=1, ez=1)
+f.add(174, CX, 220, 26, 300, a0=7); f.add(174.74, 400, 280, 14, 330, ez=1); f.add(175.42, 880, 280, 14, 330, a0=12)
+f.add(176, CX, 230, 30, 300, a0=6)
+f.put()
+d = Drums()
+for j in range(7):
+    b = 169 + j
+    for q in range(3):
+        a = math.radians(-90 + 120 * q + (60 if j % 2 else 0)); d.add(b, CX + math.cos(a) * 250, CY + 40 + math.sin(a) * 210, 105, ez=1 if q == 2 else 0)
+d.put()
 
 EV.sort(key=lambda e: e['b'])
+# a part's events must start after the part's restart point (checkpoint - 2), and the part before must be over by the checkpoint
 for e in EV:
-    if e.pop('rnd', False): e['rnd'] = True
+    if e['k'] == 'L17bstage': continue
+    to = e.get('to')
+    for cp in (64, 120):
+        if e['b'] < cp - 2 and to is not None and to > cp - 2 + 0.01: print('WARNING crosses', cp, e['k'], e['b'], to)
 
-# the pulse: one number a bar (4 beats), from the song's loudness
 energy = json.load(open(os.path.join(HERE, 'energy.json')))
 D = {'id': 'L17', 'name': 'المرحلة السابعة عشرة', 'song': 'حالف لا ما انام', 'file': 'SONG_L17', 'bpm': 76.0, 'off': 0.205, 'end': END, 'cps': [0, 64, 120],
-     'ez': {'ezg': 1, 'ezc': 1, 'ez': 1.0, 'ezsp': 0.85, 'ezwn': 1.3}, 'energy': energy, 'events': EV}
+     'ez': {'ezg': 0, 'ezc': 1, 'ez': 1.0, 'ezsp': 0.85, 'ezwn': 1.3}, 'energy': energy, 'events': EV}
 json.dump(D, open(OUT, 'w'), ensure_ascii=False, separators=(',', ':'))
 print('events', len(EV))
