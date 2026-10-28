@@ -19,10 +19,12 @@ public static partial class G
 		"واللي يطيح... هو أول واحد يبيه، لا تخلونه",
 	};
 	static readonly string[] BS_COL = { CYAN, "#ffcf5a", "#5dff9a", "#b07cff" };   // the players' squares in the scene (never pink)
-	static Godot.AudioStream bsBuf; static bool bsTried;
+	// each boss has its own scene (B2: drawBossScene2 in UI/BossScene2.cs) and its own music (songs/SONG_<id>_SCENE.mp3)
+	public static double bossSceneLen => cur?.id == "B2" ? BOSS_SCENE2 : BOSS_SCENE;
+	static readonly Dictionary<string, Godot.AudioStream> bsBufs = new();
 	public static void bossSceneMusic()
 	{
-		if (noMus) return; if (!bsTried) { bsTried = true; bsBuf = LoadSong("SONG_B1_SCENE"); } if (bsBuf == null) return;
+		string id = cur?.id ?? "B1"; if (noMus) return; if (!bsBufs.TryGetValue(id, out var bsBuf)) bsBufs[id] = bsBuf = LoadSong("SONG_" + id + "_SCENE"); if (bsBuf == null) return;
 		stopMusic(); var v = new Voice { song = bsBuf }; v.gain.setValueAtTime(0.0001, actx.currentTime); v.gain.exponentialRampToValueAtTime(0.9, actx.currentTime + 0.5);
 		v.start(actx.currentTime + 0.05, 0); src = AudioCtx.Add(v);
 	}
@@ -34,6 +36,7 @@ public static partial class G
 	}
 	public static void drawBossScene(double now)
 	{
+		if (cur?.id == "B2") { drawBossScene2(now); return; }
 		double s = (now - introAt) / 1000, bt = s * 130 / 60, pu = JS.exp(-(bt % 1) * 5);
 		if (s < 0) s = 0; int shot = Math.Min(5, (int)(s / 2.8)); double u = s - shot * 2.8;   // u: seconds into the shot
 		double sp = pulse; pulse = pu;
