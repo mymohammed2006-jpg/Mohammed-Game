@@ -262,7 +262,7 @@ public static partial class G
 					double k = L20k(bt, eb[i] - 1, eb[i]); g.strokeStyle = $"rgba(255,255,255,{str(0.3 + 0.6 * k)})"; g.lineWidth = 3; g.setLineDash(new double[] { 9, 7 }); g.beginPath(); g.arc(o.x, o.y, R, 0, TAU); g.stroke(); g.setLineDash(new double[0]);
 					L20bSign(i, o.x, o.y, R, rot, $"rgba(255,255,255,{str(0.3 + 0.5 * k)})", 4); continue;
 				}
-				double f = bt <= te ? Math.Min(1, (bt - eb[i]) / 0.15) : 1 - (bt - te) / 0.3;
+				double f = bt <= te ? 1 : 1 - (bt - te) / 0.3;
 				g.save(); g.globalAlpha = Math.Max(0, f); L20bGlow(true); g.fillStyle = bt - eb[i] < 0.08 ? L20HOT : PINK; g.beginPath(); g.arc(o.x, o.y, R, 0, TAU); g.fill(); L20bGlow(false);
 				g.fillStyle = "rgba(120,0,40,0.35)"; g.beginPath(); g.arc(o.x, o.y, R * 0.78, 0, TAU); g.fill();
 				L20bSign(i, o.x, o.y, R, rot, "rgba(255,215,228,0.95)", 6); g.restore();
