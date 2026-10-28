@@ -25,6 +25,7 @@ public static partial class G
 		["L19"] = 1.8,   // عافني وراح: the same difficulty as L5 (Mohammed 20:30 10-24)
 		["L20"] = 4.0,   // New Game: as hard as Abra Macabre
 		["L21"] = 4.0,   // Barracuda: as hard as Abra Macabre
+		["L22"] = 4.0,   // Shiawase VIP: as hard as Abra Macabre
 		["B1"] = 4.0,   // the boss mode's first level (proposed in the plan: like Abra Macabre)
 		["P1"] = 1.5,   // the platformer's first level
 		["P2"] = 2.0,   // the co-op level for three (harder than P1, easier than Link)
