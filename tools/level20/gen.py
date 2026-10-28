@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-# Makes data/dodge_L20.json: L20 "New Game" (Nitro Fun), you started a new game. 128 BPM, beat 0 = 0.59075 s, a beat = 0.46875 s.
-# Song map (beats): intro, no bass 0-31 | bass 32-63 (0:15.6) | crash 64, the quiet 65-79 (0:30.6) | the build 80-111 (0:38.1, lifts 96, 104)
-# | DROP 112-140 (0:53.1) | break 141-143 | 144-172 (1:08.1) | the near silence 173-175 | 176-204 (1:23.1) | break 205-207 | 208-236 (1:38.1)
-# | break 237-239 | the last hit 240 (1:53.1) | win 242 (1:54.0)
-# Parts: 1 switching on (0-111), 2 playing (112-175), 3 the boss (176-242). Checkpoints 0, 112, 176.
-# Nothing here is random: every attack is a fixed pattern on the beat (the Pong shot and the boss's laser aim at the square: "rnd").
-# "nz": Normal only, "ez": Easy only, where the two have their own patterns.
+# Makes data/dodge_L20.json: L20 "New Game" (Nitro Fun), the design of 10-28. 128 BPM, beat 0 = 0.59075 s, a beat = 0.46875 s.
+# (The old design, public v49-v51, is gen_v51.py -> data/dodge_L20_v51.json, for the replays saved before.)
+# Song map (beats): intro 0-31 (a kick every beat, the tune's C# notes) | bass 32-63 (0:15.6, kicks on the even beats, the bass on the odd)
+# | crash 64, the broken beat 65-79 (0:30.6) | the build 80-111 (0:38.1, lifts 96, 104) | DROP 112-140 (0:53.1) | break 140-143
+# | 144-172 (1:08.1) | the near silence 173-175 | 176-204 (1:23.1) | break 205-207 | 208-236 (1:38.1) | break 237-239 | the last hit 240 | win 242
+# Parts: 1 press start (0-111), 2 playing (112-175), 3 the boss (176-242, the same as before). Checkpoints 0, 112, 176.
+# Parts 1 and 2 are the controller: its four buttons, the D-pad and the two sticks, each on one sound of the song (L20n.cs, kinds "L20b_*").
+# Nothing here is random. "nz": Normal only, "ez": Easy only, where the two have their own patterns.
 import json, math, os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -27,9 +28,7 @@ def both(fn):
 ev(0, 'L20rot', rb=[0, 204, 205, 207.5, 236], ra=[0, 0, 0, 180, 720], keep=True)
 ev(0, 'L20stage', to=244, keep=True)
 
-# ================= part 1: switching on (0-111) =================
-# Everything here moves on a sound of the song (tools/level20 analysis: the claps, the kicks, the tune's notes and their pitch).
-# Pitch: a higher note goes right (or up), a lower one left (or down)
+# The song's sounds (my own map of 10-24, checked again 10-28 on the kicks, the bass and the claps): the tune's notes with their pitch
 PR = {'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5, 'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11}
 def notes(s): return [(float(t[:t.index('#') - 1 if t.endswith('##') else len(t.rstrip('ABCDEFG#'))]), t[len(t.rstrip('ABCDEFG#')):]) for t in s.split()]
 # the tune's notes (beat + pitch), from the song
@@ -42,335 +41,196 @@ N_BREAK = notes('140.0F# 140.25F# 140.5A 140.75A 141.5E 141.75F# 142.25F# 142.5F
 N_DROP2 = notes('144.0F# 147.5G# 148.25G# 148.5G# 148.75A 149.5G# 149.75F# 150.25G# 150.5E 151.5A 152.0F# 155.5G# 156.25A 156.5A 157.5G# 158.25F# 158.5F# 158.75F# 159.5E 160.0F# 164.25G# 164.5G# 164.75A 165.5G# 165.75F# 166.0G# 166.25G# 166.5G# 166.75G# 167.0A 167.25G# 167.5G# 167.75G# 168.0G#')
 def up(a, b): return (PR[b] - PR[a] + 6) % 12 - 6   # the step from note a to note b (-6 .. 5)
 
-# 0:00 Tetris on the tune: a piece hops a column on every main note (C#, from 0:15.6 A: the way the tune goes) and turns on the other
-# notes; on the clap it SLAMS down at once onto its dashed ghost. A row comes up from below on the double kicks (0:15.6-0:30, the
-# next places dashed a beat before) and the laser takes the bottom rows away at the ends of the phrases. 0:30 the crash: all of it goes
-SH = [[0, 1, 1, 1, 2, 1, 3, 1], [1, 1, 2, 1, 1, 2, 2, 2], [0, 1, 1, 1, 2, 1, 1, 0], [1, 0, 2, 0, 0, 1, 1, 1], [0, 0, 1, 0, 1, 1, 2, 1], [0, 0, 0, 1, 1, 1, 2, 1], [2, 0, 0, 1, 1, 1, 2, 1]]
-SC = [1.5, 1.5, 1, 1, 1, 1, 1]
-def turn(s, r):
-    c = SC[s]; out = []
-    for j in range(4):
-        x, y = SH[s][2 * j], SH[s][2 * j + 1]
-        for _ in range(r % 4): x, y = 2 * c - y, x
-        out.append((int(round(x)), int(round(y))))
-    mx = min(a for a, _ in out); my = min(b for _, b in out)
-    return [(a - mx, b - my) for a, b in out]
-COLS, ROWS = 16, 9
-def tetris(ez):
-    # the pieces: (spawn beat, slam beat, base column, the half it keeps to, mirrored) and the notes they dance on
-    P = []
-    claps = list(range(2, 32, 4 if ez else 2))
-    t0 = 0.5
-    bases = [3, 11, 6, 13, 1, 9, 4, 12, 7, 2, 10, 5, 14, 8, 0]
-    if ez:
-        for i, c in enumerate(claps): P.append(dict(sp=t0, sl=c, base=bases[i % len(bases)], lo=0, hi=15, mir=False, notes=N_INTRO, main='C#')); t0 = c
-    else:
-        # Normal: two pieces, the left one slams on a clap, its mirror on the right on the next; each lives 4 beats
-        for i, c in enumerate(claps):
-            right = i % 2 == 1
-            P.append(dict(sp=max(0.5, c - 4), sl=c, base=([3, 1, 5, 2, 6, 0, 4, 2] if not right else [12, 14, 10, 13, 9, 15, 11, 13])[(i // 2) % 8],
-                          lo=8 if right else 0, hi=15 if right else 7, mir=right, notes=N_INTRO, main='C#'))
-    if ez:
-        for i, c in enumerate(range(34, 63, 4)): P.append(dict(sp=c - 4 if i else 32, sl=c, base=[3, 11, 5, 13, 2, 10, 6, 12][i], lo=0, hi=15, mir=False, notes=N_BASS, main='A'))
-    else:
-        # from the bass: both halves slam together on every clap, mirrored
-        for i, c in enumerate(range(34, 63, 2)): P.append(dict(sp=c - 2 if i else 32, sl=c, base=[2, 4, 1, 5, 3, 6, 2, 4][i % 8], lo=0, hi=7, mir=False, notes=N_BASS, main='A'))
-        for i, c in enumerate(range(34, 63, 2)): P.append(dict(sp=c - 2 if i else 32, sl=c, base=[13, 11, 14, 10, 12, 9, 13, 11][i % 8], lo=8, hi=15, mir=True, notes=N_BASS, main='A'))
-    garbage = [] if False else ([37, 45, 53, 61] if ez else [33, 37, 43, 45, 49, 53, 59, 61])
-    clears = [7.75, 15.75, 23.75, 31.75, 39.75, 47.75, 55.75] if ez else [b + 3.75 for b in range(0, 32, 4)] + [b + 1.75 for b in range(32, 62, 2)]
-    # play it out on a 1/4 beat clock
-    grid = {}            # (col,row) -> cell
-    cells = []; pz_states = []; cl, clr = [], []
-    shape_i = 0
-    for p in P: p['s'] = shape_i % 7; shape_i += 3
-    ev = sorted({round(x * 4) / 4 for x in [p['sl'] for p in P] + garbage + clears})
-    def height(): return ROWS - min([r for (c, r) in grid] or [ROWS])
-    # the pieces' flights (they don't touch the stack until they slam)
-    flights = {}
-    for k, p in enumerate(P):
-        s = p['s']; r = 0; x = p['base']; dirn = -1 if p['mir'] else 1
-        def cl_x(x, r):
-            w = max(a for a, _ in turn(s, r)); return max(p['lo'], min(p['hi'] - w, x))
-        x = cl_x(x, r); st = [(p['sp'], [(x + a, b) for a, b in turn(s, r)])]
-        prev = None
-        for (nb, pc) in p['notes']:
-            if nb <= p['sp'] + 0.5 - 1e-9 or nb >= p['sl'] - 1e-9: prev = pc; continue
-            if pc == p['main']:
-                d = 1 if prev is None else (1 if up(prev, pc) > 0 else -1 if up(prev, pc) < 0 else dirn)
-                if p['mir']: d = -d
-                nx = cl_x(x + d, r)
-                if nx == x: d = -d; nx = cl_x(x + d, r)
-                x = nx; dirn = d if not p['mir'] else -d
-            else:
-                r = (r + (1 if up(p['main'], pc) > 0 else 3)) % 4; x = cl_x(x, r)
-            st.append((nb, [(x + a, b) for a, b in turn(s, r)])); prev = pc
-        flights[k] = st
-    order = sorted(range(len(P)), key=lambda k: P[k]['sl'])
-    # gravity: a flying piece also falls a row on every half beat (Easy every beat), so it comes down into your space; never into the stack
-    gstep = 1 if ez else 0.5
-    base = {k: flights[k] for k in range(len(P))}
-    flights = {k: [] for k in range(len(P))}
-    dyk = {k: 0 for k in range(len(P))}
-    def at(k, t):
-        cs = None
-        for b, c in base[k]:
-            if b <= t + 1e-9: cs = c
-        return cs
-    def put(k, t, cs):
-        if not flights[k] or flights[k][-1][1] != cs:
-            if flights[k] and abs(flights[k][-1][0] - t) < 1e-9: flights[k][-1] = (t, cs)
-            else: flights[k].append((t, cs))
-    def fits(cs): return all(0 <= r < ROWS and (c, r) not in grid for c, r in cs)
-    times = sorted({x / 4 for x in range(0, 65 * 4)} | {b for k in base for b, _ in base[k] if b < 65})
-    gi = 0
-    for t in times:
-        # garbage rows (everything up a row, a new row at the bottom with one hole)
-        if any(abs(t - g) < 1e-9 for g in garbage):
-            if height() <= 5:
-                for c in cells:
-                    if c['end'] > t: c['kf'].append((t, c['kf'][-1][1] - 1))
-                grid = {(c, r - 1): v for (c, r), v in grid.items()}
-                hole = [5, 12, 2, 9, 14, 6, 0, 11][gi % 8]; gi += 1
-                for col in range(COLS):
-                    if col == hole: continue
-                    cell = dict(col=col, kf=[(t, ROWS - 1)], end=999); cells.append(cell); grid[(col, ROWS - 1)] = cell
-            else: print('tetris: no garbage at', t)
-        # the laser takes the bottom rows (keep it low)
-        if any(abs(t - c) < 1e-9 for c in clears):
-            keep = (2 if t < 32 else 3) if ez else (3 if t < 32 else 4)
-            n = 0
-            while height() > keep or (n == 0 and height() > 0):
-                n += 1
-                row = ROWS - n
-                for (c, r), v in list(grid.items()):
-                    if r == row: v['end'] = t; del grid[(c, r)]
-                cl.append(t); clr.append(row)
-                if n >= 4: break
-            if n:
-                moved = {}
-                for (c, r), v in grid.items():
-                    v['kf'].append((t, r + n)); moved[(c, r + n)] = v
-                grid = moved
-        # the flying pieces: their dance, their fall, kept out of the stack
-        for k in range(len(P)):
-            p = P[k]
-            if t < p['sp'] - 1e-9 or t >= p['sl'] - 1e-9: continue
-            cs0 = at(k, t)
-            sh = lambda d: [(c, r + d) for c, r in cs0]
-            if t < p['sl'] - 1e-9 and t >= p['sp'] + 1 - 1e-9 and abs((t - p['sp']) / gstep - round((t - p['sp']) / gstep)) < 1e-9 and fits(sh(dyk[k] + 1)) and fits(sh(dyk[k] + 2)):
-                dyk[k] += 1
-            while dyk[k] > 0 and not fits(sh(dyk[k])): dyk[k] -= 1
-            put(k, t, sh(dyk[k]))
-        # the slams
-        for k in order:
-            p = P[k]
-            if abs(p['sl'] - t) > 1e-9: continue
-            cs = flights[k][-1][1]
-            dy = 0
-            while all(r + dy + 1 < ROWS and (c, r + dy + 1) not in grid for c, r in cs): dy += 1
-            land = [(c, r + dy) for c, r in cs]
-            flights[k].append((t, land))
-            for c, r in land:
-                cell = dict(col=c, kf=[(t, r)], end=999); cells.append(cell); grid[(c, r)] = cell
-    # the crash at 64: all of it goes at 64.5
-    rows = sorted({r for (c, r) in grid})
-    for r in rows: cl.append(64.5); clr.append(r)
-    for c in cells:
-        if c['end'] > 64.5: c['end'] = 64.5
-    pz = []
-    for k in range(len(P)):
-        st = flights[k]; pz.append(len(st))
-        for b, cs in st:
-            pz.append(b)
-            for c, r in cs: pz += [c, r]
-    sk = []
-    for c in cells:
-        sk += [c['col'], len(c['kf'])]
-        for b, r in c['kf']: sk += [b, r]
-        sk.append(c['end'])
-    print(('Easy' if ez else 'Normal') + f' tetris: {len(P)} pieces, {len(cells)} cells, clears {len(cl)}')
-    return [(0, 'L20tetris', dict(pz=pz, sk=sk, cl=cl, clr=clr, tw=0, te=64.6))]
-both(tetris)
+def dg(x, y): return math.degrees(math.atan2(y, x))
+def lerpk(kb, kv, bt):
+    # the same straight-line keyframes as L20bKey(.., ed 0) in L20n.cs
+    if bt <= kb[0]: return kv[0]
+    j = max(i for i in range(len(kb)) if bt >= kb[i])
+    if j + 1 >= len(kb): return kv[j]
+    return kv[j] + (kv[j + 1] - kv[j]) * (bt - kb[j]) / (kb[j + 1] - kb[j])
+def ring(b, x, y, sides, ga, gw, v, th=22, rot=0, r0=20, wn=0.6):
+    return (b - wn - 0.05, 'L20b_ring', dict(x=round(x, 1), y=round(y, 1), ta=b, sides=sides, rot=round(rot, 2), ga=round(ga, 2), gw=gw, v=v, th=th, r0=r0, wn=wn))
+def sgn(a, b, last=1):
+    s = up(a, b); return 1 if s > 0 else -1 if s < 0 else last
+
+# ================= part 1: press start (0-111) =================
+ev(0, 'L20b_title', b0=0, b1=2)
+# 0:01.5 the cross on every kick (Easy every other): it crosses the screen at two places in turn, turning 15 degrees a time;
+# from 0:08 it stands in the middle and turns 30 degrees a kick, so the four free corners go round. On the tune's notes a ring of the
+# circle button comes out of the cross, open towards one corner: a higher note opens it a corner on clockwise, a lower one back
+XC = [(320, 220), (960, 500), (960, 220), (320, 500)]
+TQ = [(190, 130), (1090, 130), (1090, 590), (190, 590)]
+def intro(ez):
+    out = []; xb, xx, xy, xa = [], [], [], []
+    for k, b in enumerate(range(2, 31)):
+        if ez and b % 2: continue
+        if b < 16: (x, y), a = XC[k % 4], 45 + 15 * k
+        else: (x, y), a = (640, 360), 45 + 30 * (b - 16)
+        xb.append(b); xx.append(x); xy.append(y); xa.append(a)
+    out.append((1, 'L20b_cross', dict(xb=xb, xx=xx, xy=xy, xa=xa, w=34 if ez else 40, wn=1.25 if ez else 1.0, lh=0.4)))
+    # every ring is open towards one of the four corners (the same one for 2 beats at least, so it can be reached): it moves on a corner
+    # with the tune, clockwise for a higher note, back for a lower one
+    q = 0; prev = 'C#'; qb = -9
+    mel = [n for n in N_INTRO if n[0] >= 2.5]
+    for i, (b, pc) in enumerate(mel):
+        if b - qb >= 2 and pc != prev: q = (q + sgn(prev, pc, 1)) % 4; qb = b
+        prev = pc
+        if ez and i % 2: continue
+        j = max(i2 for i2 in range(len(xb)) if xb[i2] <= b); tx, ty = TQ[q]
+        out.append(ring(b, xx[j], xy[j], 0, dg(tx - xx[j], ty - xy[j]), 85 if ez else 66, 470 if ez else 600))
+    return out
+both(intro)
+
+# 0:15.6 the bass: the square tiles slam on its hits (the odd beats), diagonal stripes that move on a cell each time; the cross keeps the
+# kicks (every 2 beats, Easy 4) at the four quarters' middles, and before each cross a square ring comes out of its place (Normal)
+QC = [(320, 180), (960, 540), (960, 180), (320, 540)]
+def bass(ez):
+    out = []; xb, xx, xy, xa = [], [], [], []
+    for k, b in enumerate(range(34, 63, 4 if ez else 2)):
+        (x, y) = QC[k % 4]; xb.append(b); xx.append(x); xy.append(y); xa.append(45 + 10 * k)
+        if not ez: out.append(ring(b - 0.25, x, y, 4, dg(640 - x, 360 - y) + (35 if k % 2 else -35), 62, 560, rot=45 + 10 * k, wn=0.75))
+    out.append((32, 'L20b_cross', dict(xb=xb, xx=xx, xy=xy, xa=xa, w=34 if ez else 42, wn=1.25 if ez else 1.0, lh=0.4)))
+    tb, tn, tc = [], [], []
+    for k, b in enumerate(range(33, 64, 4 if ez else 2)):
+        cells = [c + 8 * r for r in range(5) for c in range(8) if (c + r + k) % (5 if ez else 3) == 0]
+        tb.append(b); tn.append(len(cells)); tc += cells
+    out.append((31.5, 'L20b_tiles', dict(cols=8, cw=160, ch=144, tb=tb, tn=tn, tc=tc, wn=1.25 if ez else 1.0, lh=0.75)))
+    return out
+both(bass)
 fx(32, 0.12, 8, 1.0)
 
-# 0:30.6 the loading screen on the broken beat (hits at 0, 0.5, 1.25, 2, 2.75, 3.5 of every 4 beats): two loading bars step on every hit
-# (from the left from 64.5, from the right from 72) and only their holes are safe; the loading ring breathes on the beat and its gap
-# JUMPS to a new place on every stab of the tune (higher note: it jumps on clockwise), the next place dashed
-BROKEN = [b + o for b in range(64, 80, 4) for o in (0, 0.5, 1.25, 2, 2.75, 3.5)]
-def loading(ez):
-    sa = [b for b in BROKEN if b >= 64.5]; sbb = [b for b in BROKEN if b >= 72]
-    ha = [round(360 + 210 * math.sin(0.55 * k + 0.3)) for k in range(len(sa))]
-    hb = [round(360 - 200 * math.sin(0.6 * k + 1.1)) for k in range(len(sbb))]
-    out = [(62.5, 'L20front', dict(x0=40, dir=1, sx=52, hy=ha, hh=70 if ez else 54, tw=63.5, ta=64.5, sb=sa))]
-    if not ez: out.append((62.5, 'L20front', dict(x0=1240, dir=-1, sx=52, hy=hb, hh=54, tw=70.5, ta=72, sb=sbb)))
-    jb, ja = [], []; a = -90; prev = 'A'
-    for b, pc in N_STAB:
-        if b < 65: prev = pc; continue
-        d = 1 if up(prev, pc) >= 0 else -1; a += d * (70 if ez else 95); jb.append(b); ja.append(a); prev = pc
-    out.append((63, 'L20ring', dict(rmin=60, rmax=780, per=2, th=30, gw=50 if ez else 42, w=0, rv=4, a0=-90, core=80, tw=63, ta=65, te=80, jb=jb, ja=ja)))
+# 0:30.6 the crash, then the broken beat (hits at 0, 0.5, 1.25, 2, 2.75, 3.5 of every 4 beats): you are round the triangle button.
+# Its sides are open in the middle; on the hits it shrinks to the middle and grows past the screen again (its sides sweep over you:
+# be on a way through) and turns 40 degrees (the way of the tune's stabs). Normal: on each turn its corners throw shards out
+def tri(ez):
+    kb, kr, ka = [63], [700], [0]; a = 0; d = 1; si = 0
+    stabs = [n for n in N_STAB]; prev = 'A'
+    sb, sx, sy, sa = [], [], [], []
+    for bar in (64, 68, 72, 76):
+        for j, o in enumerate((0, 0.5, 1.25, 2, 2.75, 3.5)):
+            b = bar + o
+            if b < 65.25: continue
+            while si < len(stabs) and stabs[si][0] <= b + 1e-9: d = sgn(prev, stabs[si][1], d); prev = stabs[si][1]; si += 1
+            if j in (1, 3):
+                if ez and j == 3: continue
+                a += 40 * d
+                kb.append(b); kr.append(kr[-1]); ka.append(a)
+            else:
+                kb.append(b); kr.append(170 if kr[-1] > 400 else 700); ka.append(a)
+            # the shards: out of the three corners of the small one, along the corners' ways (Easy on the turns only)
+            if ez and j not in (1, 3): continue
+            for c in range(3):
+                q = math.radians(a) - math.pi / 2 + c * 2 * math.pi / 3
+                sb.append(b); sx.append(round(640 + math.cos(q) * 120, 1)); sy.append(round(360 + math.sin(q) * 120, 1)); sa.append(round(math.degrees(q), 2))
+    out = [(63, 'L20b_tri', dict(kb=kb, kr=kr, ka=ka, ed=0.15, hw=170 if ez else 125, th=26 if ez else 32, core=52, tw=63, ta=65, te=80))]
+    out.append((64.5, 'L20b_shards', dict(sb=sb, sx=sx, sy=sy, sa=sa, v=560 if ez else 640, R=24, wn=0.75)))
     return out
-both(loading)
+both(tri)
 fx(64, 0.18, 10, 1.2)
 
-# 0:38.1 Pong on the build: every new long note (they climb) brings in a ball, from the left paddle at the note's height; the balls hit
-# the walls and paddles on the kicks (from 0:45.6 the kicks come every half beat); on the quick tune at 0:47.5 the left paddle fires a
-# small ball on every note. 0:49.3 on the climbing notes the balls stop one by one and aim at you, and on the drop (0:53) they all fly
-ADD = [(80, 'E'), (81.75, 'F#'), (85.75, 'G#'), (89.75, 'A#'), (93.75, 'B')]
+# 0:38.1 the build: the four buttons come in on the long climbing notes and go round you, faster and faster; on every kick the next one
+# fires its own attack from where it is: the cross its beams, the circle, the square and the triangle their rings (each open on a side).
+# 0:49 they wind in to the middle and meet there on the drop
 KICKS = sorted(set([80, 82, 84, 85, 86, 87, 87.5, 88, 90, 92, 93, 94, 95, 95.5] + [96 + 0.5 * i for i in range(16)] + [104 + 0.5 * i for i in range(12)]))
-FREEZE = [104, 105.75, 107.5, 108.75, 110]
-def pong(ez):
-    R = 24 if ez else 36; XL, XR = 60, W - 60; v = 720 if ez else 1150
-    adds = ADD[:3] if ez else ADD; frz = FREEZE[:3] if ez else FREEZE
-    nb = len(adds)
-    balls = []
-    ytab = {'E': 600, 'F#': 520, 'G#': 420, 'A#': 300, 'B': 200}
-    for i, (b, pc) in enumerate(adds): balls.append(dict(kb=[b], kx=[XL], ky=[ytab[pc]], side='L', last=b, fr=frz[i]))
-    def side_of(x, y): return 'L' if x <= XL + 1 else 'R' if x >= XR - 1 else 'T' if y <= R + 1 else 'B'
-    def cands(sd):
-        out = []
-        if sd != 'L': out += [('L', XL, y) for y in range(140, H - 139, 40)]
-        if sd != 'R': out += [('R', XR, y) for y in range(140, H - 139, 40)]
-        if sd != 'T': out += [('T', x, R) for x in range(140, W - 139, 40)]
-        if sd != 'B': out += [('B', x, H - R) for x in range(140, W - 139, 40)]
-        return out
-    j = 0
-    for kb in KICKS:
-        # the kick goes to the ball that waited longest (alive, not stopped, at least a beat since its last hit)
-        live = [bl for bl in balls if bl['kb'][0] < kb - 1e-9 and kb < bl['fr'] - 1e-9 and kb - bl['last'] >= 1 - 1e-9]
+def build(ez):
+    cx, cy, rx, ry = 640, 360, 470, 250
+    eb = [80, 81.75, 85.75, 89.75]; ph = [180, 0, 270, 90]
+    sp = (28, 45, 70) if ez else (40, 62, 95)
+    kb = [79, 96, 104, 111.5]; ka = [0, 17 * sp[0], 17 * sp[0] + 8 * sp[1], 17 * sp[0] + 8 * sp[1] + 7.5 * sp[2]]; ks = [1, 1, 1, 0.0]
+    def at(i, b):
+        a = math.radians(lerpk(kb, ka, b) + ph[i]); s = lerpk(kb, ks, b); return cx + math.cos(a) * rx * s, cy + math.sin(a) * ry * s
+    out = [(78.5, 'L20b_orbit', dict(rx=rx, ry=ry, kb=kb, ka=ka, ks=ks, eb=eb, ph=ph, R=46, te=111.75))]
+    xb, xx, xy, xa = [], [], [], []
+    turn = 0
+    kicks = [k for k in KICKS if k < 109.5]
+    if ez: kicks = [k for i, k in enumerate(kicks) if k < 96 or i % 2 == 0]
+    for n, k in enumerate(kicks):
+        live = [i for i in range(4) if eb[i] <= k - 0.5]
         if not live: continue
-        bl = min(live, key=lambda q: q['last'])
-        px, py = bl['kx'][-1], bl['ky'][-1]; D = v * (kb - bl['last']) * 0.46875
-        cs = cands(bl['side'])
-        sc = sorted(cs, key=lambda c: abs(math.hypot(c[1] - px, c[2] - py) - D) + (0 if c[0] in 'LR' else 50))
-        good = [c for c in sc if abs(math.hypot(c[1] - px, c[2] - py) - D) < abs(math.hypot(sc[0][1] - px, sc[0][2] - py) - D) + 60]
-        c = good[(j * 7) % len(good)]; j += 1
-        bl['kb'].append(kb); bl['kx'].append(c[1]); bl['ky'].append(c[2]); bl['side'] = c[0]; bl['last'] = kb
-    out = []; nk, KB, KX, KY = [], [], [], []
-    lpad, rpad = [], []
-    for bl in balls:
-        # where it is when it stops: on its way to the next hit (or still, if none came)
-        fr = bl['fr']; kb, kx, ky = bl['kb'], bl['kx'], bl['ky']
-        D2 = v * 1.0 * 0.46875; px, py = kx[-1], ky[-1]
-        # it carries on for one more line after its last hit, and stops on it at fr
-        cs = cands(bl['side']); c = min(cs, key=lambda c: abs(math.hypot(c[1] - px, c[2] - py) - v * (fr - kb[-1] + 1) * 0.46875))
-        u = (fr - kb[-1]) / (fr - kb[-1] + 1); sx = px + (c[1] - px) * u; sy = py + (c[2] - py) * u
-        kb.append(fr); kx.append(sx); ky.append(sy)
-        for i in range(len(kb)):
-            if kx[i] <= XL + 1: lpad.append((kb[i], ky[i]))
-            if kx[i] >= XR - 1: rpad.append((kb[i], ky[i]))
-        nk.append(len(kb)); KB += kb; KX += kx; KY += ky
-        out.append((fr - 0.5, 'L20shot', dict(bx=[sx], by=[sy], R=R, sp=1050 if ez else 1300, f0=fr, f1=112, fa=111.5, rnd=True)))
-    lpad.sort(); rpad.sort()
-    out.insert(0, (78.5, 'L20pong', dict(nk=nk, kb=KB, kx=KX, ky=KY, R=R, pad=True, lb=[b for b, y in lpad], ly=[y for b, y in lpad], rb=[b for b, y in rpad], ry=[y for b, y in rpad], tw=79, ta=80, te=111)))
-    # the small balls on the quick tune: from the left paddle, straight across
-    def padY(pts, b):
-        if not pts: return H / 2
-        if b <= pts[0][0]: return pts[0][1]
-        for i in range(len(pts) - 1):
-            if b < pts[i + 1][0]:
-                u = (b - pts[i][0]) / (pts[i + 1][0] - pts[i][0]); e = u * u * (3 - 2 * u); return pts[i][1] + (pts[i + 1][1] - pts[i][1]) * e
-        return pts[-1][1]
-    sn, sb_, sx_, sy_ = [], [], [], []
-    run = N_RUN[::2] if ez else N_RUN
-    for b, pc in run:
-        y = max(80, min(H - 80, padY(lpad, b) + (PR[pc] - 6) * 14)); dur = (W - 2 * XL) / (700 if ez else 1300) / 0.46875
-        sn.append(2); sb_ += [b, b + dur]; sx_ += [XL, XR + 40]; sy_ += [y, y]
-    out.append((99, 'L20pong', dict(nk=sn, kb=sb_, kx=sx_, ky=sy_, R=14, pad=False, lb=[], ly=[], rb=[], ry=[], tw=100, ta=100, te=106)))
+        i = live[turn % len(live)]; turn += 1
+        x, y = at(i, k); toc = dg(cx - x, cy - y); off = [40, -40, 0, 75][(turn // 4) % 4]
+        if i == 0:
+            xb.append(k); xx.append(round(x, 1)); xy.append(round(y, 1)); xa.append(round(lerpk(kb, ka, k) + ph[0] + 45, 2))
+        else:
+            out.append(ring(k, x, y, [0, 0, 4, 3][i], toc + off, 80 if ez else 56, 500 if ez else 640, rot=lerpk(kb, ka, k) + ph[i], r0=40, wn=0.75 if ez else 0.6))
+    out.append((79, 'L20b_cross', dict(xb=xb, xx=xx, xy=xy, xa=xa, w=30 if ez else 40, wn=1.0 if ez else 0.75, lh=0.25)))
     return out
-both(pong)
+both(build)
 fx(80, 0.1, 8, 1.0); fx(96, 0.08, 6, 0.8); fx(104, 0.1, 8, 0.8)
 
 # ================= part 2: playing (112-175) =================
-# 0:53.1 the drop - Space Invaders: the army steps on every kick. Every note of the tune makes the invader in ITS column fire (the column
-# by the note's pitch, so the lasers play the tune across the screen; the laser comes out of the invader's own body, as wide as it). On
-# the claps the bottom row drops bombs; the saucer crosses on the fill (1:02.5) and bombs on its hits; on the fill at 1:04.3 the
-# invaders dive at you, one on every hit
-PCOL = {'D#': 0, 'E': 1, 'F': 2, 'F#': 3, 'G': 4, 'G#': 5, 'A': 6, 'A#': 7, 'B': 8, 'C': 9, 'C#': 9, 'D': 0}
-def invaders(ez):
-    cols, rows, dx, dy = 10, 4, 116, 58
-    ox0 = W / 2 - dx * (cols - 1) / 2
-    sb, ox, oy = [], [], []
-    x, y, d, n = ox0 - 45, 70.0, 1, 0
-    for b in range(112, 136):
-        sb.append(b); ox.append(x); oy.append(y); n += 1
-        if n % 4 == 0: y += 22; d = -d
-        else: x += d * 30
-    fb, fc = [], []
+# 0:53.1 the drop - the D-pad: it turns a notch (22.5 degrees) on every stab of the tune, clockwise for a higher note, back for a lower;
+# on the big hits it is PRESSED and its arms reach the screen's edges, so be in a quarter's middle. Every 2 beats (Easy 4) a ring comes
+# out of its hub, open in one quarter; the open quarter goes on a quarter every 4 beats (Easy at each press). 1:04.3 the fill: it spins round half a turn
+def dpad(ez):
+    a = 0; kb, ka = [110.5], [0]; prev = 'F#'; d = 1
     for i, (b, pc) in enumerate(N_DROP):
-        if b >= 136: continue
+        if b >= 136: break
+        d = sgn(prev, pc, d); prev = pc
         if ez and i % 2: continue
-        fb.append(b); fc.append(PCOL[pc])
-        if not ez: fb.append(b); fc.append(9 - PCOL[pc])   # Normal: its mirror too
-    claps = [112, 116, 118, 120, 122, 124, 126, 128, 130, 132]
-    bb, bc = [], []
-    for k, b in enumerate(claps):
-        for c in ([(k * 3) % 10] if ez else [(k * 3) % 10, (k * 3 + 5) % 10]): bb.append(b); bc.append(c)
-    fill = [136, 136.75, 137, 137.25, 137.5, 137.75, 138, 138.25, 138.75, 139, 139.25, 139.5]
-    if ez: fill = fill[::2]
-    who = [(c, 3) for c in [0, 9, 1, 8, 2, 7, 3, 6, 4, 5]] + [(c, 2) for c in [0, 9]]
-    db, dc, dr, dx2 = [], [], [], []
-    for i, b in enumerate(fill):
-        c, r = who[i]; db.append(b); dc.append(c); dr.append(r); dx2.append(W - (ox0 + c * dx))
-    out = [(110, 'L20inv2', dict(cols=cols, rows=rows, dx=dx, dy=dy, sb=sb, ox=ox, oy=oy, fb=fb, fc=fc, lw=60, lh=0.35, wn=1.2 if ez else 1, bb=bb, bc=bc, vb=640 if ez else 820,
-                                    db=db, dc=dc, dr=dr, dx2=dx2, ddur=2 if ez else 1.6, tw=110.5, ta=112, te=140.25))]
-    bd = [134, 134.75, 135.5] if ez else [134, 134.25, 134.5, 134.75, 135, 135.25, 135.5]
-    out.append((131, 'L20ufo', dict(y=34, dir=1, bd=bd, vb=750 if ez else 950, wn=0.9 if ez else 0.75, ta=132, te=136)))
+        a += 22.5 * d; kb.append(b); ka.append(a)
+    for b in [136, 136.75, 137.5, 138.25, 139]: a += 45; kb.append(b); ka.append(a)
+    pb = [115, 123, 131] if ez else [115, 119, 123, 127, 131]
+    out = [(110, 'L20b_pad', dict(hb=64, aw=48 if ez else 70, al=320, kb=kb, ka=ka, ed=0.08, pb=pb, pl=1500, pw=90 if ez else 110, pd=0.6, tw=110.5, ta=112, te=140))]
+    q = 0
+    for k, b in enumerate(range(114, 136, 4 if ez else 2)):
+        q = k // 2 if not ez else sum(1 for p in pb if p <= b)
+        pa = ka[max(i for i in range(len(kb)) if kb[i] <= b)]
+        out.append(ring(b, 640, 360, 0, pa + 45 + 90 * q + (20 if k % 2 else -20), 85 if ez else 44, 500 if ez else 720, r0=60))
     return out
-both(invaders)
+both(dpad)
 fx(112, 0.22, 14, 1.6); fx(128, 0.08, 6, 0.6)
 
-# 1:06.2 the break, the tune alone - the glitch: the screen in 6 pink slices with a hole each; on every note a hole jumps (two in Normal),
-# right for a higher note, left for a lower one; its next place is dashed before
-def glitch(ez):
-    n = 6; hw = 240 if ez else 170; x0 = [300, 980, 420, 860, 540, 740]; lo, hi = hw / 2 + 10, W - hw / 2 - 10
-    keys = [[(139.5, x)] for x in x0]
-    prev = 'F#'; turnk = 0
-    for i, (b, pc) in enumerate(N_BREAK):
-        d = 1 if up(prev, pc) > 0 else -1 if up(prev, pc) < 0 else (1 if i % 2 else -1); prev = pc
-        for k in ([turnk % n] if ez else [turnk % n, (turnk + 3) % n]):
-            x = keys[k][-1][1] + d * (220 if ez else 260)
-            if x > hi: x = 2 * hi - x
-            if x < lo: x = 2 * lo - x
-            keys[k].append((b, round(x)))
-        turnk += 1
-    nk, kb, kx = [], [], []
-    for k in range(n): nk.append(len(keys[k])); kb += [b for b, x in keys[k]]; kx += [x for b, x in keys[k]]
-    return [(138.5, 'L20glitch2', dict(n=n, hw=hw, nk=nk, kb=kb, kx=kx, tw=139, ta=140, te=143.75))]
-both(glitch)
+# 1:05.6 the break, the tune alone: the square tiles in diagonal stripes on its notes, a cell on each time
+def brk(ez):
+    tb, tn, tc = [], [], []
+    for k, b in enumerate([140, 141.5, 142.5] if ez else [140, 140.75, 141.5, 142.25, 143]):
+        cells = [c + 8 * r for r in range(5) for c in range(8) if (c + r + k) % (4 if ez else 3) == 0]
+        tb.append(b); tn.append(len(cells)); tc += cells
+    return [(139, 'L20b_tiles', dict(cols=8, cw=160, ch=144, tb=tb, tn=tn, tc=tc, wn=1.0 if ez else 0.75, lh=0.45))]
+both(brk)
 
-# 1:08.1 the rhythm game: the notes ARE the tune's notes, each in the lane of its pitch (5 lanes, low to high); a long note is a long
-# wall; every kick puts a note in the mirror lane. 1:15.6 the highway leans; 1:17.5 the quick notes pour down; 1:18 lanes swap
-LANE = {'D': 0, 'D#': 0, 'E': 0, 'F': 0, 'F#': 1, 'G': 1, 'G#': 2, 'A': 3, 'A#': 4, 'B': 4, 'C': 4, 'C#': 4}
-def lanes(ez):
-    nb, nl, nlen = [], [], []
-    mel = N_DROP2 if not ez else [x for i, x in enumerate(N_DROP2) if i % 3 != 2]
+# 1:08.1 the two sticks: each note of the tune is a beam out of the sticks (the second stick opposite through the middle, aiming the
+# other way); a higher note aims 45 degrees clockwise, a lower one back; a long note's beam sweeps on 90 degrees. The bass hits click the
+# sticks (Normal every 2 beats): a ring out of each, both open towards the same place (top, bottom, left, right; Easy top, bottom). 1:15.6 the sticks turn round the middle a quarter
+def sticks(ez):
+    kb, kx, ky = [142.5, 156], [380, 380], [360, 360]
+    for i in range(1, 9):
+        q = math.pi + i / 8 * math.pi / 2; kb.append(156 + i); kx.append(round(640 + math.cos(q) * 260, 1)); ky.append(round(360 + math.sin(q) * 260, 1))
+    kb.append(169); kx.append(kx[-1]); ky.append(ky[-1])
+    mel = list(N_DROP2)
+    if ez:
+        keep = []; lastb = -9
+        for i, (b, pc) in enumerate(mel):
+            if b - lastb >= 0.7: keep.append((b, pc)); lastb = b
+        mel = keep
+    fb, fa0, fa1, fl = [], [], [], []; a = 0; prev = 'F#'; d = 1
     for i, (b, pc) in enumerate(mel):
-        nxt = mel[i + 1][0] if i + 1 < len(mel) else 172
-        ln = min(1.5, nxt - b - 0.75) if nxt - b >= 1.5 else 0
-        nb.append(b); nl.append(LANE[pc]); nlen.append(round(ln, 2))
-    last = 2
-    for b in range(144, 172):
-        if ez and b % 2: continue
-        cur = [LANE[pc] for t, pc in mel if t <= b]
-        if cur: last = cur[-1]
-        l = 4 - last
-        if any(abs(t - b) < 1e-9 and LANE[pc] == l for t, pc in mel): continue
-        nb.append(b); nl.append(l); nlen.append(0)
-        if not ez and b % 2 == 0:
-            # on the claps a second note, two lanes off the tune's
-            l2 = (last + 2) % 5
-            if l2 != l: nb.append(b); nl.append(l2); nlen.append(0)
-        if not ez:
-            # the hats: half a beat later a note next to the kick's, so the free lanes keep moving
-            l3 = (l + (1 if b % 2 else 4)) % 5
-            if not any(abs(t - b - 0.5) < 0.3 and LANE[pc] == l3 for t, pc in mel): nb.append(b + 0.5); nl.append(l3); nlen.append(0)
-    return [(141, 'L20lanes', dict(n=5, lw=256, cx0=128, hitY=600, vpb=480 if ez else 680, nb=nb, nl=nl, nlen=nlen, tilt=12 if ez else 22, tb0=156, tb1=164,
-             sw=[166, 168] if ez else [166, 167.5, 169], sa=[1, 0] if ez else [1, 0, 2], sbb=[3, 4] if ez else [3, 4, 3], swd=1, tw=142, ta=143.75, te=172, line=True))]
-both(lanes)
+        d = sgn(prev, pc, d); prev = pc; a += 45 * d
+        nxt = mel[i + 1][0] if i + 1 < len(mel) else 169
+        if nxt - b >= 1.5: fb.append(b); fa0.append(a); a += 90 * d; fa1.append(a); fl.append(round(min(1.25, nxt - b - 0.6), 3))
+        else: fb.append(b); fa0.append(a); fa1.append(a + (0 if ez else 25 * d)); fl.append(0.4 if ez else 0.45); a = fa1[-1]
+    out = [(142, 'L20b_sticks', dict(kb=kb, kx=kx, ky=ky, fb=fb, fa0=fa0, fa1=fa1, fl=fl, bw=40 if ez else 56, wn=0.9 if ez else 0.65, tw=142.5, ta=144, te=169))]
+    clicks = [147, 155, 163] if ez else [147, 149, 151, 153, 155, 157, 159, 161, 163, 165, 167]
+    for k, b in enumerate(clicks):
+        tx, ty = [(640, 30), (640, 690), (60, 360), (1220, 360)][k % 4] if not ez else [(640, 30), (640, 690)][k % 2]
+        x0, y0 = lerpk(kb, kx, b), lerpk(kb, ky, b)
+        for x, y in ((x0, y0), (W - x0, H - y0)):
+            out.append(ring(b, x, y, 0, dg(tx - x, ty - y), 80 if ez else 44, 500 if ez else 640, r0=60, wn=0.75))
+    return out
+both(sticks)
 fx(144, 0.12, 8, 1.0)
 
-# 1:21.2 the near silence: the screen closes in a step on each of its last hits, then bursts open on the boss (176)
-both(lambda ez: [(169, 'L20close', dict(bw=320 if ez else 280, bh=260 if ez else 220, tw=169.5, t0=170, t1=175.75, t2=176, cs=[171, 171.75, 172, 174, 174.5, 175, 175.75]))])
+# 1:20.2 the near silence: the screen's four quarters are four buttons pressed on its last hits; only one stays free each time (Easy two)
+def corners(ez):
+    cs = [171, 172, 173, 174, 175]
+    free = [0, 1, 3, 2, 0]
+    tb, tn, tc = [], [], []
+    for b, f in zip(cs, free):
+        cells = [c for c in range(4) if c != f and not (ez and c == [1, 3, 2, 0][f])]
+        tb.append(b); tn.append(len(cells)); tc += cells
+    return [(169, 'L20b_tiles', dict(cols=2, cw=640, ch=360, tb=tb, tn=tn, tc=tc, wn=1.0 if ez else 0.75, lh=0.45))]
+both(corners)
 
 # ================= part 3: the boss (176-242) =================
 ev(174, 'L20boss', **{'in': 174.5, 'on': 176, 'ex': 237})
