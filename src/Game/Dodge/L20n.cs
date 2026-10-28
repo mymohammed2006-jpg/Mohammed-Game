@@ -9,7 +9,7 @@ namespace MG;
 // one sound of the song: part 1 "press start" (the cross on the kicks, the circle rings on the tune, the square tiles on the bass, the
 // spinning triangle on the broken beat, then all four buttons circling and firing on the build), part 2 "playing" (the D-pad turning on the
 // drop's stabs, the tiles on the break, the two sticks aiming their beams on the tune, the four corners on the last hits). Part 3 (the boss)
-// is the old one (L20.cs, L20c.cs). Kinds "L20b_*" in data/dodge_L20.json (tools/level20/gen.py); the old design is data/dodge_L20_v51.json.
+// is the controller itself (10-28 b: the old boss's plan with the controller's attacks; the frame and the end from L20.cs, L20c.cs). Kinds "L20b_*" in data/dodge_L20.json (tools/level20/gen.py); the old design is data/dodge_L20_v51.json.
 // Every hazard is a pure function of time. Only pink hurts; warnings are white dashed lines with a faint pink fill, like the rest of L20.
 public static partial class G
 {
@@ -125,7 +125,7 @@ public static partial class G
 
 	// □ the tiles: a grid of cw x ch cells; at beat tb[i] the cells of hit i (tn[i] of them, in tc as col + row * cols) slam pink for lh
 	// beats; they show dashed wn beats before
-	public static Hz L20bTiles(int cols, double cw, double ch, double[] tb, double[] tn, double[] tc, double wn, double lh)
+	public static Hz L20bTiles(int cols, double cw, double ch, double[] tb, double[] tn, double[] tc, double wn, double lh, double ox = 0, double oy = 0)
 	{
 		var h = new Hz { kind = "L20bTiles" }; var st = new int[tb.Length + 1]; for (int i = 0; i < tb.Length; i++) st[i + 1] = st[i] + (int)tn[i];
 		double last = tb.Length > 0 ? tb.Max() : 0;
@@ -138,7 +138,7 @@ public static partial class G
 				double u = bt - tb[i]; if (u < -wn || u > lh + 0.2) continue;
 				for (int j = st[i]; j < st[i + 1]; j++)
 				{
-					double x = ((int)tc[j] % cols) * cw, y = ((int)tc[j] / cols) * ch;
+					double x = ox + ((int)tc[j] % cols) * cw, y = oy + ((int)tc[j] / cols) * ch;
 					if (u < 0)
 					{
 						double k = 1 + u / wn; g.fillStyle = L20P(0.04 + 0.12 * k); g.fillRect(x + 4, y + 4, cw - 8, ch - 8);
@@ -161,7 +161,7 @@ public static partial class G
 				double u = bt - tb[i]; if (u < 0 || u > lh) continue; double s = Math.Min(1, 0.7 + u / 0.05 * 0.3);
 				for (int j = st[i]; j < st[i + 1]; j++)
 				{
-					double x = ((int)tc[j] % cols) * cw + cw / 2, y = ((int)tc[j] / cols) * ch + ch / 2, hw = (cw - 4) * s / 2, hh = (ch - 4) * s / 2;
+					double x = ox + ((int)tc[j] % cols) * cw + cw / 2, y = oy + ((int)tc[j] / cols) * ch + ch / 2, hw = (cw - 4) * s / 2, hh = (ch - 4) * s / 2;
 					if (L20In(p, x - hw, y - hh, x + hw, y + hh)) return true;
 				}
 			}
@@ -435,18 +435,101 @@ public static partial class G
 		return h;
 	}
 
-	static readonly int _k20bcross = L20K("L20b_cross", e => () => hazards.Add(L20bCross(e.nums("xb"), e.nums("xx"), e.nums("xy"), e.nums("xa"), e.num("w"), e.num("wn"), e.num("lh"))));
+	// ---------- part 3: the controller itself is the boss (10-28 b) ----------
+	// the gamepad, drawn in the boss's frame at (0,0) like the old mothership (same entrance, health bar, crack and burst; L20.cs frame):
+	// its body and two grips, the D-pad on the left, the four buttons on the right, the two sticks and the light in the middle
+	static readonly double[][] L20bPADS = {
+		new double[] { -230, -58, 230, -58, 285, -20, 285, 24, -285, 24, -285, -20 },
+		new double[] { -285, 0, -160, 0, -185, 66, -265, 70, -295, 40 },
+		new double[] { 285, 0, 295, 40, 265, 70, 185, 66, 160, 0 } };
+	public static Hz L20bBoss(double in0, double on0, double ex0)
+	{
+		var h = new Hz { kind = "L20bBoss" }; bool boom = false;
+		double drop(double bt) => -260 * (1 - L20Ease(L20k(bt, in0, on0)));
+		h.update = (t, dt) =>
+		{
+			double bt = BT(t);
+			if (!boom && bt >= ex0 + 1) { boom = true; var b = L20BossAt(L20Th(bt)); burst(b.x, b.y, PINK, 40, 700); burst(b.x, b.y, "#ffffff", 30, 500); shake = Math.Max(shake, 14); }
+			if (bt > ex0 + 3) h.dead = true;
+		};
+		h.draw = t =>
+		{
+			double bt = BT(t); if (bt < in0 || bt >= ex0 + 1) return; double th = L20Th(bt); var b = L20BossAt(th); bool on = bt >= on0;
+			if (bt >= on0 - 1) { double k = 1 - L20k(bt, on0, ex0); g.fillStyle = "rgba(255,255,255,0.12)"; g.fillRect(W / 2 - 300, 10, 600, 8); g.fillStyle = $"rgba(255,255,255,{str(0.55 + 0.3 * pulse)})"; g.fillRect(W / 2 - 300, 10, 600 * k, 8); }
+			g.save(); g.translate(b.x, b.y); g.rotate(th); g.translate(0, drop(bt));
+			double cr = bt >= ex0 ? L20k(bt, ex0, ex0 + 1) : 0, sh = cr > 0 ? JS.sin(t * 70) * 6 * cr : 0; g.translate(sh, 0);
+			if (on) { g.shadowColor = PINK; g.shadowBlur = 24; }
+			g.fillStyle = on ? PINK : L20P(0.3);
+			foreach (var q in L20bPADS) { g.beginPath(); for (int i = 0; i < q.Length / 2; i++) { if (i == 0) g.moveTo(q[0], q[1]); else g.lineTo(q[2 * i], q[2 * i + 1]); } g.closePath(); g.fill(); }
+			g.shadowBlur = 0;
+			// the details (light on the pink): the D-pad, the buttons, the sticks, the light
+			string li = "rgba(255,215,228,0.85)", dk = "rgba(90,0,30,0.45)";
+			g.fillStyle = dk; g.fillRect(-196, -26, 72, 20); g.fillRect(-170, -52, 20, 72);
+			g.fillStyle = li; g.fillRect(-190, -20, 60, 8); g.fillRect(-164, -46, 8, 60);
+			double[] bx = { 160, 200, 160, 120 }, by = { -2, -22, -42, -22 }; int[] ty = { 0, 1, 3, 2 };
+			for (int i = 0; i < 4; i++) { g.fillStyle = dk; circle(bx[i], by[i], 15); L20bSign(ty[i], bx[i], by[i], 24, 0, li, 3); }
+			foreach (var sd in new[] { -1.0, 1.0 }) { g.fillStyle = dk; circle(sd * 60, 4, 24); g.strokeStyle = li; g.lineWidth = 3; g.beginPath(); g.arc(sd * 60 + JS.cos(bt * 1.7 * sd) * 6, 4 + JS.sin(bt * 1.7 * sd) * 6, 12, 0, TAU); g.stroke(); }
+			g.fillStyle = "rgba(255,230,240,0.85)"; circle(0, -34, 12 + 4 * pulse); g.fillStyle = on ? PINK : L20P(0.5); circle(0, -34, 6 + 3 * pulse);
+			if (cr > 0) { g.strokeStyle = $"rgba(255,255,255,{str(0.5 + 0.5 * cr)})"; g.lineWidth = 3; g.beginPath(); for (int i = 0; i < 7; i++) { double a = i * 0.9 + 0.2, l = 200 * cr; g.moveTo(0, 0); g.lineTo(JS.cos(a) * l * 0.5, JS.sin(a) * l * 0.3); g.lineTo(JS.cos(a + 0.3) * l, JS.sin(a + 0.3) * l * 0.25); } g.stroke(); }
+			g.restore();
+		};
+		h.hit = (p, t) =>
+		{
+			double bt = BT(t); if (bt < on0 || bt >= ex0 + 1) return false; double th = L20Th(bt); var b = L20BossAt(th);
+			double dx = p.x - b.x, dy = p.y - b.y, c = JS.cos(th), s = JS.sin(th), u = dx * c + dy * s, v = -dx * s + dy * c;
+			foreach (var q in L20bPADS) if (L20Poly(u, v, p.r - 2, q)) return true;
+			return false;
+		};
+		return h;
+	}
+
+	// the grips' sprays: like the old wings' (L20Spray: a fan of k every ev beats from b0 to b1, swinging by amp every per beats, the right
+	// mirroring the left), but the shots are the four buttons in turn (a pink round button with its sign)
+	public static Hz L20bSpray(double[] ex, double[] ey, double b0, double b1, double ev, int k, double spread, double amp, double per, double sp, double R)
+	{
+		var L = new List<L20Bul>(); var ty = new List<int>(); var h = new Hz { kind = "L20bSpray" }; int n = 0;
+		for (double b = b0; b < b1 - 1e-9; b += ev, n++)
+			for (int e = 0; e < ex.Length; e++)
+			{
+				double sw = amp * JS.sin(TAU * (b - b0) / per), a = Math.PI / 2 + (ex[e] < W / 2 ? sw : -sw);
+				for (int j = 0; j < k; j++) { double q = a + (j - (k - 1) / 2.0) * spread; L.Add(new L20Bul { t0 = B(b), x = ex[e], y = ey[e], dx = JS.cos(q), dy = JS.sin(q) }); ty.Add(n % 4); }
+			}
+		double life = 1500 / sp;
+		h.update = (t, dt) => { if (t > B(b1) + life) h.dead = true; };
+		h.draw = t =>
+		{
+			double bt = BT(t);
+			if (bt >= b0 - 1 && bt < b1) for (int e = 0; e < ex.Length; e++) { double kk = L20k(bt, b0 - 1, b0); g.strokeStyle = $"rgba(255,255,255,{str(0.3 + 0.5 * kk)})"; g.lineWidth = 3; g.beginPath(); g.arc(ex[e], ey[e], 20 + 8 * (1 - kk), 0, TAU); g.stroke(); }
+			for (int i = 0; i < L.Count; i++)
+			{
+				var q = L[i]; double u = t - q.t0; if (u < 0 || u > life) continue; double x = q.x + q.dx * sp * u, y = q.y + q.dy * sp * u; if (x < -30 || x > W + 30 || y < -30 || y > H + 30) continue;
+				g.shadowColor = PINK; g.shadowBlur = 10; g.fillStyle = PINK; circle(x, y, R); g.shadowBlur = 0; L20bSign(ty[i], x, y, R * 1.5, u * 3, "rgba(255,215,228,0.9)", 2.5);
+			}
+		};
+		h.hit = (p, t) =>
+		{
+			foreach (var q in L) { double u = t - q.t0; if (u < 0 || u > life) continue; double x = q.x + q.dx * sp * u, y = q.y + q.dy * sp * u; if (hypot(p.x - x, p.y - y) < R + p.r - 2) return true; }
+			return false;
+		};
+		return h;
+	}
+
+	static readonly int _k20bboss = L20K("L20b_boss", e => () => hazards.Add(L20bBoss(e.num("in"), e.num("on"), e.num("ex"))));
+	static readonly int _k20bspray = L20K("L20b_spray", e => () =>
+		hazards.Add(L20bSpray(e.nums("ex"), e.nums("ey"), e.num("ta"), e.num("te"), e.num("ev"), e.i("fan"), e.num("spread") * Math.PI / 180, e.num("amp") * Math.PI / 180, e.num("per"), e.num("sp"), e.num("R"))));
+
+	static readonly int _k20bcross = L20K("L20b_cross", e => () => L20Add(e, L20bCross(e.nums("xb"), e.nums("xx"), e.nums("xy"), e.nums("xa"), e.num("w"), e.num("wn"), e.num("lh"))));
 	static readonly int _k20bring = L20K("L20b_ring", e => () =>
-		hazards.Add(L20bRing(e.num("x"), e.num("y"), e.num("ta"), e.i("sides"), e.num("rot"), e.num("ga"), e.num("gw"), e.num("v"), e.num("th"), e.num("r0"), e.num("wn"))));
-	static readonly int _k20btiles = L20K("L20b_tiles", e => () => hazards.Add(L20bTiles(e.i("cols"), e.num("cw"), e.num("ch"), e.nums("tb"), e.nums("tn"), e.nums("tc"), e.num("wn"), e.num("lh"))));
+		L20Add(e, L20bRing(e.num("x"), e.num("y"), e.num("ta"), e.i("sides"), e.num("rot"), e.num("ga"), e.num("gw"), e.num("v"), e.num("th"), e.num("r0"), e.num("wn"))));
+	static readonly int _k20btiles = L20K("L20b_tiles", e => () => L20Add(e, L20bTiles(e.i("cols"), e.num("cw"), e.num("ch"), e.nums("tb"), e.nums("tn"), e.nums("tc"), e.num("wn"), e.num("lh"), e.num("ox"), e.num("oy"))));
 	static readonly int _k20btri = L20K("L20b_tri", e => () =>
 		hazards.Add(L20bTri(e.num("x", W / 2), e.num("y", H / 2), e.nums("kb"), e.nums("kr"), e.nums("ka"), e.num("ed"), e.num("hw"), e.num("th"), e.num("core"), e.num("tw"), e.num("ta"), e.num("te"))));
 	static readonly int _k20borbit = L20K("L20b_orbit", e => () =>
 		hazards.Add(L20bOrbit(e.num("x", W / 2), e.num("y", H / 2), e.num("rx"), e.num("ry"), e.nums("kb"), e.nums("ka"), e.nums("ks"), e.nums("eb"), e.nums("ph"), e.num("R"), e.num("te"))));
 	static readonly int _k20bpad = L20K("L20b_pad", e => () =>
-		hazards.Add(L20bPad(e.num("x", W / 2), e.num("y", H / 2), e.num("hb"), e.num("aw"), e.num("al"), e.nums("kb"), e.nums("ka"), e.num("ed"), e.nums("pb"), e.num("pl"), e.num("pw"), e.num("pd"), e.num("tw"), e.num("ta"), e.num("te"))));
+		L20Add(e, L20bPad(e.num("x", W / 2), e.num("y", H / 2), e.num("hb"), e.num("aw"), e.num("al"), e.nums("kb"), e.nums("ka"), e.num("ed"), e.nums("pb"), e.num("pl"), e.num("pw"), e.num("pd"), e.num("tw"), e.num("ta"), e.num("te"))));
 	static readonly int _k20bsticks = L20K("L20b_sticks", e => () =>
 		hazards.Add(L20bSticks(e.nums("kb"), e.nums("kx"), e.nums("ky"), e.nums("fb"), e.nums("fa0"), e.nums("fa1"), e.nums("fl"), e.num("bw"), e.num("wn"), e.num("tw"), e.num("ta"), e.num("te"))));
-	static readonly int _k20bshards = L20K("L20b_shards", e => () => hazards.Add(L20bShards(e.nums("sb"), e.nums("sx"), e.nums("sy"), e.nums("sa"), e.num("v"), e.num("R"), e.num("wn"))));
+	static readonly int _k20bshards = L20K("L20b_shards", e => () => L20Add(e, L20bShards(e.nums("sb"), e.nums("sx"), e.nums("sy"), e.nums("sa"), e.num("v"), e.num("R"), e.num("wn"))));
 	static readonly int _k20btitle = L20K("L20b_title", e => () => hazards.Add(L20bTitle(e.num("b0"), e.num("b1"))));
 }

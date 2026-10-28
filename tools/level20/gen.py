@@ -4,7 +4,7 @@
 # Song map (beats): intro 0-31 (a kick every beat, the tune's C# notes) | bass 32-63 (0:15.6, kicks on the even beats, the bass on the odd)
 # | crash 64, the broken beat 65-79 (0:30.6) | the build 80-111 (0:38.1, lifts 96, 104) | DROP 112-140 (0:53.1) | break 140-143
 # | 144-172 (1:08.1) | the near silence 173-175 | 176-204 (1:23.1) | break 205-207 | 208-236 (1:38.1) | break 237-239 | the last hit 240 | win 242
-# Parts: 1 press start (0-111), 2 playing (112-175), 3 the boss (176-242, the same as before). Checkpoints 0, 112, 176.
+# Parts: 1 press start (0-111), 2 playing (112-175), 3 the boss: the controller itself (176-242). Checkpoints 0, 112, 176.
 # Parts 1 and 2 are the controller: its four buttons, the D-pad and the two sticks, each on one sound of the song (L20n.cs, kinds "L20b_*").
 # Nothing here is random. "nz": Normal only, "ez": Easy only, where the two have their own patterns.
 import json, math, os
@@ -233,93 +233,92 @@ def corners(ez):
 both(corners)
 
 # ================= part 3: the boss (176-242) =================
-ev(174, 'L20boss', **{'in': 174.5, 'on': 176, 'ex': 237})
+# The controller itself comes down: the same plan as the old boss (its sprays and aimed laser, the tube, the flip, then everything at you
+# while it circles the arena, its end and NEW GAME), but every attack is one of the controller's own: the buttons, the D-pad, the tiles
+ev(174, 'L20b_boss', **{'in': 174.5, 'on': 176, 'ex': 237})
 fx(176, 0.2, 14, 1.6)
-# 1:23.1 the mirrored sprays from its wings, and its laser: it aims at you, fires a beat later and sweeps
+# 1:23.1 the grips spray the four buttons in mirrored fans; its laser aims at you, fires a beat later and sweeps; on the bass hits (every
+# 4 beats from 179) a circle ring comes out of it, open to the left or the right in turn
 def boss1(ez):
-    out = [(176, 'L20spray', dict(ex=[440, 840], ey=[102, 102], ta=178, te=192, ev=0.75 if ez else 0.375, fan=2 if ez else 3, spread=16 if ez else 11, amp=60, per=8, sp=320 if ez else 420, R=11 if ez else 14))]
+    out = [(176, 'L20b_spray', dict(ex=[440, 840], ey=[120, 120], ta=178, te=192, ev=0.75 if ez else 0.375, fan=2 if ez else 3, spread=16 if ez else 11, amp=60, per=8, sp=320 if ez else 420, R=13 if ez else 17))]
     for i, ba in enumerate([180, 184, 188]):
         out.append((ba - 1.5, 'L20beam', dict(x=640, y=86, ba=ba, bf=ba + (1.0 if ez else 0.75), be=ba + 2, w=64 if ez else 84, swp=(25 if ez else 40) * (1 if i % 2 == 0 else -1), rnd=True)))
+    for k, b in enumerate([179, 183, 187, 191] if not ez else [179, 187]):
+        out.append(ring(b, 640, 90, 0, 90 + (55 if k % 2 else -55), 80 if ez else 60, 480 if ez else 560, r0=60, wn=0.75))
     return out
 both(boss1)
-# 1:30.6 the Tempest tube: spikes climb out of the middle along 12 turning lanes: crosses, then two spiral arms, then a wall with a free pair
-def tube(ez):
-    sb, sl = [], []
-    for i in range(8):   # 192-195.5: crosses
+# 1:30.6 out of the middle (where the old tube was), the same three steps: crosses (the cross turning a notch every half beat), two spiral
+# arms of triangle shards, then a wall: circle rings every half beat, open in one place that moves a notch a beat (against the turn, then with it)
+def middle(ez):
+    out = []; xb, xx, xy, xa = [], [], [], []
+    for i in range(8):
         b = 192 + 0.5 * i
-        for l in ([i % 12, (i + 4) % 12, (i + 8) % 12] if ez else [i % 12, (i + 3) % 12, (i + 6) % 12, (i + 9) % 12]): sb.append(b); sl.append(l)
-    for i in range(16 if not ez else 8):   # 196-199.75: spiral arms
-        b = 196 + (0.25 if not ez else 0.5) * i
-        for l in ([i % 12, (i + 6) % 12] if not ez else [i % 12]): sb.append(b); sl.append(l)
-    F = 0
-    for i in range(10):  # 200-204.5: a wall with a free pair that moves a lane a beat (back after 202.5)
-        b = 200 + 0.5 * i; F = (-(i // 2)) % 12 if b < 202.5 else (-2 + (i - 5) // 4) % 12   # against the turn, then with it every 2 beats
-        free = {F % 12, (F + 1) % 12}
-        for l in range(12):
-            if l not in free: sb.append(b); sl.append(l)
-    return [(190, 'L20tube', dict(x=640, y=400, n=12, w=0.3 if ez else 0.35, a0=0, sb=sb, sl=sl, v=470 if ez else 520, len=100 if ez else 110, r0=50, eR=48, tw=190.5, ta=192, te=205))]
-both(tube)
-# 1:36.2 the flip: the boss turns the arena over (it goes round to the bottom) and two shock rings come out of the middle
+        if ez and i % 2: continue
+        xb.append(b); xx.append(640); xy.append(400); xa.append(22.5 * i)
+    out.append((191, 'L20b_cross', dict(xb=xb, xx=xx, xy=xy, xa=xa, w=38 if ez else 52, wn=1.0 if ez else 0.75, lh=0.4)))
+    sb, sx, sy, sa = [], [], [], []
+    step = 0.5 if ez else 0.25
+    for i in range(int(4 / step)):
+        b = 196 + step * i
+        for arm in ([0] if ez else [0, 180]):
+            a = arm + 28 * i; sb.append(b); sx.append(round(640 + math.cos(math.radians(a)) * 50, 1)); sy.append(round(400 + math.sin(math.radians(a)) * 50, 1)); sa.append(a)
+    out.append((195, 'L20b_shards', dict(sb=sb, sx=sx, sy=sy, sa=sa, v=420 if ez else 520, R=24, wn=0.6)))
+    for i in range(10):
+        b = 200 + 0.5 * i
+        if ez and i % 2: continue
+        ga = -90 - 30 * (i // 2) if b < 202.5 else -90 - 60 + 30 * ((i - 5) // 2)
+        out.append(ring(b, 640, 400, 0, ga, 84 if ez else 70, 500 if ez else 600, th=26, r0=50, wn=0.6))
+    return out
+both(middle)
+# 1:36.2 the flip: the controller turns the arena over (it goes round to the bottom); a square ring and a triangle ring come out of the middle
 def flip(ez):
-    return [(204, 'L20shock', dict(x=640, y=360, ta=205.5, v=560 if ez else 650, th=24, ga=90, gw=80 if ez else 60, r0=40, wn=1)),
-            (205, 'L20shock', dict(x=640, y=360, ta=206.5, v=560 if ez else 650, th=24, ga=-60, gw=80 if ez else 60, r0=40, wn=1))]
+    return [ring(205.5, 640, 360, 4, 90, 80 if ez else 60, 560 if ez else 650, rot=45, r0=40, wn=1.5),
+            ring(206.5, 640, 360, 3, -60, 80 if ez else 60, 560 if ez else 650, rot=-90, r0=40, wn=1.5)]
 both(flip)
 fx(208, 0.2, 12, 1.4)
-# 1:38.1 the boss in a rage circles the arena and throws every game of the level at you, in order: Tetris, the invaders, the rhythm game,
-# Pong, then a mix. All in its frame (u across, v away from it), so "down" is always away from the boss
+# 1:38.1 the controller in a rage circles the arena and throws every attack of the level at you, in order: the crosses, the button rings,
+# the tiles, the D-pad, then a mix. All in its frame (u across, v away from it), so "down" is always away from the controller
 def rage(ez):
-    out = []
-    # 208-213.5 Tetris rain
-    cols = [-6, 2, -2, 6, -8, 0, 4, -4, 8, -1, 3, -5, 7, -7, 1]
-    pb = [208 + (0.375 if not ez else 1) * i for i in range(15 if not ez else 6)]
-    out.append((207, 'L20rain', dict(pb=pb, pc=cols[:len(pb)], ps=[(i * 3) % 7 for i in range(len(pb))], pr=[0] * len(pb), pst=0.15 if not ez else 0.35, pw=0.75, v0=80, frame=True)))
-    # 214-219.5 a row of invaders and their lasers
-    lb, lc = [], []
+    out = []; F = dict(frame=True)
+    # 208-213.75 crosses in front of it, left and right in turn, turning
+    xb, xx, xy, xa = [], [], [], []
     for i in range(12):
-        b = 214.5 + 0.5 * i; k = i % 3
-        cs = [c for c in range(k, 10, 3)] if not ez else [c for c in range(k, 10, 4)]
-        for c in cs: lb.append(b); lc.append(c)
-    out.append((212.5, 'L20row', dict(n=10, sp=140, y0=110, sw=50, lb=lb, lc=lc, lw=40 if ez else 56, lh=0.35, wn=1.2 if ez else 1, ta=214, te=220, frame=True)))
-    # 220-225.5 the rhythm game out of the boss: 7 lanes, a free lane that moves a lane a beat
-    nb, nl, nlen = [], [], []
-    path = [3, 2, 1, 1, 2, 3, 4, 5, 5, 4, 3, 3]
+        b = 208.5 + 0.5 * i
+        if ez and i % 2: continue
+        xb.append(b); xx.append(-260 if i % 2 == 0 else 260); xy.append(300 + 60 * (i % 3)); xa.append(45 + 15 * i)
+    out.append((207.5, 'L20b_cross', dict(xb=xb, xx=xx, xy=xy, xa=xa, w=36 if ez else 48, wn=1.0 if ez else 0.75, lh=0.35, **F)))
+    # 214-219.75 the button rings out of it (circle, square, triangle), open to one side then the other
     for i in range(12):
-        b = 219.5 + 0.5 * i; F = path[i]
-        ls = [l for l in range(7) if abs(l - F) > (1 if ez else 0)]
-        pick = ls[i % 2::2] if not ez else ls[i % 3::3]
-        for l in pick: nb.append(b + 2); nl.append(l); nlen.append(0)
-    out.append((218, 'L20lanes', dict(n=7, lw=220, cx0=-660, hitY=60 + 2 * 300, vpb=300, clipY=60, nb=nb, nl=nl, nlen=nlen, tilt=0, tb0=0, tb1=0, sw=[], sa=[], sbb=[], tw=219, ta=219.5, te=231, line=False, frame=True)))
+        b = 214 + 0.5 * i
+        if ez and i % 2: continue
+        b0, k, kw = ring(b, 0, 40, [0, 4, 3][i % 3], 90 + (40 if (i // 2) % 2 else -40), 80 if ez else 56, 480 if ez else 560, rot=90 if i % 3 == 2 else 45, r0=60, wn=0.6)
+        out.append((b0, k, dict(kw, **F)))
+    # 220-225.75 the tiles in front of it, diagonal stripes that move on a cell every beat
+    tb, tn, tc = [], [], []
+    for k, b in enumerate(range(220, 226, 2 if ez else 1)):
+        cells = [c + 8 * r for r in range(5) for c in range(8) if (c + r + k) % (4 if ez else 3) == 0]
+        tb.append(b); tn.append(len(cells)); tc += cells
+    out.append((219, 'L20b_tiles', dict(cols=8, cw=160, ch=144, tb=tb, tn=tn, tc=tc, wn=1.0 if ez else 0.75, lh=0.45, ox=-640, oy=60, **F)))
+    # 226-231.75 its D-pad out in front: a notch a beat (the way swaps every 2), pressed on 228 and 230
+    kb, ka = [225.5], [0]; a = 0
+    for i, b in enumerate(range(226, 232)): a += 30 * (1 if (i // 2) % 2 == 0 else -1); kb.append(b); ka.append(a)
+    out.append((225, 'L20b_pad', dict(x=0, y=360, hb=56, aw=44 if ez else 56, al=280, kb=kb, ka=ka, ed=0.1, pb=[229] if ez else [228, 230], pl=1500, pw=90 if ez else 104, pd=0.6, tw=225.5, ta=226, te=232, **F)))
+    # 232-236 the mix: crosses and button rings in turn
+    xb, xx, xy, xa = [], [], [], []
+    for i in range(8):
+        b = 232 + 0.5 * i
+        if ez and i % 2: continue
+        if i % 2 == 0: xb.append(b); xx.append([-200, 200, 0, -300][(i // 2) % 4]); xy.append(320); xa.append(30 * i)
+        else:
+            b0, k, kw = ring(b, 0, 40, [4, 3, 0, 4][(i // 2) % 4], 90 + (45 if (i // 2) % 2 else -45), 56, 560, rot=45, r0=60, wn=0.6)
+            out.append((b0, k, dict(kw, **F)))
+    out.append((231, 'L20b_cross', dict(xb=xb, xx=xx, xy=xy, xa=xa, w=36 if ez else 48, wn=1.0 if ez else 0.75, lh=0.35, **F)))
     return out
 both(rage)
-# 226-231.5 Pong without paddles: balls off the screen's edges (the screen, not the boss's frame)
-def pong2(ez):
-    R = 16 if ez else 22
-    rt = [[(226, 200, 120), (227.5, 1200, 360), (229, 700, 690), (230.5, 60, 300), (232, 640, -60)],
-          [(226, 1080, 600), (227.5, 80, 420), (229, 580, 30), (230.5, 1220, 380), (232, 640, 800)],
-          [(226, 640, 40), (227, 1240, 520), (228.5, 300, 690), (230, 40, 200), (231.5, 900, 30), (232, 1100, -60)]]
-    if ez: rt = rt[:2]
-    else: rt.append([(226, 40, 600), (227.5, 900, 690), (228.5, 1240, 250), (230, 520, 30), (231.5, 100, 500), (232, -60, 560)])
-    nk, kb, kx, ky = [], [], [], []
-    for r in rt:
-        nk.append(len(r)); kb += [p[0] for p in r]; kx += [p[1] for p in r]; ky += [p[2] for p in r]
-    return [(224.5, 'L20pong', dict(nk=nk, kb=kb, kx=kx, ky=ky, R=R, pad=False, lb=[], ly=[], rb=[], ry=[], tw=225, ta=226, te=232))]
-both(pong2)
-# 232-236 the mix: rain and lasers together
-def mix(ez):
-    pb = [232 + (0.5 if not ez else 1) * i for i in range(8 if not ez else 4)]
-    lb, lc = [], []
-    for i in range(8):
-        b = 232.5 + 0.5 * i
-        for c in ([(i * 3) % 10, (i * 3 + 5) % 10] if not ez else [(i * 3) % 10]): lb.append(b); lc.append(c)
-    return [(231, 'L20rain', dict(pb=pb, pc=[5, -5, 1, -7, 7, -3, 3, -1][:len(pb)], ps=[(i * 2 + 1) % 7 for i in range(len(pb))], pr=[1] * len(pb), pst=0.25 if not ez else 0.35, pw=0.75, v0=80, frame=True)),
-            (230.5, 'L20row', dict(n=10, sp=140, y0=110, sw=60, lb=lb, lc=lc, lw=40 if ez else 56, lh=0.35, wn=1.2 if ez else 1, ta=232, te=236.5, frame=True))]
-both(mix)
-# 1:51.2 its end: it cracks, bursts at 238, and three shock rings come out of it with their gaps down-left, down-right, down
+# 1:51.2 its end: it cracks, bursts at 238, and three rings come out of it, a circle, a square and a triangle, open down-left, down-right, down
 def boom(ez):
-    out = []
-    for b, ga in [(238, 115), (238.5, 70), (239, 95)]:
-        out.append((b - 1, 'L20shock', dict(x=640, y=80, ta=b, v=1050 if ez else 1150, th=24, ga=ga, gw=75 if ez else 52, r0=30, wn=0.75)))
-    return out
+    return [ring(b, 640, 80, sides, ga, 75 if ez else 52, 1050 if ez else 1150, th=24, rot=rot, r0=30, wn=0.75)
+            for b, ga, sides, rot in [(238, 115, 0, 0), (238.5, 70, 4, 45), (239, 95, 3, -90)]]
 both(boom)
 fx(238, 0.25, 14, 1.4)
 fx(240, 0.4, 12, 1.5); ev(240, 'L20end', ta=240, te=242)
