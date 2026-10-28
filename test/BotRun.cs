@@ -160,7 +160,7 @@ public class BotRun
 		if (scN >= 0 || (scN == -1 && System.Environment.GetEnvironmentVariable("SCENE") == "1" && G.cur.boss))
 		{
 			if (scN < 0) { scSt = G.state; scN = 0; }
-			while (scN <= (int)(G.BOSS_SCENE * 60))
+			while (scN <= (int)(G.bossSceneLen * 60))
 			{
 				int n = scN++; var st = G.state; G.state = "levelIntro"; G.introAt = 0; G.gfx.BeginFrame(); G.draw(n * 1000.0 / 60); G.state = st;
 				if (n % every == 0) { G.gfx.EndFrame(); pendingShot = true; shotFrame = n; return; }

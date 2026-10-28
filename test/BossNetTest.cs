@@ -45,6 +45,7 @@ public class BossNetTest
 		G.acc = new G.Acc { uid = (string)j["localId"], name = name, it = (string)j["idToken"], rt = (string)j["refreshToken"], exp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + 3600000 };
 		if (Env("HP", 0) > 0) G.bnTestHp = (int)Env("HP", 0);
 		G.bnTestFrom = Env("FROM", 0);   // FROM=<beat>: start there, no scene
+		G.bossLv = (int)Env("BOSS", 0);   // BOSS=<n>: the host makes the room for the n-th boss of the list (0 = the first)
 		G.state = "bossMenu"; G.bossSel = 0; performance.manual = 100000; t0 = 100000; G.last = t0; wall.Start();
 	}
 	void Press(string k) { press = k; pressN = 3; G.OnKeyDown(k, false); }
