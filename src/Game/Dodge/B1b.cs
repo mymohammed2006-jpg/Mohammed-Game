@@ -9,7 +9,8 @@ namespace MG;
 // the circles, the downed ring and online all stay). The core that pulled the old levels together has eaten the old arcade games too,
 // and it plays them against you one by one, each on its part of the song, then it fights like a real final boss with a health bar:
 //   pong (b2-30): balls cross from paddle to paddle on the bar, sparks fly back off the paddles;
-//   snake (b30-64): a snake (two from b46) comes out of the core and crawls on the floor's grid after the marked one, longer every 4 beats;
+//   snake (b30-64): a snake (two from b46) comes out of the core and crawls on the floor's grid to its apple, longer with each apple
+//     (the apple bursts when eaten), while the core shoots at the marked one;
 //   tetris (b64-88): the core drops pieces on the quiet part (their shadow shows where they land), two full rows clear, and it slams
 //     the marked one's column;
 //   invaders (b88-124): a fleet marches and steps down, shoots down its columns (faster from b104), bombs the marked one, then dives;
@@ -212,19 +213,19 @@ public static partial class G
 			if (a == null && c == null) return 360; if (a == null) return c.Value.y; if (c == null) return a.Value.y;
 			return a.Value.y + (c.Value.y - a.Value.y) * B1bEase((bt - a.Value.b) / (c.Value.b - a.Value.b) * 1.6);
 		}
-		double In(double bt) => clamp((bt - (b0 - 1)) / 1, 0, 1) * clamp((b1 - bt) / 0.5, 0, 1);
+		double In(double bt) => clamp((bt - (b0 - 1)) / 1, 0, 1) * (bt < b1 - 0.5 ? 1 : clamp((b1 - bt) / 0.5, 0, 1));
 		h.update = (t, dt) => { if (BT(t) > b1 + 0.6) h.dead = true; };
 		h.hit = (p, t) =>
 		{
 			double bt = BT(t); if (bt < b0 || bt >= b1) return false; var q = B1bBall(b0, y0, dir, cb, vy, bt); if (hypot(p.x - q.x, p.y - q.y) < B1bBR + p.r) return true;
-			foreach (int s in new[] { -1, 1 }) { double py = Pad(s, bt), px = s > 0 ? B1bPR + 9 : B1bPL - 9; if (Math.Abs(p.x - px) < 9 + p.r && Math.Abs(p.y - py) < 65 + p.r) return true; }
+			if (bt < b1 - 0.5) foreach (int s in new[] { -1, 1 }) { double py = Pad(s, bt), px = s > 0 ? B1bPR + 9 : B1bPL - 9; if (Math.Abs(p.x - px) < 9 + p.r && Math.Abs(p.y - py) < 65 + p.r) return true; }
 			return false;
 		};
 		h.draw = t =>
 		{
 			double bt = BT(t), a = In(bt); if (a <= 0) return;
 			// the paddles
-			foreach (int s in new[] { -1, 1 }) { double py = Pad(s, bt), px = s > 0 ? B1bPR + 9 : B1bPL - 9; g.fillStyle = bt < b0 ? L15G(0.5 * a) : L15P(a); if (bt >= b0) { g.shadowColor = PINK; g.shadowBlur = 10; } g.fillRect(px - 9, py - 65, 18, 130); g.shadowBlur = 0; }
+			foreach (int s in new[] { -1, 1 }) { double py = Pad(s, bt), px = s > 0 ? B1bPR + 9 : B1bPL - 9; g.fillStyle = bt < b0 ? L15G(0.5 * a) : bt < b1 - 0.5 ? PINK : L15G(0.5 * a); if (bt >= b0 && bt < b1 - 0.5) { g.shadowColor = PINK; g.shadowBlur = 10; } g.fillRect(px - 9, py - 65, 18, 130); g.shadowBlur = 0; }
 			// the ball's way for the next beat
 			var p0 = B1bBall(b0, y0, dir, cb, vy, Math.Max(bt, b0)); g.strokeStyle = L15G(0.35 * a); g.lineWidth = 2; g.setLineDash(new double[] { 8, 8 }); g.beginPath(); g.moveTo(p0.x, p0.y);
 			for (int k = 1; k <= 12; k++) { var q = B1bBall(b0, y0, dir, cb, vy, Math.Max(bt, b0) + k / 12.0); g.lineTo(q.x, q.y); }
@@ -237,32 +238,53 @@ public static partial class G
 	}
 
 	// ---------- snake: cells of the grid, each one a link from the cell before ----------
-	class B1bSnake { public int hx, hy, dx, dy; public double st; public Func<double, int> len; public double end; public double lastA; public (int i, int j)? last; }
-	static List<(int i, int j, double a, double l)> B1bOcc = new();   // every snake cell and when it is there (beats), for the turns
-	static bool B1bFree(int i, int j, double b)
+	// the snakes' way is worked out when the level is made (the same every run, so it can be learnt): each one goes for its apple
+	// (white: it does not hurt) the shortest way around the bodies, grows by 2 for each apple, and the apple bursts when it is eaten
+	class B1bSnk { public int i, j, dx, dy, len, ai = 0; public double b0, appear; public (int i, int j)[] apples; public (int i, int j, double l)? last; }
+	static void B1bPlan(List<B1bSnk> SS, double st, double end, Action<int, int, int, int, double, double, double> cell, Action<int, int, double, double> apple)
 	{
-		if (i < 0 || i > 15 || j < 0 || j > 8) return false;
-		if (j == 4 && (i == 7 || i == 8) && b < 288) return false;   // the core
-		foreach (var o in B1bOcc) if (o.i == i && o.j == j && b >= o.a - 0.6 && b < o.l + 0.6) return false;
-		return true;
-	}
-	// one step at beat T (decided now): the head turns toward the marked one if it can
-	static void B1bStep(B1bSnake S, double T)
-	{
-		var tg = B1Aim(T - 1); (int x, int y)[] opt = { (S.dx, S.dy), (-S.dy, S.dx), (S.dy, -S.dx) };
-		(int x, int y)? best = null; double bd = 1e18;
-		foreach (var o in opt)
+		var occ = new List<(int i, int j, double a, double l)>();
+		bool Free(int i, int j, double b)
 		{
-			int ni = S.hx + o.x, nj = S.hy + o.y; if (!B1bFree(ni, nj, T)) continue;
-			double d = hypot(B1bCx(ni) - tg.x, B1bCy(nj) - tg.y) - (o.x == S.dx && o.y == S.dy ? 20 : 0); if (d < bd) { bd = d; best = o; }
+			if (i < 0 || i > 15 || j < 0 || j > 8) return false;
+			if (j == 4 && (i == 7 || i == 8)) return false;   // the core
+			foreach (var o in occ) if (o.i == i && o.j == j && b >= o.a - 0.6 && b < o.l + 0.6) return false;
+			return true;
 		}
-		if (best == null) foreach (var o in opt) { int ni = S.hx + o.x, nj = S.hy + o.y; if (ni >= 0 && ni <= 15 && nj >= 0 && nj <= 8) { best = o; break; } }
-		if (best == null) best = (-S.dx, -S.dy);
-		int pi = S.hx, pj = S.hy; S.dx = best.Value.x; S.dy = best.Value.y; S.hx += S.dx; S.hy += S.dy;
-		double l = Math.Min(T + S.len(T) * S.st, S.end), lp = S.last == null ? -1 : Math.Min(S.lastA + S.len(S.lastA) * S.st, S.end);
-		B1bOcc.Add((S.hx, S.hy, T, l));
-		hazards.Add(B1bCell(pi, pj, S.hx, S.hy, T, l, lp, S.st, S.end));
-		S.last = (S.hx, S.hy); S.lastA = T;
+		double b0 = SS.Min(x => x.b0);
+		for (double T = b0; T < end - 1e-6; T += st)
+			foreach (var S in SS)
+			{
+				if (T < S.b0 - 1e-6) continue;
+				var ap = S.apples[S.ai % S.apples.Length];
+				// how far every cell is from the apple, going round what is taken now
+				var dist = new int[16, 9]; for (int x = 0; x < 16; x++) for (int y = 0; y < 9; y++) dist[x, y] = 999;
+				var q = new Queue<(int, int)>(); dist[ap.i, ap.j] = 0; q.Enqueue((ap.i, ap.j));
+				while (q.Count > 0) { var (x, y) = q.Dequeue(); foreach (var (ex, ey) in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) }) { int nx = x + ex, ny = y + ey; if (nx < 0 || nx > 15 || ny < 0 || ny > 8 || dist[nx, ny] <= dist[x, y] + 1 || !Free(nx, ny, T)) continue; dist[nx, ny] = dist[x, y] + 1; q.Enqueue((nx, ny)); } }
+				(int x, int y)[] opt = { (S.dx, S.dy), (-S.dy, S.dx), (S.dy, -S.dx) }; (int x, int y)? best = null; int bd = int.MaxValue;
+				foreach (var o in opt) { int ni = S.i + o.x, nj = S.j + o.y; if (!Free(ni, nj, T)) continue; int d = dist[ni, nj]; if (d < bd) { bd = d; best = o; } }
+				if (best == null) foreach (var o in opt) { int ni = S.i + o.x, nj = S.j + o.y; if (ni >= 0 && ni <= 15 && nj >= 0 && nj <= 8) { best = o; break; } }
+				if (best == null) best = (-S.dx, -S.dy);
+				int pi = S.i, pj = S.j; S.dx = best.Value.x; S.dy = best.Value.y; S.i += S.dx; S.j += S.dy;
+				if (S.i == ap.i && S.j == ap.j) { apple(ap.i, ap.j, S.appear, T); S.ai++; S.len += 2; S.appear = T; }
+				double l = Math.Min(T + S.len * st, end), lp = S.last == null ? -1 : S.last.Value.l;
+				occ.Add((S.i, S.j, T, l)); cell(pi, pj, S.i, S.j, T, l, lp); S.last = (S.i, S.j, l);
+			}
+		// the apples not eaten yet show until the end
+		foreach (var S in SS) { var ap = S.apples[S.ai % S.apples.Length]; apple(ap.i, ap.j, S.appear, -end); }
+	}
+	// an apple at (i,j) from beat a until it is eaten at e (e < 0: not eaten, gone at -e)
+	static Hz B1bApple(int i, int j, double a, double e)
+	{
+		var h = new Hz { kind = "B1bApple" }; double x = B1bCx(i), y = B1bCy(j), until = Math.Abs(e);
+		h.update = (t, dt) => { if (BT(t) > until + 0.3) h.dead = true; };
+		h.draw = t =>
+		{
+			double bt = BT(t); if (bt < a || bt >= until) return; double k = clamp((bt - a) / 0.3, 0, 1) * (1 + 0.08 * pulse);
+			g.fillStyle = "rgba(255,255,255,0.9)"; g.fillRect(x - 13 * k, y - 11 * k, 26 * k, 24 * k); g.fillRect(x - 2, y - 19 * k, 4, 8 * k);
+			g.strokeStyle = "rgba(255,255,255,0.5)"; g.lineWidth = 2; g.strokeRect(x - 30, y - 30, 60, 60);
+		};
+		return h;
 	}
 	// a cell (i,j) reached from (pi,pj) at beat a, left at l; the link from the cell before goes when that one is left (lp)
 	static Hz B1bCell(int pi, int pj, int i, int j, double a, double l, double lp, double st, double end)
@@ -329,7 +351,7 @@ public static partial class G
 			foreach (var c in cells)
 			{
 				double x = c.i * B1bC, y = c.j * B1bC + dy;
-				if (f < 1) { g.fillStyle = L15P(0.8); g.fillRect(x + 6, 0, B1bC - 12, Math.Max(0, y)); }
+				if (f < 1) { g.fillStyle = PINK; g.fillRect(x, 0, B1bC, c.j * B1bC + B1bC); }
 				g.fillStyle = PINK; g.shadowColor = PINK; g.shadowBlur = 8; g.fillRect(x + 2, y + 2, B1bC - 4, B1bC - 4); g.shadowBlur = 0;
 				g.fillStyle = "rgba(255,200,220,0.55)"; g.fillRect(x + 8, y + 8, B1bC - 16, 8); g.fillStyle = "rgba(60,0,20,0.4)"; g.fillRect(x + 8, y + B1bC - 16, B1bC - 16, 8);
 			}
@@ -553,9 +575,9 @@ public static partial class G
 		void at(double b, Action f, bool keep = false, bool rnd = false) => E.Add(new Ev { b = b, f = f, keep = keep, rnd = rnd });
 		void add(Hz h) => hazards.Add(h);
 		double SB = SPB;
-		B1bCh = new(); B1bOcc = new();
+		B1bCh = new();
 
-		at(0, () => { B1bCh = new(); B1bOcc = new(); add(B1bStage()); }, true);
+		at(0, () => { B1bCh = new(); add(B1bStage()); }, true);
 		at(0, () => add(B1bCore()), true);
 
 		// ===== pong (b2-30): one ball, then two (b10), then three (b18); every crossing is 4 beats, on the bar =====
@@ -574,15 +596,27 @@ public static partial class G
 		Pong(14, 520, 1, 3, 260, 30, 360);
 		Pong(20, 120, -1, 3, 300, 30, 380);
 		// the core keeps time on the hats: two shards a beat that turn (b6-30)
-		for (double b = 4; b < 30; b += b < 16 ? 1 : 0.5) { double bb = b, a0 = b * 0.61; at(bb - 0.75, () => { for (int i = 0; i < 3; i++) add(B1bShot(640, 360, a0 + i * TAU / 3, 320, B(bb), 0.75 * SB)); }); }
+		for (double b = 4; b < 30; b += b < 8 ? 1 : 0.5) { double bb = b, a0 = b * 0.61; int n = b < 16 ? 3 : 4; at(bb - 0.75, () => { for (int i = 0; i < n; i++) add(B1bShot(640, 360, a0 + i * TAU / n, 340, B(bb), 0.75 * SB)); }); }
 
-		// ===== snake (b30-64): out of the core after the marked one; a second one from b46 =====
+		// ===== snake (b30-64): out of the core to the apples; a second one from b46 =====
 		at(29, () => add(B1MarkFx(B(29), B(316))));
-		var SA = new B1bSnake { hx = 7, hy = 4, dx = -1, dy = 0, st = 0.5, len = b => 5 + (int)Math.Floor((b - 30) / 6), end = 64 };
-		var SB2 = new B1bSnake { hx = 8, hy = 4, dx = 1, dy = 0, st = 0.5, len = b => 5 + (int)Math.Floor((b - 48) / 6), end = 64 };
-		at(29, () => { SA.hx = 7; SA.hy = 4; SA.dx = -1; SA.dy = 0; SA.last = null; SB2.hx = 8; SB2.hy = 4; SB2.dx = 1; SB2.dy = 0; SB2.last = null; });
-		for (double T = 30; T < 63.9; T += 0.5) { double TT = T; at(TT - 1, () => B1bStep(SA, TT), rnd: true); }
-		for (double T = 48; T < 63.9; T += 0.5) { double TT = T; at(TT - 1, () => B1bStep(SB2, TT), rnd: true); }
+		void Snakes(List<B1bSnk> SS, double end, double sp)
+		{
+			B1bPlan(SS, 0.5, end,
+				(pi, pj, i, j, a, l, lp) => at(a - 1.1, () => add(B1bCell(pi, pj, i, j, a, l, lp, 0.5, end))),
+				(i, j, a, e) =>
+				{
+					at(a - 0.05, () => add(B1bApple(i, j, a, e)));
+					if (e > 0) at(e - 0.75, () => { for (int k = 0; k < 8; k++) add(B1bShot(B1bCx(i), B1bCy(j), k * TAU / 8 + 0.39, sp, B(e), 0.75 * SB)); });
+				});
+		}
+		Snakes(new List<B1bSnk>
+		{
+			new B1bSnk { i = 7, j = 4, dx = -1, dy = 0, len = 5, b0 = 30, appear = 30, apples = new[] { (2, 1), (12, 7), (3, 7), (13, 1), (1, 4), (9, 7), (6, 1), (14, 5), (4, 4), (11, 2) } },
+			new B1bSnk { i = 8, j = 4, dx = 1, dy = 0, len = 5, b0 = 46, appear = 46, apples = new[] { (13, 7), (3, 1), (12, 1), (2, 7), (14, 4), (6, 7), (9, 1), (1, 3), (11, 4), (4, 6) } },
+		}, 64, 300);
+		// the marked one: three shards from the core every 2 beats
+		for (double T = 34; T < 63; T += 2) { double TT = T; at(TT - 1.5, () => { var p = B1Aim(TT); double a = JS.atan2(p.y - 360, p.x - 640); for (int s = -2; s <= 2; s++) add(B1bShot(640, 360, a + s * 0.18, 400, B(TT), 1.5 * SB)); }, rnd: true); }
 		// on the kick the core spits a ring with a gap that turns (b32-62, every 4 beats; every 2 from b48)
 		for (double T = 32; T < 63; T += T < 48 ? 4 : 2) { double TT = T, ga = T * 0.83; at(TT, () => add(B1bRing(640, 360, B(TT), 330, ga, 0.6))); }
 
@@ -592,7 +626,7 @@ public static partial class G
 		// its column on the marked one: every 2 beats, every beat from b80
 		for (double T = 67; T < 88; T += T < 72 ? 2 : 1) { double TT = T; at(TT - 1.5, () => { var p = B1Aim(TT); add(B1bBeam(clamp(p.x, 28, W - 28), B(TT), 1.5 * SB)); }, rnd: true); }
 		// a row of the board burns every 2 beats (a line clear's flash), its row shows 1.5 beats before
-		{ int[] RW = { 2, 5, 3, 6, 1, 4, 2, 5, 3 }; for (int n = 0; n < 9; n++) { double T = 69 + 2 * n; int j = RW[n]; at(T - 1.5, () => add(B1bRow(j, B(T), 1.5 * SB))); } }
+		{ int[] RW = { 2, 5, 3, 6, 1, 4, 2, 5, 3, 6, 1, 4, 2, 5 }; for (int n = 0; n < RW.Length; n++) { double T = n < 4 ? 69 + 2 * n : 77 + (n - 4); int j = RW[n]; at(T - 1.5, () => add(B1bRow(j, B(T), 1.5 * SB))); } }
 		// shards on the melody: from the core going down, turning
 		for (double T = 66; T < 88; T += 1) { double TT = T, a0 = Math.PI / 2 + JS.sin(T * 0.9) * 0.8; at(TT - 1, () => { for (int s = -2; s <= 2; s++) add(B1bShot(640, 70, a0 + s * 0.26, 340, B(TT), SB)); }); }
 
@@ -601,15 +635,15 @@ public static partial class G
 		for (double T = 89; T < 121; T += T < 104 ? 1 : 0.5)
 		{
 			double TT = T; int k = (int)Math.Round((T - 89) * 2);
-			int c1 = (k * 3) % 8, c2 = (k * 3 + 3) % 8, c3 = (k * 3 + 6) % 8;
-			at(TT - 1, () => { foreach (int c in new[] { c1, c2, c3 }) { var q = B1bAlien(88, 104, 190, c, 2, TT); add(B1bBolt(q.x, q.y + 20, B(TT), SB, 620)); } });
+			int c1 = (k * 3) % 8, c2 = (k * 3 + 3) % 8, c3 = (k * 3 + 6) % 8, c4 = T < 104 ? -1 : (k * 3 + 5) % 8;
+			at(TT - 1, () => { foreach (int c in new[] { c1, c2, c3, c4 }.Where(c => c >= 0)) { var q = B1bAlien(88, 104, 190, c, 2, TT); add(B1bBolt(q.x, q.y + 20, B(TT), SB, 680)); } });
 		}
 		// the mothership (the core) bombs the marked one every 4 beats (every 2 from b104)
 		for (double T = 92; T < 121; T += T < 112 ? 2 : 1) { double TT = T; at(TT - 1.5, () => { var p = B1Aim(TT); add(B1bBeam(clamp(p.x, 40, W - 40), B(TT), 1.5 * SB, 80)); }, rnd: true); }
 
 		// ===== the road (b124-192): five lanes of cars; the circles on the other side when the bass is back =====
 		{
-			var LY = new[] { 168.0, 264, 360, 456, 552 }; var SP = new[] { 160.0, -200, 180, -220, 190 }; var LEN = new[] { 200.0, 260, 180, 300, 220 }; var GAP = new[] { 260.0, 300, 240, 320, 260 };
+			var LY = new[] { 168.0, 264, 360, 456, 552 }; var SP = new[] { 175.0, -220, 200, -240, 210 }; var LEN = new[] { 200.0, 260, 180, 300, 220 }; var GAP = new[] { 260.0, 300, 240, 320, 260 };
 			for (int j = 0; j < 5; j++)
 			{
 				// from b160 they speed up, and turn back every 8 beats (the arrows say so a beat before)
@@ -644,6 +678,11 @@ public static partial class G
 				add(B1bRing(tx, ty, B(T + 1.5), 420, JS.atan2(360 - ty, 640 - tx), 0.55));
 			}, rnd: true);
 		}
+		for (double T = 195; T < 248; T += 2)
+		{
+			double TT = T;
+			at(TT - 1.5, () => { var o = B1bCorePos(TT); var p = B1Aim(TT); double a = JS.atan2(p.y - o.y, p.x - o.x); for (int s = -1; s <= 1; s++) add(B1bShot(o.x, o.y, a + s * 0.2, 420, B(TT), 1.5 * SB)); }, rnd: true);
+		}
 		// the bar drips on the hats from b224: two drops a half beat that sweep across (its line shows a beat before)
 		for (double T = 208; T < 248; T += 0.5)
 		{
@@ -656,18 +695,18 @@ public static partial class G
 		at(250, () => add(B1bBarWall(false, 251.5, 256, 320, 210)));
 
 		// ===== all the games again, faster (b256-288), with rings on the drum =====
-		Pong(256, 240, 1, 4, 260, 264, 360); Pong(256, 480, -1, 4, -260, 264, 360); Pong(258, 120, -1, 4, 320, 264, 360);
-		var SC = new B1bSnake { hx = 7, hy = 4, dx = 0, dy = -1, st = 0.5, len = b => 10, end = 272 };
-		at(262, () => { SC.hx = 7; SC.hy = 4; SC.dx = 0; SC.dy = -1; SC.last = null; });
-		for (double T = 264; T < 271.9; T += 0.5) { double TT = T; at(TT - 1, () => B1bStep(SC, TT), rnd: true); }
+		Pong(256, 240, 1, 4, 260, 264, 380); Pong(256, 480, -1, 4, -260, 264, 380); Pong(257, 120, -1, 3, 320, 264, 380); Pong(258, 600, 1, 3, -300, 264, 380);
+		Snakes(new List<B1bSnk> { new B1bSnk { i = 7, j = 4, dx = 0, dy = -1, len = 10, b0 = 264, appear = 264, apples = new[] { (2, 1), (13, 7), (13, 1), (2, 7) } } }, 272, 340);
 		for (int n = 0; n < 8; n++) { double T = 272.5 + n; var c = B1bFILL[n]; at(T - 1.5, () => add(B1bPiece(c, B(T), 1.5 * SB, 280.5))); }
+		{ int[] RW = { 1, 4, 2, 5, 3, 6, 1, 4 }; for (int n = 0; n < 8; n++) { double T = 272 + n; int j = RW[n]; at(T - 1.5, () => add(B1bRow(j, B(T), 1.5 * SB))); } }
 		at(277, () => add(B1bFleet(280, 280, 110, 999, 288)));
 		for (double T = 280.5; T < 288; T += 0.5)
 		{
-			double TT = T; int k = (int)Math.Round((T - 280.5) * 2), c1 = (k * 3) % 8, c2 = (k * 3 + 5) % 8;
-			at(TT - 1, () => { foreach (int c in new[] { c1, c2 }) { var q = B1bAlien(280, 280, 110, c, 2, TT); add(B1bBolt(q.x, q.y + 20, B(TT), SB, 600)); } });
+			double TT = T; int k = (int)Math.Round((T - 280.5) * 2), c1 = (k * 3) % 8, c2 = (k * 3 + 3) % 8, c3 = (k * 3 + 6) % 8;
+			at(TT - 1, () => { foreach (int c in new[] { c1, c2, c3 }) { var q = B1bAlien(280, 280, 110, c, 2, TT); add(B1bBolt(q.x, q.y + 20, B(TT), SB, 600)); } });
 		}
-		for (double T = 258; T < 288; T += 2) { double TT = T, ga = T * 1.13; at(TT - 1, () => add(B1bRing(640, 360, B(TT), 360, ga, 0.55))); }
+		for (double T = 281; T < 288; T += 2) { double TT = T; at(TT - 1.5, () => { var p = B1Aim(TT); add(B1bBeam(clamp(p.x, 40, W - 40), B(TT), 1.5 * SB, 80)); }, rnd: true); }
+		for (double T = 258; T < 288; T += 2) { double TT = T, ga = T * 1.13; at(TT - 1, () => add(B1bRing(640, 360, B(TT), 400, ga, 0.5))); }
 
 		// ===== game over (b288-316): the spiral fills, the core shoots three at the marked one every beat, rings every 4 =====
 		{
@@ -677,9 +716,9 @@ public static partial class G
 		}
 		for (double T = 290; T < 315; T += 1)
 		{
-			double TT = T; at(TT - 1.5, () => { var p = B1Aim(TT); double a = JS.atan2(p.y - 360, p.x - 640); for (int s = -1; s <= 1; s++) add(B1bShot(640, 360, a + s * 0.2, 380, B(TT), 1.5 * SB)); }, rnd: true);
+			double TT = T; at(TT - 1.5, () => { var p = B1Aim(TT); double a = JS.atan2(p.y - 360, p.x - 640); for (int s = -1; s <= 1; s++) add(B1bShot(640, 360, a + s * 0.2, 400, B(TT), 1.5 * SB)); }, rnd: true);
 		}
-		for (double T = 292; T < 315; T += 4) { double TT = T, ga = T * 0.7; at(TT - 1, () => add(B1bRing(640, 360, B(TT), 300, ga, 0.6))); }
+		for (double T = 290.5; T < 315; T += 2) { double TT = T, ga = T * 0.7; at(TT - 1, () => add(B1bRing(640, 360, B(TT), 300, ga, 0.6))); }
 		at(319, () => add(B1Shatter(B(320))));
 
 		JS.sort(E, (a, b) => a.b - b.b); return E;
