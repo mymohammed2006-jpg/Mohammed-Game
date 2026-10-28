@@ -364,7 +364,7 @@ public static partial class G
 				for (int k = 1; k < o.qb.Length; k++) { double s = o.qb[k] - t; if (s <= 0 || s > o.wn) continue; g.strokeStyle = L18bG(0.2 + 0.5 * (1 - s / o.wn)); g.lineWidth = 3; g.setLineDash(new double[] { 12, 9 }); g.beginPath(); g.moveTo(qx, o.qy); g.lineTo(qx + JS.cos(o.qa[k]) * o.armL, o.qy + JS.sin(o.qa[k]) * o.armL); g.stroke(); g.setLineDash(new double[0]); }
 				double am = arm(t), ex = qx + JS.cos(am) * o.armL, ey = o.qy + JS.sin(am) * o.armL;
 				g.lineCap = "round"; g.strokeStyle = PINK; g.lineWidth = o.armW; g.beginPath(); g.moveTo(qx, o.qy); g.lineTo(ex, ey); g.stroke();
-				g.fillStyle = PINK; g.save(); g.translate(ex, ey); g.rotate(am); g.fillRect(-10, -o.armW, 34, o.armW * 2); g.restore();
+				g.fillStyle = PINK; g.save(); g.translate(ex, ey); g.rotate(am); g.fillRect(-10, -o.armW, 34 + o.armW, o.armW * 2); g.restore();
 			}
 			g.globalAlpha = 1;
 			for (int k = 0; k < o.nb.Length; k++)
@@ -576,7 +576,7 @@ public static partial class G
 				double d = t - o.wb[k]; if (d < -o.wn || d * o.wv > 1100) continue;
 				if (d < 0) { L18bHeartPath(cx, cy, o.hs * 1.25 + 30 * (-d / o.wn), 0); g.strokeStyle = L18bG(0.2 + 0.6 * (1 + d / o.wn)); g.lineWidth = 2; g.stroke(); continue; }
 				double sc = o.hs * 1.1 + d * o.wv; g.strokeStyle = PINK; g.lineWidth = o.wth; g.beginPath(); bool pen = false;
-				for (int i = 0; i <= 120; i++) { double a = i * TAU / 120; if (Math.Abs(L18bWrap(a - o.wg[k])) < o.gw / 2) { pen = false; continue; } double r = L18bHR(a) * sc; double xx = cx + JS.cos(a) * r, yy = cy + JS.sin(a) * r; if (!pen) { g.moveTo(xx, yy); pen = true; } else g.lineTo(xx, yy); }
+				for (int i = 0; i <= 120; i++) { double a = o.wg[k] + o.gw / 2 + i * (TAU - o.gw) / 120; double r = L18bHR(a) * sc; double xx = cx + JS.cos(a) * r, yy = cy + JS.sin(a) * r; if (!pen) { g.moveTo(xx, yy); pen = true; } else g.lineTo(xx, yy); }
 				g.stroke();
 			}
 			g.restore();
@@ -628,7 +628,7 @@ public static partial class G
 				for (int j = 0; j < o.ns; j++)
 				{
 					if (d < 0) { double a = o.sa[k] + (j - (o.ns - 1) / 2.0) * o.fw / Math.Max(1, o.ns - 1); g.strokeStyle = L18bG(0.15 + 0.5 * (1 + d / o.wn)); g.lineWidth = 2; g.setLineDash(new double[] { 7, 9 }); g.beginPath(); g.moveTo(cx + JS.cos(a) * 60, cy + JS.sin(a) * 60); g.lineTo(cx + JS.cos(a) * 900, cy + JS.sin(a) * 900); g.stroke(); g.setLineDash(new double[0]); continue; }
-					var (x, y) = shard(k, j, t); double sa = t * 9 + j + k; g.fillStyle = PINK; g.beginPath();
+					var (x, y) = shard(k, j, t); double sa = t * 9 + j + k; g.fillStyle = PINK; circle(x, y, o.sr * 1.05); g.beginPath();
 					for (int v = 0; v < 3; v++) { double q = sa + v * TAU / 3, rr = v == 0 ? o.sr * 1.5 : o.sr; if (v == 0) g.moveTo(x + JS.cos(q) * rr, y + JS.sin(q) * rr); else g.lineTo(x + JS.cos(q) * rr, y + JS.sin(q) * rr); }
 					g.closePath(); g.fill();
 				}
