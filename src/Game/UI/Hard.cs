@@ -24,7 +24,7 @@ public static partial class G
 	{
 		foreach (var id in HC_IDS)
 		{
-			try { var L = LoadDodge(id); if (L != null) { L.hc = true; HCLV.Add(L); } }
+			try { var L = LoadDodge(id); if (L != null) { L.hc = true; if (L.v51 != null) L.v51.hc = true; HCLV.Add(L); } }
 			catch (Exception e) { Godot.GD.PushWarning("hardcore " + id + ": " + e.Message); }
 		}
 	}

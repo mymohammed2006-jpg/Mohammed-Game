@@ -36,7 +36,8 @@ public class BotRun
 		performance.manual = 100000; AudioCtx.manualTime = 0;
 		G.InitSound();
 		G.gfx.Resize(1280, 720); G.scale = 1; G.offX = 0; G.offY = 0;
-		var L = G.ALL_LV().Concat(G.HCLV).Concat(G.BOSSLV).First(x => x.id == id);
+		bool old = id.EndsWith("_v51"); string lid = old ? id[..^4] : id;   // <id>_v51: the old design of a level with new attacks (v52) and its <id><m>_v51 bot run
+		var L = G.ALL_LV().Concat(G.HCLV).Concat(G.BOSSLV).First(x => x.id == lid); if (old) L = L.v51;
 		if (System.Environment.GetEnvironmentVariable("SKIN") is string sk) { G.classicUi = false; G.skin = sk == "none" ? "" : sk; }   // SKIN=<look|none>: today's game with that look (previews)
 		JS.SeedRandom(SEED);
 		G.rpOverlayOff = true;

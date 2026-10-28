@@ -21,7 +21,7 @@ public static partial class G
 	{
 		foreach (var id in BOSS_IDS)
 		{
-			try { var L = LoadDodge(id); if (L != null) { L.boss = true; BOSSLV.Add(L); } }
+			try { var L = LoadDodge(id); if (L != null) { L.boss = true; if (L.v51 != null) L.v51.boss = true; BOSSLV.Add(L); } }
 			catch (Exception e) { Godot.GD.PushWarning("boss " + id + ": " + e.Message); }
 		}
 	}
