@@ -8,7 +8,8 @@ namespace MG;
 // L19 "عافني وراح" (Ahmed Jawad), the second design (10-28): "the time after him".
 // Part 1 the clock while you wait (it strikes, its hands tick, its numbers fly back, it breaks),
 // part 2 the night he left (his footsteps and the cracks they leave, the doors he slams, the train, the car's lights, the road he took,
-// the doors turning round you), part 3 after him (rain on the window, the gears of time going on, then the clock strikes midnight).
+// the doors turning round you), part 3 your photo (it tears, its pieces flip and burn: the first design's part 3, which Mohammed liked),
+// with the clock and the night coming back before the last photo burns.
 // Every attack is fixed on the beat (nothing aimed, nothing random) and every hazard is a pure function of time once it exists.
 // Grid: 99.915 BPM, beat 0 = 0.344 s of the song file (it starts at 0:18 of the song); checkpoints 0, 50, 166; win 239.25 (2:42).
 // The first design (v49-v51) stays in L19.cs with its data in data/dodge_L19_v51.json, for the replays recorded with it.
@@ -116,7 +117,7 @@ public static partial class G
 	}
 	static List<L19bP> L19bL(params L19bP[] a) => a.ToList();
 
-	// ---------- the room (harmless, under everything): part 1 the clock's face, 2 the street at night, 3 his empty room ----------
+	// ---------- the room (harmless, under everything): part 1 the clock's face, 2 the street at night, 3 the table ----------
 	public static Hz L19bStage(double[] pb, double end)
 	{
 		var h = new Hz { kind = "L19bStage", z = -1, veil = true };
@@ -145,10 +146,10 @@ public static partial class G
 			}
 			else
 			{
-				g.fillStyle = "rgba(20,16,24,1)"; g.fillRect(0, 0, W, H);
-				var lt = g.createRadialGradient(W / 2, H / 2, 60, W / 2, H / 2, 700); lt.addColorStop(0, "rgba(80,90,130,0.22)"); lt.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = lt; g.fillRect(0, 0, W, H);
-				// the window's frame
-				g.strokeStyle = "rgba(170,170,210,0.12)"; g.lineWidth = 10; g.strokeRect(70, 50, W - 140, H - 100);
+				// the table the photo lies on
+				g.fillStyle = "rgba(22,18,20,1)"; g.fillRect(0, 0, W, H);
+				var lt = g.createRadialGradient(W / 2, H / 2 - 60, 40, W / 2, H / 2, 760); lt.addColorStop(0, "rgba(120,96,70,0.28)"); lt.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = lt; g.fillRect(0, 0, W, H);
+				g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = 2; g.beginPath(); for (double x = 0; x < W; x += 160) { g.moveTo(x, 0); g.lineTo(x + 20, H); } g.stroke();
 			}
 			if (fade > 0) { g.fillStyle = $"rgba(0,0,0,{str(fade * 0.8)})"; g.fillRect(0, 0, W, H); }
 			var vg = g.createRadialGradient(W / 2, H / 2, 300, W / 2, H / 2, 780); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,0.55)"); g.fillStyle = vg; g.fillRect(0, 0, W, H);
@@ -172,9 +173,9 @@ public static partial class G
 		void fx(double b, double v = 0.3, double s = 10, double dur = 1.2) => at(b - 0.05, () => hazards.Add(L19bFx(b, v, s, dur)));
 		// an attack whose warning starts at beat bw: it fires a little before so the grey shows from bw
 		void atk(double bw, Action f) => at(bw - 0.1, f);
-		double WN = ez ? 1.3 : 1;            // warnings are longer on Easy
-		double SP = ez ? 0.78 : 1;           // and things are slower
-		double TH = ez ? 0.85 : 1;           // and thinner
+		double WN = ez ? 1.12 : 1;            // warnings are longer on Easy
+		double SP = ez ? 0.9 : 1;           // and things are slower
+		double TH = ez ? 0.9 : 1;           // and thinner
 		double cx = W / 2, cy = H / 2;
 		at(0, () => hazards.Add(L19bStage(new double[] { 0, 50, 166 }, 239.25)), true);
 
@@ -200,7 +201,7 @@ public static partial class G
 			double sStep = 30 * L19bD, mStep = -45 * L19bD, s0 = -90 * L19bD, m0 = 90 * L19bD, len = 820, wd = 16 * TH;
 			double ang(double bt, double a0, List<double> kb, double st) { double a = a0; foreach (var b in kb) { if (bt < b - sw) break; a += st * L19bE((bt - (b - sw)) / sw); } return a; }
 			double next(double bt, double a0, List<double> kb, double st) { double a = a0; foreach (var b in kb) { a += st; if (bt < b - sw) return a; } return a; }
-			bool dbl(double bt) => !ez && bt >= 14 - 0.2;
+			bool dbl(double bt) => bt >= (ez ? 16 : 14) - 0.2;
 			List<L19bP> hands(double t)
 			{
 				double bt = BT(t), a = ang(bt, s0, sB, sStep), m = ang(bt, m0, mB, mStep);
@@ -220,7 +221,7 @@ public static partial class G
 			}
 			atk(k0 - 1.5, () => L19bAdd(hands, B(k0 - 1.5), B(k0), B(k1), look: look));
 			// the second arm's own warning (0:26)
-			if (!ez) atk(12, () => L19bAdd(t => new List<L19bP>(), B(12), B(13.8), B(13.8), pre: t => { double a = ang(14, s0, sB, sStep); return L19bL(L19bRay(cx, cy, a + Math.PI, 0, len, wd)); }));
+			double k2 = ez ? 16 : 14; atk(k2 - 2, () => L19bAdd(t => new List<L19bP>(), B(k2 - 2), B(k2 - 0.2), B(k2 - 0.2), pre: t => { double a = ang(k2, s0, sB, sStep); return L19bL(L19bRay(cx, cy, a + Math.PI, 0, len, wd)); }));
 		}
 		// 0:31 time goes back: the numbers leave the clock one by one (twelve, eleven, ten...), each flies through the middle and out the
 		// other side (its line shows a beat before). A long hand turns slowly the whole time. From 0:35 two numbers at once
@@ -236,7 +237,6 @@ public static partial class G
 						pre: t => L19bL(L19bBar(cx + dx * 320, cy + dy * 320, cx - dx * 900, cy - dy * 900, 2 * r))));
 				}
 				int h = ((12 - i) % 12 + 12) % 12;
-				if (ez && i % 2 == 1) continue;
 				num(h, kh);
 				if (!ez && i >= 6) num((h + 4) % 12, kh + 0.5);
 			}
@@ -251,7 +251,6 @@ public static partial class G
 			double gy = 1700 * SP;
 			for (int i = 0; i < 12; i++)
 			{
-				if (ez && i % 2 == 1) continue;
 				double kh = 37 + 0.5 * i, a = -Math.PI / 2 + i * TAU / 12, x0 = cx + JS.cos(a) * 315, y0 = cy + JS.sin(a) * 315, ta = B(kh), ca = JS.cos(a), sa = JS.sin(a);
 				atk(kh - 1.2 * WN, () => L19bAdd(t =>
 				{
@@ -273,7 +272,7 @@ public static partial class G
 
 		// ================= part 2: the night he left (0:48-1:58) =================
 		// 0:49 his footsteps: a step on every beat (its print shows grey first), and on every second step the floor cracks from the print
-		// to the far side. One walks across the top to the left, then one across the bottom to the right and one across the top again
+		// to the far side. One walks across the top to the left, then one across the bottom to the right (cracking on every step) and one across the top again
 		{
 			double fl = 1.25 * WN, wet = ez ? 1.0 : 1.25, cw = 14 * TH;
 			void walk(double k0, int n, double xa, double xb, double y, int crackDir, int every)
@@ -296,14 +295,14 @@ public static partial class G
 				}
 			}
 			walk(51.5, 8, 1200, 80, 200, 1, 2);
-			walk(59.5, 7, 80, 1200, 520, -1, 2);
-			if (!ez) walk(59.5, 7, 1200, 80, 200, 1, 2);
+			walk(59.5, 7, 80, 1200, 520, -1, ez ? 2 : 1);
+			walk(59.5, 7, 1200, 80, 200, 1, 2);
 			fx(51.5, 0.2, 6, 0.6);
 		}
 		// 0:58 the doors he slams behind him: doors on the top and the bottom walls slam shut one after another along the hall (each shows
 		// grey where it swings a beat before), stay shut a beat and open again. From 1:03 two at once (one up, one down)
 		{
-			double L = ez ? 280 : 300, dw = 20 * TH, swp = 0.22, shut = 1.0, back = 0.5;
+			double L = ez ? 280 : 320, dw = 20 * TH, swp = 0.22, shut = 1.0, back = 0.5;
 			void door(double hx, bool top, double kh)
 			{
 				double hy = top ? 0 : H, aOpen = top ? 0 : Math.PI, aShut = top ? Math.PI / 2 : -Math.PI / 2, ta = B(kh - swp);
@@ -315,7 +314,7 @@ public static partial class G
 			double[] tx = { 160, 480, 800, 1120 }, bx = { 320, 640, 960 };
 			// along the hall to the right and back
 			var seq = new (double x, bool top)[] { (160, true), (320, false), (480, true), (640, false), (800, true), (960, false), (1120, true), (960, false), (800, true), (640, false), (480, true), (320, false), (160, true), (320, false), (480, true), (640, false) };
-			for (int i = 0; i < 8; i++) { if (ez && i % 2 == 1) continue; door(seq[i].x, seq[i].top, 67 + i); }
+			for (int i = 0; i < 8; i++) { door(seq[i].x, seq[i].top, 67 + i); }
 			for (int i = 8; i < 15; i++)
 			{
 				double kh = 67 + i; door(seq[i].x, seq[i].top, kh);
@@ -325,7 +324,7 @@ public static partial class G
 		// 1:08 the train: two tracks, the cars go left on the top one and right on the bottom one, a car on every beat. The steam fills
 		// the middle, then the top, then the bottom (it shows first): cross the tracks between the cars
 		{
-			double y1 = 250, y2 = 470, car = ez ? 200 : 250, gap = ez ? 300 : 230, per = car + gap, v = per / SPB * (ez ? 0.8 : 1), cwid = 84 * TH;
+			double y1 = 250, y2 = 470, car = ez ? 200 : 260, gap = ez ? 300 : 210, per = car + gap, v = per / SPB * (ez ? 0.8 : 1), cwid = 84 * TH;
 			List<L19bP> cars(double t, double y, int d, double t0)
 			{
 				var l = new List<L19bP>(); double off = ((v * (t - t0)) % per + per) % per;
@@ -352,7 +351,7 @@ public static partial class G
 		// 1:18 the car's lights: from the bottom its lights swing to a new way on every second beat (the next way shows grey). From 1:21 a
 		// second car's lights from the top, from 1:25 a third from the left
 		{
-			double half = (ez ? 9 : 11) * L19bD, len = 1150;
+			double half = (ez ? 9 : 12.5) * L19bD, len = 1150;
 			double sw(double bt, double[] kb, double[] av) { double a = av[0]; for (int i = 1; i < kb.Length; i++) { if (bt < kb[i] - 0.35) break; a = av[i - 1] + (av[i] - av[i - 1]) * L19bE((bt - kb[i] + 0.35) / 0.35); } return a; }
 			double nx(double bt, double[] kb, double[] av) { for (int i = 1; i < kb.Length; i++) if (bt < kb[i] - 0.35) return av[i]; return av[^1]; }
 			void car(double ox, double oy, double k0, double k1, double[] degs)
@@ -370,7 +369,7 @@ public static partial class G
 		// 1:30 the road he took: only the road is safe; its far end turns left and right on every second beat (where it goes shows grey),
 		// and the lines of the road come at you down its middle
 		{
-			double k0 = 119, k1 = 134, bw = ez ? 440 : 380, tw = 34;
+			double k0 = 119, k1 = 134, bw = ez ? 440 : 350, tw = 34;
 			double[] vx = { 640, 430, 860, 520, 780, 360, 920, 600, 640 };
 			double vpx(double bt) { double x = vx[0]; for (int i = 1; i < vx.Length; i++) { double kb = k0 + 1 + 2 * (i - 1); if (bt < kb - 0.5) break; x = vx[i - 1] + (vx[i] - vx[i - 1]) * L19bE((bt - kb + 0.5) / 0.5); } return x; }
 			// o pushes both walls out (they slide in at the start and out at the end)
@@ -395,7 +394,6 @@ public static partial class G
 			double[] ga = { 0, 150, 300, 80, 230, 20, 190 };
 			for (int i = 0; i < 7; i++)
 			{
-				if (ez && i % 2 == 1) continue;
 				double k0 = 134.5 + i, ta = B(k0), te = B(k0 + 2.2), a = ga[i] * L19bD, gh = (ez ? 32 : 24) * L19bD;
 				atk(k0 - 1.2 * WN, () => L19bAdd(t => L19bL(L19bGapRing(cx, cy, Math.Max(1, 780 * (1 - (t - ta) / (te - ta))), 22 * TH, a, gh)), B(k0 - 1.2 * WN), ta, te,
 					pre: t => L19bL(L19bGapRing(cx, cy, 360, 22 * TH, a, gh))));
@@ -418,14 +416,13 @@ public static partial class G
 			}
 			for (int j = 0; j < 20; j++)
 			{
-				double kh = 143 + j; if (ez && j % 2 == 1) continue;
+				double kh = 143 + j;
 				door(j % 6, kh); if (!ez && j >= 8) door((j + 3) % 6, kh);
 			}
 			// the steps go round inside the ring
 			double fl = 1.25 * WN, wet = ez ? 1.0 : 1.25;
 			for (int i = 0; i < 16; i++)
 			{
-				if (ez && i % 2 == 1) continue;
 				double kh = 148 + i, th = -Math.PI / 2 + i * 26 * L19bD, rr = 150 + (i % 2 == 0 ? -26 : 26), x = cx + JS.cos(th) * rr, y = cy + JS.sin(th) * rr, ta = B(kh);
 				double tx = -JS.sin(th), ty = JS.cos(th);
 				var prt = L19bL(L19bBar(x - tx * 4, y - ty * 4, x + tx * 44, y + ty * 44, 56 * TH), L19bDisc(x - tx * 40, y - ty * 40, 25 * TH));
@@ -441,70 +438,33 @@ public static partial class G
 			fx(164, 0.3, 12, 1.2);
 		}
 
-		// ================= part 3: after him (1:58-2:42) =================
-		// 1:58 the rain on his window: the window's cross turns slowly (and back), drops run down the glass in a stair, a beat after their
-		// line shows; from 2:04 two at a time
+		// ================= part 3: your photo (1:58-2:42) =================
+		// 1:58 the photo of you two (the idea Mohammed liked, 10-26): it tears, its pieces drift apart, flip on the beat (the back is pink),
+		// come together and part again, then burn (the fire's front is pink, the ash behind it is safe); then the tears fall on the ash.
+		// These are the first design's photo events (data/dodge_L19_photo.json, kinds in L19.cs). 2:22 the clock and the night come back
+		// (the hand and the numbers, the doors with the train, the car's lights with his steps), and at 2:35 the last photo tears in four,
+		// flips and burns from its corners
+		fx(166.15, 0.3, 8, 1.4);
 		{
-			fx(166, 0.3, 8, 1.4);
-			var rot = new L19Spin(0, 166, 187, new double[] { 166, 176 }, new[] { 6 * L19bD * SP, -7 * L19bD * SP });
-			double ww = 22 * TH;
-			List<L19bP> cross(double a) => L19bL(L19bRay(cx, cy, a, -900, 900, ww), L19bRay(cx, cy, a + Math.PI / 2, -900, 900, ww));
-			atk(166, () => L19bAdd(t => cross(rot.At(BT(t))), B(166), B(168), B(186), pre: t => cross(0)));
-			double v = 820 * SP;
-			int n = 0;
-			for (double kh = 168.75; kh < 185.5; kh += 0.5)
+			using var f = Godot.FileAccess.Open("res://data/dodge_L19_photo.json", Godot.FileAccess.ModeFlags.Read);
+			using var doc = System.Text.Json.JsonDocument.Parse(f.GetAsText());
+			foreach (var el in doc.RootElement.GetProperty("events").EnumerateArray())
 			{
-				if (ez && n % 2 == 1) { n++; continue; }
-				int j = n % 28; int lane = j < 14 ? j : 27 - j; n++;
-				void drop(int ln, double k)
-				{
-					double x = 120 + ln * 80, ta = B(k);
-					atk(k - 1.1 * WN, () => L19bAdd(t => { double y = -80 + v * (t - ta); return y > H + 100 ? new List<L19bP>() : L19bL(L19bBar(x, y - 70, x, y, 18 * TH)); }, B(k - 1.1 * WN), ta, ta + 1.25,
-						pre: t => L19bL(L19bBar(x, -20, x, H + 20, 22))));
-				}
-				drop(lane, kh);
-				if (!ez && kh >= 176) drop((lane + 7) % 14, kh);
+				var de = new DodgeEv(el.Clone());
+				if (DK.TryGetValue(de.k, out var mk)) E.Add(new Ev { b = de.b, f = mk(de) });
 			}
 		}
-		// 2:10 the gears of the time that goes on: two gears tick (a tooth on every beat, the other way round each other), their middles
-		// fill up in turn (shown first), and the walls close in from the top and the bottom
-		{
-			double k0 = 187, k1 = 206, R = 200, nt = 10, tw = 26 * TH;
-			double[] gx = { 400, 880 };
-			double stepA(double bt) { double a = 0; for (double k = k0 + 1; k <= bt + 0.2 && k < k1; k += 1) a += L19bE((bt - (k - 0.2)) / 0.2); return a * TAU / nt / 2; }
-			List<L19bP> gear(double t, int gi)
-			{
-				double a = stepA(BT(t)) * (gi == 0 ? 1 : -1) + (gi == 0 ? 0 : TAU / nt / 2); var l = new List<L19bP> { L19bDisc(gx[gi], cy, 38) };
-				for (int i = 0; i < nt; i++) l.Add(L19bRay(gx[gi], cy, a + i * TAU / nt, R - 34, R + 36, tw));
-				return l;
-			}
-			for (int gi = 0; gi < 2; gi++) { int q = gi; atk(k0 - 1.5, () => L19bAdd(t => gear(t, q), B(k0 - 1.5), B(k0), B(k1), pre: t => gear(B(k0), q))); }
-			// the middles fill (the gear you are in: get out between its teeth)
-			double[] fb = ez ? new[] { 192.0, 200 } : new[] { 191.0, 194, 197, 200, 203 };
-			for (int i = 0; i < fb.Length; i++)
-			{
-				double kh = fb[i], x = gx[i % 2], ta = B(kh);
-				atk(kh - 1.75 * WN, () => L19bAdd(t => L19bL(L19bDisc(x, cy, R - 44)), B(kh - 1.75 * WN), ta, ta + 1.0 * SPB));
-			}
-			// the walls
-			double wall(double bt) => 60 + 70 * L19bE((bt - 192) / 6);
-			atk(189, () => L19bAdd(t => { double y = wall(BT(t)); return L19bL(L19bBar(-60, y - 60, W + 60, y - 60, 120), L19bBar(-60, H - y + 60, W + 60, H - y + 60, 120)); }, B(189), B(191), B(206),
-				pre: t => L19bL(L19bBar(-60, 0, W + 60, 0, 120), L19bBar(-60, H, W + 60, H, 120))));
-		}
-		// 2:22 the last part: the clock comes back. Its hands tick again with the numbers flying (2:23), then the doors with the train
-		// (2:28), then the car lights from the bottom and the top with the steps (2:33), and at 2:37 it strikes midnight: twelve rings, two
-		// a beat, the gap going round; the two hands close on twelve and it's over
 		{
 			fx(206, 0.4, 14, 1.6);
+			// the clock's hand ticks again, the numbers fly
 			double sw = 0.2, len = 820, wd = 16 * TH;
-			var sB = new List<double>(); for (double k = 209; k < 216; k += 1) sB.Add(k);
+			var sB = new List<double>(); for (double k = 209; k < 214; k += 1) sB.Add(k);
 			double ang(double bt, double a0, List<double> kb, double st) { double a = a0; foreach (var b in kb) { if (bt < b - sw) break; a += st * L19bE((bt - (b - sw)) / sw); } return a; }
-			atk(206.5, () => L19bAdd(t => { double bt = BT(t), a = ang(bt, -90 * L19bD, sB, 30 * L19bD); var l = L19bL(L19bRay(cx, cy, a, 0, len, wd), L19bDisc(cx, cy, 30)); return l; }, B(206.5), B(208), B(216.2),
+			atk(206.5, () => L19bAdd(t => { double bt = BT(t), a = ang(bt, -90 * L19bD, sB, 30 * L19bD); var l = L19bL(L19bRay(cx, cy, a, 0, len, wd), L19bDisc(cx, cy, 30)); return l; }, B(206.5), B(208), B(214.2),
 				look: t => { double bt = BT(t), a = ang(bt, -90 * L19bD, sB, 30 * L19bD); double ns = sB.FirstOrDefault(b => b - sw > bt, -1); if (ns < 0 || ns - sw - bt > 0.8 * WN) return new List<(L19bP, double)>(); return new List<(L19bP, double)> { (L19bCone(cx, cy, a + 15 * L19bD, 15 * L19bD, len), 0.5) }; }));
-			double v = 1050 * SP, r = 26 * TH;
-			for (int i = 0; i < 8; i++)
+			double v = 900 * SP, r = 26 * TH;
+			for (int i = 0; i < 6; i++)
 			{
-				if (ez && i % 2 == 1) continue;
 				double kh = 208.5 + i; int hr = (i * 5) % 12; double a = -Math.PI / 2 + hr * TAU / 12, ta = B(kh), dx = JS.cos(a), dy = JS.sin(a);
 				atk(kh - 1.1 * WN, () => L19bAdd(t => { double d = 320 - v * (t - ta); return L19bL(L19bDisc(cx + dx * d, cy + dy * d, r)); }, B(kh - 1.1 * WN), ta, ta + 1.2,
 					pre: t => L19bL(L19bBar(cx + dx * 320, cy + dy * 320, cx - dx * 900, cy - dy * 900, 2 * r))));
@@ -520,54 +480,36 @@ public static partial class G
 						pre: t => L19bL(L19bCone(hx, hy, (aOpen + aShut) / 2, Math.PI / 4, L))));
 				}
 				double[] xs = { 200, 520, 840, 1080 };
-				for (int i = 0; i < 8; i++) { if (ez && i % 2 == 1) continue; double kh = 216.5 + i; door(xs[i % 4], true, kh); if (!ez && i % 2 == 1) door(xs[(i + 2) % 4], false, kh); }
-				double car = ez ? 200 : 260, gap = ez ? 300 : 240, per = car + gap, vt = per / SPB * (ez ? 0.8 : 1), t0 = B(217);
-				atk(215.5, () => L19bAdd(t =>
+				for (int i = 0; i < 7; i++) { double kh = 214.5 + i; door(xs[i % 4], true, kh); if (!ez && i % 2 == 1) door(xs[(i + 2) % 4], false, kh); }
+				double car = ez ? 200 : 260, gap = ez ? 300 : 240, per = car + gap, vt = per / SPB * (ez ? 0.8 : 1), t0 = B(215);
+				atk(213.5, () => L19bAdd(t =>
 				{
 					var l = new List<L19bP>(); double off = ((vt * (t - t0)) % per + per) % per;
 					for (double s = -per * 2; s < W + per * 2; s += per) { double x = s + off - per; if (x + car < -60 || x > W + 60) continue; l.Add(L19bBar(x, cy, x + car, cy, 80 * TH)); }
 					return l;
-				}, B(215.5), t0, B(224.5), pre: t => L19bL(L19bBar(-20, cy, W + 20, cy, 80 * TH))));
+				}, B(213.5), t0, B(222), pre: t => L19bL(L19bBar(-20, cy, W + 20, cy, 80 * TH))));
 			}
-			// the car lights from the bottom and the top, a new way every one and a half beats, and the steps across the middle
+			// the car's lights from the bottom and the top, a new way every one and a half beats, and his steps across the middle;
+			// all gone before the last photo comes
 			{
-				double half = (ez ? 8 : 10) * L19bD, len2 = 1150;
-				(double x, double y, double[] a)[] cs = { (640, H + 40, new double[] { -90, -125, -58, -110, -70, -100 }), (640, -40, new double[] { 60, 95, 120, 75, 108, 66 }) };
+				double half = (ez ? 8 : 10) * L19bD, len2 = 1150, k0 = 222.5;
+				(double x, double y, double[] a)[] cs = { (640, H + 40, new double[] { -90, -125, -58, -100 }), (640, -40, new double[] { 60, 95, 120, 75 }) };
 				for (int c = 0; c < 2; c++)
 				{
 					if (ez && c == 1) continue;
-					var (ox, oy, degs) = cs[c]; var av = degs.Select(d => d * L19bD).ToArray(); double k0 = 225;
+					var (ox, oy, degs) = cs[c]; var av = degs.Select(d => d * L19bD).ToArray();
 					double sw2(double bt) { double a = av[0]; for (int i = 1; i < av.Length; i++) { double kb = k0 + 1.5 * i; if (bt < kb - 0.3) break; a = av[i - 1] + (av[i] - av[i - 1]) * L19bE((bt - kb + 0.3) / 0.3); } return a; }
 					double nx(double bt) { for (int i = 1; i < av.Length; i++) if (bt < k0 + 1.5 * i - 0.3) return av[i]; return av[^1]; }
-					atk(k0 - 1.5 * WN, () => L19bAdd(t => L19bL(L19bCone(ox, oy, sw2(BT(t)), half, len2)), B(k0 - 1.5 * WN), B(k0), B(232), pre: t => L19bL(L19bCone(ox, oy, av[0], half, len2)),
+					atk(k0 - 1.5 * WN, () => L19bAdd(t => L19bL(L19bCone(ox, oy, sw2(BT(t)), half, len2)), B(k0 - 1.5 * WN), B(k0), B(227.6), pre: t => L19bL(L19bCone(ox, oy, av[0], half, len2)),
 						look: t => { double bt = BT(t), a = sw2(bt), n = nx(bt); return Math.Abs(n - a) > 0.01 && bt > k0 - 0.1 ? new List<(L19bP, double)> { (L19bCone(ox, oy, n, half, len2), 0.45) } : new List<(L19bP, double)>(); }));
 				}
 				double fl = 1.25 * WN;
-				for (int i = 0; i < 7; i++)
+				for (int i = 0; i < 5; i++)
 				{
-					if (ez && i % 2 == 1) continue;
-					double kh = 225.5 + i, x = 1180 - i * 180, fy = cy + (i % 2 == 0 ? -34 : 34), ta = B(kh);
+					double kh = 222.5 + i, x = 1100 - i * 220, fy = cy + (i % 2 == 0 ? -34 : 34), ta = B(kh);
 					var prt = L19bL(L19bBar(x + 4, fy, x - 44, fy, 58 * TH), L19bDisc(x + 40, fy, 26 * TH));
-					atk(kh - fl, () => L19bAdd(t => prt, B(kh - fl), ta, ta + 1.2 * SPB));
+					atk(kh - fl, () => L19bAdd(t => prt, B(kh - fl), ta, Math.Min(ta + 1.2 * SPB, B(227.6))));
 				}
-			}
-			// midnight: twelve strikes, two a beat (Easy one), each a ring from the middle with its gap one hour on
-			{
-				double vr = 560 * SP, gh = (ez ? 36 : 30) * L19bD; int cnt = 0;
-				for (double kh = 232.5; kh < 238.4; kh += 0.5)
-				{
-					int i = cnt++; if (ez && i % 2 == 1) continue;
-					double ga = -Math.PI / 2 + ((i + 10) % 12) * TAU / 12, ta = B(kh);
-					atk(kh - 1.2 * WN, () => L19bAdd(t => L19bL(L19bGapRing(cx, cy, 40 + vr * Math.Max(0, t - ta), 22 * TH, ga, gh)), B(kh - 1.2 * WN), ta, ta + 1.3,
-						pre: t => L19bL(L19bGapRing(cx, cy, 280, 22 * TH, ga, gh))));
-				}
-				// the hands close on twelve like scissors
-				double k0 = 236.5, k1 = 239.2;
-				atk(k0 - 1.5, () => L19bAdd(t =>
-				{
-					double k = L19bE((BT(t) - k0) / (k1 - k0)), a = (60 - 58 * k) * L19bD;
-					return L19bL(L19bRay(cx, cy, -Math.PI / 2 + a, 0, 900, 20 * TH), L19bRay(cx, cy, -Math.PI / 2 - a, 0, 900, 20 * TH), L19bRay(cx, cy, Math.PI / 2 + a, 0, 900, 20 * TH), L19bRay(cx, cy, Math.PI / 2 - a, 0, 900, 20 * TH));
-				}, B(k0 - 1.5), B(k0), B(k1), pre: t => { double a = 60 * L19bD; return L19bL(L19bRay(cx, cy, -Math.PI / 2 + a, 0, 900, 20 * TH), L19bRay(cx, cy, -Math.PI / 2 - a, 0, 900, 20 * TH), L19bRay(cx, cy, Math.PI / 2 + a, 0, 900, 20 * TH), L19bRay(cx, cy, Math.PI / 2 - a, 0, 900, 20 * TH)); }));
 			}
 			fx(239.2, 0.5, 14, 1.8);
 		}
