@@ -188,7 +188,7 @@ public static partial class G
 	}
 	public static RpDoc botDoc(Level L, string m)
 	{
-		string k = L.id + m; if (botCache.TryGetValue(k, out var c)) return c;
+		string k = L.id + m + (L.isV51 ? "_v51" : ""); if (botCache.TryGetValue(k, out var c)) return c;
 		LoadBotRuns(); if (!BOT_RUNS.TryGetValue(k, out var R)) return null;
 		return botCache[k] = new RpDoc { r = R.r, v = R.v, hz = R.hz, segs = R.segs.Select(s => new RpSeg { cp = s.cp, seed = i32(s.seed), t0 = s.t0, n = s.n, b = unpackRp(s.d) }).ToList() };
 	}

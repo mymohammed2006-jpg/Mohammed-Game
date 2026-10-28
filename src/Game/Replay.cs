@@ -22,8 +22,8 @@ public class RpState
 public static partial class G
 {
 	public const int RP_MAX_SEGS = 100, RP_MAX_BYTES = 900000;
-	public const int RP_V = 6;   // 4 = recorded with fixed steps (v41); 1-3 play back the old way; 5 (v44) = every gap is a death (pause "back to the last save" counts one);
-	                             // 6 (v51) = the keepNew attacks come back after a death (Play.cs beginRun)
+	public const int RP_V = 7;   // 4 = recorded with fixed steps (v41); 1-3 play back the old way; 5 (v44) = every gap is a death (pause "back to the last save" counts one);
+	                             // 6 (v51) = the keepNew attacks come back after a death (Play.cs beginRun); 7 (v52) = the levels with new attacks (older ones play their v51 design, rpLevel)
 	public static readonly RpState rp = new();
 	public static readonly double[] RP_RATES = { 0.25, 0.5, 0.75, 1, 1.5, 2 };
 	public const double RP_JUMP = 5, RP_SMALL = 1, RP_FINE = 0.1, RP_ST = 1.0 / 120;
@@ -63,9 +63,17 @@ public static partial class G
 		fireEvents(t); stepHazards(t, STEP); hazards = hazards.Where(h => !h.dead).ToList();
 	}
 	public static void rpSeg(int i) => rpGo(i);
+	// the level a replay plays on: a player's replay from before v52 (v < 7) on the old design of a level whose attacks changed; the bot's runs are always on the current one
+	public static Level rpLevel()
+	{
+		var L = rp.L; if (rp.bot || rp.plat || rp.doc == null || rp.doc.v >= 7 || L.v51 == null) return L;
+		var O = L.v51; O.buf = L.buf; O.hc = L.hc; O.boss = L.boss; O.best = L.best; O.bestE = L.bestE; return O;
+	}
 	public static void rpStart()
 	{
-		rp.saveEasy = easy; easy = rp.m == "e"; cur = rp.L; levelTiming(rp.L); hitsTotal = 0; deaths = 0; rp.paused = false; rp.rate = rp.local && rp.rate0 > 0 ? rp.rate0 : 1; rp.barT = 4;
+		rp.saveEasy = easy; easy = rp.m == "e"; cur = rpLevel(); levelTiming(cur);
+		if (cur.isV51 && rp.prBot != null) rp.prBot = botDoc(cur, rp.m) ?? rp.prBot;   // a practice replay follows the bot run of its time
+		hitsTotal = 0; deaths = 0; rp.paused = false; rp.rate = rp.local && rp.rate0 > 0 ? rp.rate0 : 1; rp.barT = 4;
 		rpCutPrep(rp.local ? rpCutSegs(rp.doc.segs, rp.doc.hz, s => B(s.cp - 2)) : null);
 		rpTimeline(); rpSeg(0);
 	}
@@ -114,7 +122,7 @@ public static partial class G
 		bool wasPaused = rp.paused; if (wasPaused) rpPause(false);
 		rpGo(j, T); if (wasPaused) rpPause(true);
 	}
-	public static void exitReplay() { stopMusic(); player = null; hazards = new List<Hz>(); particles = new List<Particle>(); gloom = gloomT = 0; easy = rp.saveEasy; rp.paused = false; state = rp.bot || rp.local ? rp.back : "profile"; if (rp.plat) plRpExit(); rp.bot = rp.local = rp.plat = rp.pr = rp.team = false; rp.rate0 = 1; rp.prBot = null; rp.cutOk = rp.cutOn = false; rp.full = rp.cut = null; actx.resume(); }
+	public static void exitReplay() { stopMusic(); player = null; hazards = new List<Hz>(); particles = new List<Particle>(); gloom = gloomT = 0; easy = rp.saveEasy; if (cur != null && cur.isV51) cur = rp.L; rp.paused = false; state = rp.bot || rp.local ? rp.back : "profile"; if (rp.plat) plRpExit(); rp.bot = rp.local = rp.plat = rp.pr = rp.team = false; rp.rate0 = 1; rp.prBot = null; rp.cutOk = rp.cutOn = false; rp.full = rp.cut = null; actx.resume(); }
 	// where the whole replay is (all attempts back to back), in seconds
 	public static double rpPos()
 	{
