@@ -5,15 +5,15 @@ using static MG.JS;
 
 namespace MG;
 
-// L16 "عين بعين" (Hussam Al-Rassam), the third design (v52, his words 10-28: build it again): the shanasheel of an old Baghdad house at night.
-// Everything is the geometry of the house: the wooden lattice of its windows, the star-and-cross tiles of its courtyard, the arches of its
-// arcade and the rosette under its dome.
-// Part 1 the window: lattice slats rocking with the song, the whole window over the room (you live in its holes; it jumps half a hole on
-// "ابدلك"), eight-pointed star rings with a gap, two round windows face to face ("عين بعين") turning around each other, the rosette.
-// Part 2 the house: the courtyard floor (stars, then crosses, then only one star is safe), the arcades falling through the room, the
-// traitor's dagger aimed at you, and the doors closing on you ("تحرم عليه") with one slit left.
-// Part 3 the dome: its ribs turning, the round windows again, the rosette, the floor, the arcades from all sides, the star shots that go out
-// and come back to the middle ("تالي تجيني"), and at the end the star rings closing in on the middle.
+// L16 "عين بعين" (Hussam Al-Rassam), the third design (v52, his words 10-28: build it again; the part 3 is a fight against the girl).
+// The story of the song: she left him, married another and now tells him "forget me, I can replace you".
+// Part 1 "جنتي تموت" the garden: a rose drawn by a pen that you live inside, its petals falling one by one, three roses that change
+// places ("ابدلك"), thorn vines growing in lanes, two roses face to face ("عين بعين"), and the last rose opening wide.
+// Part 2 the mirror they looked in: it cracks where it is hit (the cracks run to the edges), pieces of it fall on you (their shadow shows
+// first) and break into splinters, cuts open across the whole mirror, and at the end it breaks.
+// Part 3 the bride: she stands in her wedding dress and fights with what a wedding has: the coins thrown over a bride (نثر), the two
+// wedding rings spinning like coins, her veil's lace sweeping the room (pass through its holes), her bouquet thrown at you that opens
+// into a rose, her dance (the rose of her skirt), and the rings that go and come back ("تالي تجيني").
 // Every hazard is a pure function of time once it exists (aimed ones also of where the square was when they locked), so hit(p, t) is right
 // for any later t. The data is data/dodge_L16.json (made by tools/level16/gen.py). The second design (v49-v51) is L16.cs + data/dodge_L16_v51.json.
 public static partial class G
@@ -23,6 +23,7 @@ public static partial class G
 	static string L16bG(double a) => GREY + str(clamp(a, 0, 1)) + ")";
 	static string L16bP(double a) => "rgba(255,42,109," + str(clamp(a, 0, 1)) + ")";
 	static string L16bAu(double a) => "rgba(255,196,96," + str(clamp(a, 0, 1)) + ")";
+	const string L16bLt = "rgba(255,150,185,1)";   // the light pink of the shine on the attacks (still pink)
 	static double L16bM(Player p) => p.r - 2;   // how much of the square counts on top of an attack's own size
 	static void L16bGlow(double b) { g.shadowColor = PINK; g.shadowBlur = b; }
 	static double L16bSeg(double px, double py, double x0, double y0, double x1, double y1)
@@ -31,6 +32,7 @@ public static partial class G
 		return hypot(px - x0 - u * dx, py - y0 - u * dy);
 	}
 	static double L16bMod(double a, double n) => a - n * Math.Floor(a / n);
+	static double L16bWrap(double a) => L16bMod(a + Math.PI, TAU) - Math.PI;
 	// a beat program: the sum of eased steps (beat, amount...) that each take d beats; col picks the amount
 	static double L16bSteps(double[] st, int stride, int col, double b, double d)
 	{
@@ -64,26 +66,254 @@ public static partial class G
 		for (int i = 0, j = n - 1; i < n; j = i++) if (L16bSeg(px, py, P[j].x, P[j].y, P[i].x, P[i].y) < m) return true;
 		return false;
 	}
-	static void L16bPath(IList<(double x, double y)> P) { g.moveTo(P[0].x, P[0].y); for (int i = 1; i < P.Count; i++) g.lineTo(P[i].x, P[i].y); g.closePath(); }
-	// the eight-pointed star (two squares, one turned 45 degrees): its 16 corners, tips at R (k even), the corners between at 0.7654 R
-	static List<(double x, double y)> L16bStarPts(double x, double y, double R, double rot)
+	static void L16bPath(IList<(double x, double y)> P, bool close = true) { g.moveTo(P[0].x, P[0].y); for (int i = 1; i < P.Count; i++) g.lineTo(P[i].x, P[i].y); if (close) g.closePath(); }
+	static bool L16bNearLine(double px, double py, IList<(double x, double y)> P, double lim)
 	{
-		var P = new List<(double x, double y)>(16);
-		for (int k = 0; k < 16; k++) { double a = rot + k * Math.PI / 8, r = k % 2 == 0 ? R : R * 0.76537; P.Add((x + r * JS.cos(a), y + r * JS.sin(a))); }
-		return P;
+		for (int i = 1; i < P.Count; i++) if (L16bSeg(px, py, P[i - 1].x, P[i - 1].y, P[i].x, P[i].y) < lim) return true;
+		return false;
 	}
-	// is (x, y) (from the star's middle, unturned) in the eight-pointed star whose squares have half-side A
-	static bool L16bInStar(double x, double y, double A)
+	// a small seeded random (the same cracks and pieces every run)
+	static double L16bRnd(ref uint s) { s = s * 1664525u + 1013904223u; return (s >> 8) / 16777216.0; }
+
+	// a harmless hazard drawing an attack's warning (draws before every attack, so it never covers one) till t1
+	static Hz L16bWarn(string kind, Action<double> draw, double t1)
 	{
-		if (A <= 0) return false;
-		if (Math.Abs(x) < A && Math.Abs(y) < A) return true;
-		double q = A * 1.41421356; return Math.Abs(x + y) < q && Math.Abs(x - y) < q;
+		var h = new Hz { kind = kind }; h.update = (t, dt) => { if (t >= t1) h.dead = true; }; h.draw = draw; return h;
 	}
 
-	// ---------- the house (harmless) ----------
+	// ---------- the rose (rhodonea r = R cos(n u / 2)) ----------
+	// petal k of an n-petal rose round (cx, cy) with its axis at ax: from the middle out to R and back, u0..u1 of it (-1..1 = all of it)
+	static List<(double x, double y)> L16bPetalPts(double cx, double cy, int n, double R, double ax, int seg, double u0 = -1, double u1 = 1)
+	{
+		var P = new List<(double x, double y)>(seg + 1); double hw = Math.PI / n;
+		for (int i = 0; i <= seg; i++) { double u = hw * (u0 + (u1 - u0) * i / seg), r = R * Math.Cos(n * u / 2), th = ax + u; P.Add((cx + r * JS.cos(th), cy + r * JS.sin(th))); }
+		return P;
+	}
+	// is (px, py) within lim of the rose's line; f (0..1) is how much of it is drawn (petal by petal), gone: petals that fell
+	static bool L16bRoseHit(double px, double py, double cx, double cy, int n, double R, double a, double lim, double f = 1, ulong gone = 0)
+	{
+		double dx = px - cx, dy = py - cy, d = hypot(dx, dy); if (d > R + lim || R < 2) return false;
+		double fa = Math.Atan2(dy, dx), fn = f * n;
+		for (int k = 0; k < n; k++)
+		{
+			if ((gone >> k & 1) != 0 || fn <= k) continue;
+			double ax = a + k * TAU / n;
+			if (d > 3 * lim && Math.Abs(L16bWrap(fa - ax)) > Math.PI / n + lim / d + 0.05) continue;
+			if (L16bNearLine(px, py, L16bPetalPts(cx, cy, n, R, ax, 40, -1, Math.Min(1, -1 + 2 * (fn - k))), lim)) return true;
+		}
+		return false;
+	}
+	static void L16bRosePath(double cx, double cy, int n, double R, double a, double f = 1, ulong gone = 0)
+	{
+		double fn = f * n;
+		for (int k = 0; k < n; k++)
+		{
+			if ((gone >> k & 1) != 0 || fn <= k) continue;
+			L16bPath(L16bPetalPts(cx, cy, n, R, a + k * TAU / n, 40, -1, Math.Min(1, -1 + 2 * (fn - k))), false);
+		}
+	}
+	// where the pen is when f of the rose is drawn
+	static (double x, double y) L16bRosePen(double cx, double cy, int n, double R, double a, double f)
+	{
+		double fn = Math.Min(f * n, n - 1e-6); int k = (int)Math.Floor(fn); double u = Math.PI / n * (-1 + 2 * (fn - k)), r = R * Math.Cos(n * u / 2), th = a + k * TAU / n + u;
+		return (cx + r * JS.cos(th), cy + r * JS.sin(th));
+	}
+
+	// ---------- the bride ----------
+	// drawn round her face at (x, y); al her alpha, sc her size; she looks at (lx, ly)
+	static void L16bBride(double x, double y, double t, double al, double sc, double lx, double ly)
+	{
+		if (al <= 0.01) return;
+		g.save(); g.globalAlpha = al; g.translate(x, y); g.scale(sc, sc);
+		double sw = JS.sin(t * 1.6), sw2 = JS.sin(t * 1.1 + 1.3);
+		const string SKIN = "rgba(238,203,182,1)", HAIR = "rgba(30,16,22,1)", GOLD = "rgba(232,184,96,1)";
+		// the light round her
+		var au = g.createRadialGradient(0, 140, 30, 0, 140, 330); au.addColorStop(0, "rgba(255,236,206,0.22)"); au.addColorStop(1, "rgba(255,236,206,0)");
+		g.fillStyle = au; g.fillRect(-340, -200, 680, 600);
+		// the veil behind her, from the crown down past the hem, its lace edge waving
+		{
+			var P = new List<(double x, double y)>(); P.Add((-12, -32));
+			for (int i = 0; i <= 14; i++) { double k = i / 14.0; P.Add((-16 - 60 * k - 120 * k * k + 10 * sw * k, -32 + 360 * k)); }
+			for (int i = 0; i <= 16; i++) { double k = i / 16.0; P.Add((-196 + 10 * sw + 392 * k, 328 + 10 * JS.sin(k * 9 + t * 1.4))); }
+			for (int i = 14; i >= 0; i--) { double k = i / 14.0; P.Add((16 + 60 * k + 120 * k * k + 10 * sw * k, -32 + 360 * k)); }
+			var vg = g.createLinearGradient(0, -30, 0, 340); vg.addColorStop(0, "rgba(255,252,248,0.42)"); vg.addColorStop(1, "rgba(240,236,255,0.16)");
+			g.fillStyle = vg; g.beginPath(); L16bPath(P); g.fill();
+			g.strokeStyle = "rgba(255,250,240,0.55)"; g.lineWidth = 1.5; g.stroke();
+			// the lace edge: little scallops and dots along the hem of the veil
+			g.strokeStyle = "rgba(255,250,240,0.6)"; g.lineWidth = 1.4; g.beginPath();
+			for (int i = 0; i < 16; i++) { double k = (i + 0.5) / 16, xx = -196 + 10 * sw + 392 * k, yy = 328 + 10 * JS.sin(k * 9 + t * 1.4); g.moveTo(xx + 11, yy); g.arc(xx, yy, 11, 0, Math.PI); }
+			g.stroke();
+			g.fillStyle = "rgba(255,252,246,0.5)";
+			for (int i = 0; i < 26; i++) { double k = 0.15 + 0.8 * ((i * 0.618) % 1), side = i % 2 == 0 ? -1 : 1, xx = side * (30 + 120 * k * k + 40 * ((i * 0.37) % 1)) + 10 * sw * k, yy = -10 + 330 * k; circle(xx, yy, 1.6); }
+		}
+		// the long hair down her back
+		g.fillStyle = HAIR;
+		for (int s = -1; s <= 1; s += 2)
+		{
+			g.beginPath(); g.moveTo(s * 10, -26); g.bezierCurveTo(s * 40, -20, s * 44, 30, s * (46 + 3 * sw2), 90);
+			g.quadraticCurveTo(s * (44 + 4 * sw2), 128, s * (32 + 3 * sw), 132); g.quadraticCurveTo(s * 30, 100, s * 24, 70); g.lineTo(s * 14, 10); g.closePath(); g.fill();
+		}
+		// the gown: three tiers, the lowest first, each with a scalloped hem, gold embroidery and pearls
+		void Tier(double y0, double w0, double y1, double w1, int nsc, double sway, double shade)
+		{
+			double hgt = y1 - y0;
+			g.beginPath(); g.moveTo(-w0, y0);
+			g.bezierCurveTo(-w0 - (w1 - w0) * 0.15, y0 + hgt * 0.35, -w1 + sway, y1 - hgt * 0.35, -w1 + sway, y1);
+			for (int i = 0; i < nsc; i++)
+			{
+				double xa = -w1 + 2 * w1 * i / nsc + sway, xb = -w1 + 2 * w1 * (i + 1) / nsc + sway;
+				g.quadraticCurveTo((xa + xb) / 2, y1 + 16, xb, y1);
+			}
+			g.bezierCurveTo(w1 + sway, y1 - hgt * 0.35, w0 + (w1 - w0) * 0.15, y0 + hgt * 0.35, w0, y0); g.closePath();
+			var gr = g.createLinearGradient(-w1, 0, w1, 0);
+			gr.addColorStop(0, "rgba(" + (int)(212 * shade) + "," + (int)(206 * shade) + "," + (int)(224 * shade) + ",1)");
+			gr.addColorStop(0.42, "rgba(255,253,250,1)"); gr.addColorStop(0.6, "rgba(250,247,244,1)");
+			gr.addColorStop(1, "rgba(" + (int)(196 * shade) + "," + (int)(190 * shade) + "," + (int)(210 * shade) + ",1)");
+			g.fillStyle = gr; g.fill(); g.strokeStyle = "rgba(190,180,204,0.7)"; g.lineWidth = 1.2; g.stroke();
+			// the folds
+			g.strokeStyle = "rgba(180,172,198,0.35)"; g.lineWidth = 1.2; g.beginPath();
+			for (int i = 1; i < nsc; i++) { double k = (double)i / nsc, xt = -w0 + 2 * w0 * k, xb = -w1 + 2 * w1 * k + sway; g.moveTo(xt, y0 + 4); g.quadraticCurveTo((xt + xb) / 2 + 6 * sw2, (y0 + y1) / 2, xb, y1 + 6); }
+			g.stroke();
+			// the gold embroidery over the scallops: a curl in each and a pearl where two meet
+			g.strokeStyle = GOLD; g.lineWidth = 1.4; g.beginPath();
+			for (int i = 0; i < nsc; i++)
+			{
+				double xm = -w1 + 2 * w1 * (i + 0.5) / nsc + sway;
+				g.moveTo(xm - 7, y1 - 2); g.quadraticCurveTo(xm, y1 - 14, xm + 7, y1 - 2); g.moveTo(xm + 3, y1 - 6); g.arc(xm, y1 - 6, 3, 0, TAU);
+			}
+			g.stroke();
+			g.fillStyle = "rgba(255,255,252,1)";
+			for (int i = 0; i <= nsc; i++) circle(-w1 + 2 * w1 * i / nsc + sway, y1 - 1, 2.4);
+			// a line of gold leaves round the top of the tier
+			g.strokeStyle = "rgba(232,184,96,0.75)"; g.lineWidth = 1; g.beginPath();
+			double yl = y1 - hgt * 0.18, wl = w0 + (w1 - w0) * 0.78; for (int i = 0; i < nsc * 2; i++) { double xx = -wl + 2 * wl * (i + 0.5) / (nsc * 2) + sway * 0.8; g.moveTo(xx - 3, yl); g.quadraticCurveTo(xx, yl - 6, xx + 3, yl); }
+			g.stroke();
+		}
+		Tier(106, 26, 300, 152, 11, 9 * sw, 0.9);
+		Tier(106, 25, 246, 124, 9, 6 * sw, 0.95);
+		Tier(106, 24, 186, 94, 7, 3 * sw, 1.0);
+		// shoulders, neck and arms (off the shoulder)
+		g.fillStyle = SKIN; g.beginPath(); g.moveTo(-7, 14); g.lineTo(7, 14); g.lineTo(8, 40); g.quadraticCurveTo(30, 44, 44, 54); g.lineTo(30, 62); g.lineTo(-30, 62); g.lineTo(-44, 54); g.quadraticCurveTo(-30, 44, -8, 40); g.closePath(); g.fill();
+		g.strokeStyle = SKIN; g.lineCap = "round"; g.lineJoin = "round"; g.lineWidth = 10;
+		g.beginPath(); g.moveTo(-42, 58); g.quadraticCurveTo(-48, 86, -36, 104); g.lineTo(-10, 124); g.moveTo(42, 58); g.quadraticCurveTo(48, 86, 36, 104); g.lineTo(10, 124); g.stroke();
+		// the lace sleeves over the arms
+		g.strokeStyle = "rgba(255,252,248,0.4)"; g.lineWidth = 14;
+		g.beginPath(); g.moveTo(-42, 60); g.quadraticCurveTo(-48, 86, -36, 104); g.lineTo(-14, 121); g.moveTo(42, 60); g.quadraticCurveTo(48, 86, 36, 104); g.lineTo(14, 121); g.stroke();
+		g.lineCap = "butt"; g.lineJoin = "miter";
+		g.fillStyle = "rgba(255,255,255,0.75)";
+		for (int i = 0; i < 9; i++) { double k = i / 8.0; foreach (int s in new[] { -1, 1 }) circle(s * (k < 0.55 ? 44 - 4 * JS.sin(k * 5.7) : 36 - 44 * (k - 0.55)), 62 + 60 * k, 1.3); }
+		// the bodice: a sweetheart neckline, gold lace lines down to the waist, the belt with its jewel
+		g.beginPath(); g.moveTo(-31, 58); g.quadraticCurveTo(-17, 46, 0, 60); g.quadraticCurveTo(17, 46, 31, 58);
+		g.bezierCurveTo(34, 76, 26, 94, 24, 110); g.lineTo(-24, 110); g.bezierCurveTo(-26, 94, -34, 76, -31, 58); g.closePath();
+		var bg = g.createLinearGradient(-32, 0, 32, 0); bg.addColorStop(0, "rgba(214,208,226,1)"); bg.addColorStop(0.45, "rgba(255,253,250,1)"); bg.addColorStop(1, "rgba(204,198,218,1)");
+		g.fillStyle = bg; g.fill(); g.strokeStyle = "rgba(190,180,204,0.8)"; g.lineWidth = 1; g.stroke();
+		g.strokeStyle = "rgba(232,184,96,0.85)"; g.lineWidth = 1.1; g.beginPath();
+		for (int i = -2; i <= 2; i++) { g.moveTo(i * 11, 58 - Math.Abs(i) * 2); g.quadraticCurveTo(i * 7 + 3 * JS.sin(i), 84, i * 3, 104); }
+		g.stroke();
+		g.fillStyle = "rgba(255,255,252,0.95)"; for (int i = 0; i < 7; i++) circle(-15 + 5 * i, 66 + 5 * JS.sin(i * 1.3), 1.2);
+		var bl = g.createLinearGradient(0, 104, 0, 114); bl.addColorStop(0, "rgba(255,222,150,1)"); bl.addColorStop(1, "rgba(200,140,60,1)");
+		g.fillStyle = bl; g.beginPath(); g.roundRect(-26, 104, 52, 9, 4); g.fill();
+		g.fillStyle = "rgba(250,250,255,1)"; g.beginPath(); g.moveTo(0, 101); g.lineTo(7, 108.5); g.lineTo(0, 116); g.lineTo(-7, 108.5); g.closePath(); g.fill();
+		g.fillStyle = "rgba(60,170,160,1)"; circle(0, 108.5, 2.6);
+		// the pearl necklace
+		for (int i = 0; i < 11; i++) { double k = (i - 5) / 5.0, px2 = k * 13, py2 = 38 + 8 * (1 - k * k); g.fillStyle = "rgba(250,248,244,1)"; circle(px2, py2, 2.3); g.fillStyle = "rgba(255,255,255,1)"; circle(px2 - 0.7, py2 - 0.7, 0.8); }
+		// the bouquet of white roses at her waist, its ribbons hanging
+		g.strokeStyle = "rgba(255,248,232,0.85)"; g.lineWidth = 3;
+		g.beginPath(); g.moveTo(-3, 132); g.bezierCurveTo(-10 + 5 * sw, 160, 4 + 6 * sw2, 180, -6 + 8 * sw, 206); g.moveTo(3, 132); g.bezierCurveTo(12 + 5 * sw2, 158, 2 + 6 * sw, 182, 12 + 8 * sw2, 200); g.stroke();
+		g.fillStyle = "rgba(46,92,60,1)";
+		for (int i = 0; i < 7; i++) { double an = -Math.PI / 2 + (i - 3) * 0.5; g.beginPath(); g.ellipse(26 * JS.cos(an) * 0.9, 124 + 18 * JS.sin(an) + 14, 9, 4, an, 0, TAU); g.fill(); }
+		var rs = new (double x, double y)[] { (0, 112), (-13, 118), (13, 118), (-7, 128), (7, 128), (-17, 130), (17, 130), (0, 136) };
+		foreach (var (rx, ry) in rs)
+		{
+			g.fillStyle = "rgba(252,248,242,1)"; circle(rx, ry, 8.5);
+			g.strokeStyle = "rgba(200,188,186,0.9)"; g.lineWidth = 1; g.beginPath();
+			for (int j = 0; j < 3; j++) { double rr = 2 + j * 2.1; g.moveTo(rx + rr, ry); g.arc(rx, ry, rr, 0, Math.PI * 1.5); }
+			g.stroke();
+		}
+		// the face
+		var fg = g.createRadialGradient(-5, -6, 4, 0, 0, 28); fg.addColorStop(0, "rgba(248,220,202,1)"); fg.addColorStop(1, "rgba(222,184,162,1)");
+		g.fillStyle = fg; g.beginPath(); g.ellipse(0, 0, 19.5, 25, 0, 0, TAU); g.fill();
+		g.fillStyle = "rgba(240,160,140,0.18)"; circle(-11, 8, 5); circle(11, 8, 5);
+		// the eyes: kohl, long lashes; she blinks, and she looks at you
+		double bl0 = L16bMod(t, 3.7), open = bl0 < 0.14 ? 0.15 : 1, ldx = lx - x, ldy = ly - y - 40, ll = Math.Max(1, hypot(ldx, ldy)), ex = 1.3 * ldx / ll, ey = 0.8 * ldy / ll;
+		for (int s = -1; s <= 1; s += 2)
+		{
+			double cx2 = s * 8, cy2 = -2;
+			g.fillStyle = "rgba(252,250,248,1)"; g.beginPath(); g.ellipse(cx2, cy2, 5.4, 2.8 * open, 0, 0, TAU); g.fill();
+			if (open > 0.5)
+			{
+				g.fillStyle = "rgba(70,40,26,1)"; circle(cx2 + ex, cy2 + ey, 2.6);
+				g.fillStyle = "rgba(10,6,6,1)"; circle(cx2 + ex, cy2 + ey, 1.3);
+				g.fillStyle = "rgba(255,255,255,0.95)"; circle(cx2 + ex - 0.8, cy2 + ey - 0.8, 0.7);
+			}
+			g.strokeStyle = "rgba(14,8,10,1)"; g.lineWidth = 1.7; g.beginPath();
+			g.moveTo(cx2 - s * 5.6, cy2 + 0.4); g.quadraticCurveTo(cx2, cy2 - 3.6 * open - 0.4, cx2 + s * 5.6, cy2 - 0.2); g.lineTo(cx2 + s * 8.4, cy2 - 2.4); g.stroke();
+			g.lineWidth = 0.8; g.beginPath(); g.moveTo(cx2 - s * 4.6, cy2 + 1.2); g.quadraticCurveTo(cx2, cy2 + 3.4 * open, cx2 + s * 5, cy2 + 0.8); g.stroke();
+			g.lineWidth = 0.9; g.beginPath();
+			for (int j = 0; j < 5; j++) { double lxx = cx2 + s * (-2 + j * 1.8), lyy = cy2 - 2.7 * open - 0.3; g.moveTo(lxx, lyy); g.lineTo(lxx + s * (1 + j * 0.4), lyy - 2.2 - j * 0.2); }
+			g.stroke();
+			g.strokeStyle = "rgba(48,26,22,1)"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(cx2 - s * 5, cy2 - 6.5); g.quadraticCurveTo(cx2 + s * 1, cy2 - 9.6, cx2 + s * 7, cy2 - 7); g.stroke();
+		}
+		g.strokeStyle = "rgba(176,124,110,0.6)"; g.lineWidth = 1; g.beginPath(); g.moveTo(0.5, 0); g.quadraticCurveTo(-1.6, 6, 0, 8.5); g.moveTo(-2.4, 8.6); g.quadraticCurveTo(0, 9.8, 2.4, 8.6); g.stroke();
+		// the lips
+		g.fillStyle = "rgba(126,26,40,1)"; g.beginPath(); g.moveTo(-6, 14); g.quadraticCurveTo(-3, 11.4, 0, 12.8); g.quadraticCurveTo(3, 11.4, 6, 14); g.quadraticCurveTo(0, 19.4, -6, 14); g.closePath(); g.fill();
+		g.strokeStyle = "rgba(80,14,24,0.9)"; g.lineWidth = 0.7; g.beginPath(); g.moveTo(-5.6, 14); g.quadraticCurveTo(0, 15.2, 5.6, 14); g.stroke();
+		g.fillStyle = "rgba(255,220,220,0.4)"; g.beginPath(); g.ellipse(1.4, 16.2, 2, 0.8, 0, 0, TAU); g.fill();
+		// the hair over the forehead (parted), the locks by her face, the bun under the veil
+		g.fillStyle = HAIR; circle(0, -27, 13);
+		g.beginPath(); g.moveTo(0, -24); g.bezierCurveTo(-16, -26, -24, -14, -22, 4); g.quadraticCurveTo(-25, 20, -21 + sw2, 36); g.quadraticCurveTo(-18, 22, -18, 4);
+		g.bezierCurveTo(-18, -10, -10, -16, 0, -18); g.bezierCurveTo(10, -16, 18, -10, 18, 4); g.quadraticCurveTo(18, 22, 21 + sw2, 36); g.quadraticCurveTo(25, 20, 22, 4); g.bezierCurveTo(24, -14, 16, -26, 0, -24); g.closePath(); g.fill();
+		g.strokeStyle = "rgba(90,56,60,0.6)"; g.lineWidth = 0.8; g.beginPath(); g.moveTo(-2, -22); g.quadraticCurveTo(-14, -18, -19, -2); g.moveTo(2, -22); g.quadraticCurveTo(14, -18, 19, -2); g.stroke();
+		// the earrings
+		for (int s = -1; s <= 1; s += 2)
+		{
+			double ex2 = s * 19.5, sway = 1.2 * sw2;
+			g.strokeStyle = GOLD; g.lineWidth = 1; g.beginPath(); g.moveTo(ex2, 6); g.lineTo(ex2 + sway, 14); g.stroke();
+			g.fillStyle = GOLD; circle(ex2 + sway, 15, 2.4); g.fillStyle = "rgba(252,250,246,1)"; circle(ex2 + sway, 19.5, 2.6);
+		}
+		// the tiara, its stones catching the light
+		g.strokeStyle = GOLD; g.lineWidth = 1.6; g.beginPath(); g.moveTo(-18, -20);
+		for (int i = 0; i <= 8; i++) { double xx = -18 + 36 * i / 8.0, yy = -22 - (i % 2 == 0 ? 3 : 0) - (i == 4 ? 9 : i == 2 || i == 6 ? 4 : 0) - 2 * (1 - Math.Abs(i - 4) / 4.0); g.lineTo(xx, yy); }
+		g.stroke();
+		g.fillStyle = "rgba(255,255,255,1)"; for (int i = 0; i <= 8; i += 2) circle(-18 + 36 * i / 8.0, -24 - (i == 4 ? 9 : i == 2 || i == 6 ? 4 : 0) - 2 * (1 - Math.Abs(i - 4) / 4.0), i == 4 ? 2.6 : 1.6);
+		g.fillStyle = "rgba(70,190,180,1)"; circle(0, -35.5, 1.4);
+		for (int i = 0; i < 3; i++)
+		{
+			double tw = 0.5 + 0.5 * JS.sin(t * 3 + i * 2.1); if (tw < 0.6) continue;
+			double sx = -9 + 9 * i, sy = -30 - (i == 1 ? 8 : 2), sl = 4 * tw; g.strokeStyle = "rgba(255,255,255," + str(tw) + ")"; g.lineWidth = 0.9;
+			g.beginPath(); g.moveTo(sx - sl, sy); g.lineTo(sx + sl, sy); g.moveTo(sx, sy - sl); g.lineTo(sx, sy + sl); g.stroke();
+		}
+		// the veil over her head (sheer), its lace edge down to the shoulders
+		g.fillStyle = "rgba(255,252,248,0.2)"; g.beginPath(); g.moveTo(-26, -18); g.quadraticCurveTo(0, -46, 26, -18); g.quadraticCurveTo(34, 20, 46 + 4 * sw, 64); g.lineTo(34, 66); g.quadraticCurveTo(26, 20, 20, -10);
+		g.quadraticCurveTo(0, -30, -20, -10); g.quadraticCurveTo(-26, 20, -34, 66); g.lineTo(-46 + 4 * sw, 64); g.quadraticCurveTo(-34, 20, -26, -18); g.closePath(); g.fill();
+		g.strokeStyle = "rgba(255,252,246,0.55)"; g.lineWidth = 1; g.stroke();
+		// the sparkles on the gown
+		for (int i = 0; i < 18; i++)
+		{
+			double tw = JS.sin(t * 2.3 + i * 1.7); if (tw < 0.55) continue;
+			double k = (i * 0.618) % 1, yy = 120 + 170 * k, xx = (((i * 0.383) % 1) * 2 - 1) * (40 + 120 * k), sl = 3.5 * tw;
+			g.strokeStyle = "rgba(255,246,220," + str(tw) + ")"; g.lineWidth = 1; g.beginPath(); g.moveTo(xx - sl, yy); g.lineTo(xx + sl, yy); g.moveTo(xx, yy - sl); g.lineTo(xx, yy + sl); g.stroke();
+		}
+		g.restore();
+	}
+	// where the bride is at beat b: bp is (beat, x, y, beats to get there)...; she starts at the first one
+	static (double x, double y) L16bBrideAt(double[] bp, double b)
+	{
+		if (bp.Length < 4) return (W / 2, 150);
+		double x = bp[1], y = bp[2];
+		for (int i = 4; i + 3 < bp.Length; i += 4)
+		{
+			double k = L16bS(L16bK(b, bp[i], bp[i] + Math.Max(0.01, bp[i + 3]))); if (k <= 0) break;
+			x += (bp[i + 1] - x) * k; y += (bp[i + 2] - y) * k;
+		}
+		return (x, y);
+	}
+
+	// ---------- the stage (harmless) ----------
 	// One hazard for the whole level, made first (and first again after a checkpoint); veil: every attack is drawn after it.
-	// Part k runs from beat pb[k-1]: 1 the window at night (the moon, the wooden frames), 2 the courtyard (tiles, the arcade), 3 under the dome
-	public static Hz L16bStage(double[] pb, double t1)
+	// Part k runs from beat pb[k-1]: 1 the garden at night, 2 the room with the mirror (it cracks on the beats in mc), 3 the wedding hall
+	// with the bride (where bp says; she comes at pb[2] and goes at the end)
+	public static Hz L16bStage(double[] pb, double t1, double[] bp, double[] mc)
 	{
 		var h = new Hz { kind = "L16bStage", veil = true };
 		h.update = (t, dt) => { if (t > t1 + 1) h.dead = true; };
@@ -96,605 +326,716 @@ public static partial class G
 				if (a > 0) Part(k + 1, a, t);
 			}
 		};
-		void Frame(double x, double y, double w, double hh, double t)
+		void Bush(double x, double y, double s, double t)
 		{
-			// a shanasheel window: the wooden frame, a pointed top, a faint lattice inside
-			g.strokeStyle = "rgba(120,78,46,0.55)"; g.lineWidth = 6; g.strokeRect(x, y, w, hh);
-			g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + w * 0.1, y - hh * 0.18, x + w / 2, y - hh * 0.3); g.quadraticCurveTo(x + w * 0.9, y - hh * 0.18, x + w, y); g.stroke();
-			g.save(); g.beginPath(); g.rect(x, y, w, hh); g.clip(); g.strokeStyle = L16bAu(0.07); g.lineWidth = 2; g.beginPath();
-			for (double d = -hh; d < w + hh; d += 34) { g.moveTo(x + d, y); g.lineTo(x + d + hh, y + hh); g.moveTo(x + d + hh, y); g.lineTo(x + d, y + hh); }
-			g.stroke(); g.restore();
+			// a rose bush in the dark: leaves and dead dark roses
+			g.fillStyle = "rgba(16,34,26,0.9)";
+			for (int i = 0; i < 9; i++) { double an = -Math.PI + i * Math.PI / 8, r = s * (0.7 + 0.3 * ((i * 0.53) % 1)); g.beginPath(); g.ellipse(x + r * JS.cos(an), y + r * 0.7 * JS.sin(an), s * 0.42, s * 0.26, an, 0, TAU); g.fill(); }
+			g.fillStyle = "rgba(62,14,28,0.95)";
+			for (int i = 0; i < 4; i++) { double an = -Math.PI * 0.85 + i * Math.PI * 0.23; circle(x + s * 0.65 * JS.cos(an), y + s * 0.5 * JS.sin(an) - 4 + 2 * JS.sin(t + i), s * 0.16); }
 		}
 		void Part(int part, double a, double t)
 		{
 			g.save(); g.globalAlpha = a;
-			g.fillStyle = part == 1 ? "rgba(10,8,26,0.78)" : part == 2 ? "rgba(8,16,24,0.78)" : "rgba(26,6,16,0.76)"; g.fillRect(0, 0, W, H);
 			if (part == 1)
 			{
-				g.fillStyle = "rgba(200,190,230,0.35)";
-				for (int i = 0; i < 40; i++) { double x = (i * 331.7) % W, y = (i * 157.3) % 300, tw = 0.5 + 0.5 * JS.sin(t * 1.3 + i); g.globalAlpha = a * (0.3 + 0.5 * tw); g.fillRect(x, y, 2, 2); }
+				var bgr = g.createLinearGradient(0, 0, 0, H); bgr.addColorStop(0, "rgba(6,8,22,0.86)"); bgr.addColorStop(1, "rgba(10,18,20,0.86)"); g.fillStyle = bgr; g.fillRect(0, 0, W, H);
+				g.fillStyle = "rgba(200,200,235,0.4)";
+				for (int i = 0; i < 46; i++) { double x = (i * 331.7) % W, y = (i * 157.3) % 330, tw = 0.5 + 0.5 * JS.sin(t * 1.3 + i); g.globalAlpha = a * (0.25 + 0.5 * tw); g.fillRect(x, y, 2, 2); }
 				g.globalAlpha = a;
-				g.fillStyle = "rgba(230,220,250,0.55)"; g.beginPath(); g.arc(640, 96, 40, 0, TAU); g.fill();
-				g.fillStyle = "rgba(10,8,26,1)"; g.beginPath(); g.arc(658, 86, 37, 0, TAU); g.fill();
-				Frame(40, 200, 220, 460, t); Frame(W - 260, 200, 220, 460, t);
+				var mg = g.createRadialGradient(1080, 110, 10, 1080, 110, 160); mg.addColorStop(0, "rgba(220,220,250,0.25)"); mg.addColorStop(1, "rgba(220,220,250,0)"); g.fillStyle = mg; g.fillRect(900, 0, 380, 300);
+				g.fillStyle = "rgba(232,228,250,0.6)"; circle(1080, 110, 36);
+				// the garden arch (a trellis) and the bushes round the edges
+				g.strokeStyle = "rgba(40,54,48,0.7)"; g.lineWidth = 8; g.beginPath(); g.moveTo(330, H); g.lineTo(330, 300); g.arc(640, 300, 310, Math.PI, 0); g.lineTo(950, H); g.stroke();
+				g.lineWidth = 2; g.strokeStyle = "rgba(40,54,48,0.45)"; g.beginPath(); for (int i = 0; i < 9; i++) { double an = Math.PI + i * Math.PI / 8; g.moveTo(640 + 290 * JS.cos(an), 300 + 290 * JS.sin(an)); g.lineTo(640 + 330 * JS.cos(an), 300 + 330 * JS.sin(an)); } g.stroke();
+				for (int i = 0; i < 8; i++) Bush(80 + i * 160 + (i % 2) * 20, H - 20 - (i % 3) * 10, 60 + (i % 3) * 10, t);
+				Bush(60, 300, 50, t); Bush(W - 60, 330, 54, t);
+				// fireflies
+				for (int i = 0; i < 16; i++) { double x = (i * 211.3 + 40 * JS.sin(t * 0.5 + i)) % W, y = 200 + (i * 97.1) % 440 + 25 * JS.sin(t * 0.8 + i * 2), tw = 0.5 + 0.5 * JS.sin(t * 2 + i); g.fillStyle = L16bAu(0.15 + 0.4 * tw); circle(x, y, 2.2); }
+				// fallen petals on the ground
+				g.fillStyle = "rgba(110,76,92,0.4)";
+				for (int i = 0; i < 30; i++) { double x = (i * 173.9) % W, y = 520 + (i * 61.7) % 190; g.beginPath(); g.ellipse(x, y, 6, 3, i, 0, TAU); g.fill(); }
 			}
 			else if (part == 2)
 			{
-				// the courtyard: the tiles' lines, the arcade at the top and at the bottom, the fountain
-				g.strokeStyle = "rgba(70,110,130,0.16)"; g.lineWidth = 2; g.beginPath();
-				for (double x = 0; x <= W; x += 80) { g.moveTo(x, 0); g.lineTo(x, H); }
-				for (double y = 0; y <= H; y += 80) { g.moveTo(0, y); g.lineTo(W, y); }
+				g.fillStyle = "rgba(10,10,18,0.84)"; g.fillRect(0, 0, W, H);
+				// the wallpaper's faint pattern
+				g.strokeStyle = "rgba(90,90,120,0.1)"; g.lineWidth = 2; g.beginPath();
+				for (double x = 40; x < W; x += 120) for (double y = 40; y < H; y += 120) { g.moveTo(x + 14, y); g.arc(x, y, 14, 0, TAU); }
 				g.stroke();
-				g.fillStyle = "rgba(40,30,30,0.55)";
-				for (int s = 0; s < 2; s++)
-					for (double x = 0; x < W; x += 160)
+				// the big mirror: its glass shows her (faint, in white), and its cracks grow with every hit
+				const double mx = 640, my = 360, rx = 330, ry = 300;
+				g.save(); g.beginPath(); g.ellipse(mx, my, rx, ry, 0, 0, TAU); g.clip();
+				var gl = g.createLinearGradient(mx - rx, my - ry, mx + rx, my + ry); gl.addColorStop(0, "rgba(120,140,180,0.16)"); gl.addColorStop(0.5, "rgba(200,210,240,0.08)"); gl.addColorStop(1, "rgba(100,110,150,0.16)");
+				g.fillStyle = gl; g.fillRect(mx - rx, my - ry, 2 * rx, 2 * ry);
+				L16bBride(mx, my - 150, t, 0.1, 0.95, mx, my);
+				g.strokeStyle = "rgba(255,255,255,0.08)"; g.lineWidth = 30; g.beginPath(); double sh = L16bMod(t * 60, 1400) - 400; g.moveTo(mx - 500 + sh, my - 400); g.lineTo(mx - 200 + sh, my + 400); g.stroke();
+				double b = BT(t); g.strokeStyle = "rgba(170,180,215,0.16)"; g.lineWidth = 1.2; g.beginPath();
+				for (int i = 0; i < mc.Length; i++)
+				{
+					if (b < mc[i]) break;
+					uint s = (uint)(i * 7919 + 13); double cx = mx + (L16bRnd(ref s) - 0.5) * rx * 1.2, cy = my + (L16bRnd(ref s) - 0.5) * ry * 1.2;
+					for (int r = 0; r < 3; r++)
 					{
-						g.beginPath(); double y0 = s == 0 ? 0 : H, d = s == 0 ? 1 : -1;
-						g.moveTo(x, y0); g.lineTo(x + 160, y0); g.lineTo(x + 160, y0 + d * 60); g.lineTo(x + 140, y0 + d * 60);
-						g.quadraticCurveTo(x + 136, y0 + d * 22, x + 80, y0 + d * 14); g.quadraticCurveTo(x + 24, y0 + d * 22, x + 20, y0 + d * 60); g.lineTo(x, y0 + d * 60); g.closePath(); g.fill();
+						double an = r * TAU / 3 + L16bRnd(ref s), x = cx, y = cy; g.moveTo(x, y);
+						for (int j = 0; j < 4; j++) { an += (L16bRnd(ref s) - 0.5) * 0.7; x += 36 * JS.cos(an); y += 36 * JS.sin(an); g.lineTo(x, y); }
 					}
-				g.strokeStyle = "rgba(90,150,170,0.22)"; g.lineWidth = 3;
-				for (int i = 0; i < 3; i++) { double r = 60 + i * 40 + 30 * L16bMod(t * 0.6, 1); g.beginPath(); g.arc(640, 360, r, 0, TAU); g.stroke(); }
+				}
+				g.stroke(); g.restore();
+				// its gold frame with leaves
+				g.strokeStyle = "rgba(200,150,70,0.55)"; g.lineWidth = 14; g.beginPath(); g.ellipse(mx, my, rx + 8, ry + 8, 0, 0, TAU); g.stroke();
+				g.strokeStyle = "rgba(250,210,130,0.35)"; g.lineWidth = 2; g.beginPath(); g.ellipse(mx, my, rx + 16, ry + 16, 0, 0, TAU); g.stroke();
+				g.fillStyle = "rgba(210,160,80,0.45)";
+				for (int i = 0; i < 24; i++) { double an = i * TAU / 24; g.beginPath(); g.ellipse(mx + (rx + 20) * JS.cos(an), my + (ry + 20) * JS.sin(an), 9, 4, an + Math.PI / 2, 0, TAU); g.fill(); }
+				circle(mx, my - ry - 30, 14);
 			}
 			else
 			{
-				// under the dome: the tiers of muqarnas turning slowly, the gold dust
-				g.strokeStyle = L16bAu(0.08); g.lineWidth = 2;
-				for (int i = 1; i <= 6; i++)
+				// the wedding hall: dark velvet, the curtains, the aisle, the strings of lights, the chandelier, gold confetti, and her
+				var bgr = g.createLinearGradient(0, 0, 0, H); bgr.addColorStop(0, "rgba(26,8,20,0.86)"); bgr.addColorStop(1, "rgba(14,6,14,0.86)"); g.fillStyle = bgr; g.fillRect(0, 0, W, H);
+				g.fillStyle = "rgba(40,10,24,0.9)";
+				for (int s = 0; s < 2; s++)
 				{
-					double r = i * 120, rot = t * 0.04 * (i % 2 == 0 ? 1 : -1); var P = L16bStarPts(640, 360, r, rot);
-					g.beginPath(); L16bPath(P); g.stroke();
+					double x0 = s == 0 ? 0 : W, d = s == 0 ? 1 : -1; g.beginPath(); g.moveTo(x0, 0); g.lineTo(x0 + d * 170, 0);
+					g.quadraticCurveTo(x0 + d * 90, 260, x0 + d * 120 + d * 6 * JS.sin(t * 0.7 + s), H); g.lineTo(x0, H); g.closePath(); g.fill();
 				}
-				g.beginPath(); for (int k = 0; k < 16; k++) { double an = k * Math.PI / 8 + t * 0.02; g.moveTo(640, 360); g.lineTo(640 + 900 * JS.cos(an), 360 + 900 * JS.sin(an)); } g.stroke();
-				g.fillStyle = L16bAu(0.2);
-				for (int i = 0; i < 50; i++) { double x = (i * 211.7) % W + JS.sin(t * 0.7 + i) * 20, y = H - (((i * 97.3) + t * (20 + i % 5 * 7)) % (H + 20)) + 10; g.fillRect(x, y, 2, 2); }
+				g.strokeStyle = "rgba(200,150,70,0.5)"; g.lineWidth = 4; g.beginPath(); g.moveTo(96, 300); g.lineTo(132, 316); g.moveTo(W - 96, 300); g.lineTo(W - 132, 316); g.stroke();
+				g.fillStyle = "rgba(50,14,20,0.6)"; g.beginPath(); g.moveTo(560, 330); g.lineTo(720, 330); g.lineTo(900, H); g.lineTo(380, H); g.closePath(); g.fill();
+				g.strokeStyle = "rgba(200,150,70,0.3)"; g.lineWidth = 2; g.beginPath(); g.moveTo(566, 330); g.lineTo(392, H); g.moveTo(714, 330); g.lineTo(888, H); g.stroke();
+				for (int r = 0; r < 3; r++)
+				{
+					double y0 = 26 + r * 30, sag = 50 + r * 10, ph = t * 0.9 + r;
+					g.strokeStyle = "rgba(120,90,60,0.35)"; g.lineWidth = 1; g.beginPath(); g.moveTo(0, y0); g.quadraticCurveTo(W / 2, y0 + 2 * sag + 6 * JS.sin(ph), W, y0); g.stroke();
+					for (int i = 1; i < 24; i++)
+					{
+						double k = i / 24.0, x = W * k, y = y0 + 4 * sag * k * (1 - k) + 6 * JS.sin(ph) * 4 * k * (1 - k), tw = 0.6 + 0.4 * JS.sin(t * 2.2 + i * 1.3 + r);
+						g.fillStyle = L16bAu(0.25 + 0.45 * tw); circle(x, y + 4, 2.6);
+					}
+				}
+				g.strokeStyle = "rgba(220,170,90,0.4)"; g.lineWidth = 2; g.beginPath(); g.moveTo(640, 0); g.lineTo(640, 30);
+				for (int i = 0; i < 3; i++) { double ry2 = 10 + i * 6; g.moveTo(640 + 70 - i * 18, 40 + i * 14); g.ellipse(640, 40 + i * 14, 70 - i * 18, ry2, 0, 0, Math.PI); }
+				g.stroke();
+				g.fillStyle = "rgba(230,240,255,0.4)"; for (int i = 0; i < 12; i++) { double an = i * Math.PI / 11; circle(640 - 70 * JS.cos(an), 44 + 12 * JS.sin(an) + 6, 2); }
+				for (int i = 0; i < 40; i++)
+				{
+					double x = (i * 211.7) % W + JS.sin(t * 0.7 + i) * 20, y = ((i * 97.3) + t * (24 + i % 5 * 6)) % (H + 20) - 10;
+					g.fillStyle = L16bAu(0.2 + 0.15 * JS.sin(t * 3 + i)); g.save(); g.translate(x, y); g.rotate(t * 2 + i); g.fillRect(-3, -1.5, 6, 3); g.restore();
+				}
+				double b = BT(t), ba = L16bK(b, pb[2], pb[2] + 3) * (1 - L16bK(b, 325, 329.4));
+				var bpos = L16bBrideAt(bp, b); L16bBride(bpos.x, bpos.y, t, ba, 1.15, player?.x ?? W / 2, player?.y ?? H / 2);
 			}
-			var gr = g.createRadialGradient(W / 2, H / 2, 260, W / 2, H / 2, 780); gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(1, "rgba(0,0,0,0.7)"); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+			var gr = g.createRadialGradient(W / 2, H / 2, 260, W / 2, H / 2, 780); gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(1, "rgba(0,0,0,0.65)"); g.fillStyle = gr; g.fillRect(0, 0, W, H);
 			g.restore();
 		}
 		return h;
 	}
 
-	// ---------- the lattice ----------
-	// fam 1: parallel slats s apart (th thick, up to th1 on the pulse beats pl), at angle a0 turning spin a beat; fam 2: a second set across
-	// them (the window's holes). It drifts (dx, dy) a beat from (cx, cy), or turns around (cx, cy) at orad (oa0, ospin a beat). R > 0: a round
-	// window of radius R. sp (beat, turn a beat) and dr (beat, dx, dy a beat), when given, change the turning and the drift from those beats on.
-	// st (beat, du, dv): the lattice slides by du along a0 and dv across in 0.22 beat (its next place shows 1 beat before).
-	// nw: no warning (it goes on from the one before it)
-	public static Hz L16bLat(int fam, double s, double a0, double spin, double th0, double th1, double[] pl, double[] st, double cx, double cy, double dx, double dy,
-		double R, double orad, double oa0, double ospin, double tw, double ta, double te, double[] sp = null, double[] dr = null)
+	// ---------- a rose ----------
+	// n petals, its line th thick, round (cx, cy) (or round it at orad: at oa0, then the steps ost (beat, angle) in od beats: the roses change
+	// places). R: from R0 by the steps rst (beat, dR) in 0.5 beat, up by dp on the pulse beats pl; grow > 0: it opens from 0 in grow beats.
+	// Turning: a0 and the rate program sp (beat, angle a beat). tr > 0: a pen draws it in tr beats from ta. drop (beat, petal): petals that
+	// fall (another event throws them). Its outline shows from tw, its next place 1 beat before a move
+	public static Hz L16bRose(double cx, double cy, double orad, double oa0, double[] ost, int n, double R0, double[] rst, double[] pl, double dp,
+		double grow, double a0, double[] sp, double th, double tr, double[] drop, double tw, double ta, double te, double od = 1)
 	{
-		var h = new Hz { kind = "L16bLat" }; double b0 = BT(ta); sp ??= Array.Empty<double>(); dr ??= Array.Empty<double>();
-		(double x, double y, double a, double u, double v, double th) St(double t)
+		var h = new Hz { kind = "L16bRose" }; double b0 = BT(ta);
+		(double x, double y, double R, double a, double f, ulong gone) St(double t)
 		{
-			double b = BT(t), db = b - b0, x, y;
-			if (orad > 0) { double oa = oa0 + ospin * db; x = cx + orad * JS.cos(oa); y = cy + orad * JS.sin(oa); }
-			else { x = cx + (dr.Length > 0 ? L16bInt(dr, 3, 1, b0, b) : dx * db); y = cy + (dr.Length > 0 ? L16bInt(dr, 3, 2, b0, b) : dy * db); }
-			return (x, y, a0 + (sp.Length > 0 ? L16bInt(sp, 2, 1, b0, b) : spin * db), L16bSteps(st, 3, 1, b, 0.22), L16bSteps(st, 3, 2, b, 0.22), th0 + (th1 - th0) * L16bPulse(pl, b));
+			double b = BT(t), x = cx, y = cy;
+			if (orad > 0) { double oa = oa0 + L16bSteps(ost, 2, 1, b, od); x += orad * JS.cos(oa); y += orad * JS.sin(oa); }
+			double R = R0 + L16bSteps(rst, 2, 1, b, 0.5) + dp * L16bPulse(pl, b);
+			if (grow > 0) R *= L16bK(b, b0, b0 + grow); else if (tr <= 0) R *= L16bS(L16bK(b, b0, b0 + 0.35));
+			ulong gone = 0; for (int i = 0; i + 1 < drop.Length; i += 2) if (b >= drop[i]) gone |= 1UL << (int)drop[i + 1];
+			return (x, y, R, a0 + L16bInt(sp, 2, 1, b0, b), tr > 0 ? L16bK(b, b0, b0 + tr) : 1, gone);
 		}
-		void Lines((double x, double y, double a, double u, double v, double th) q, double w, string col)
+		h.update = (t, dt) => { if (t >= te + 0.4 * SPB) h.dead = true; };
+		h.draw = t =>
 		{
-			double c = JS.cos(q.a), sn = JS.sin(q.a);
-			g.strokeStyle = col; g.lineWidth = w; g.beginPath();
-			for (int f = 0; f < fam; f++)
+			if (t < tw) return;
+			g.lineJoin = "round"; g.lineCap = "round";
+			if (t < ta)
 			{
-				double ex = f == 0 ? c : -sn, ey = f == 0 ? sn : c, lx = -ey, ly = ex, o = f == 0 ? q.u : q.v, mn, mx;
-				if (R > 0) { mn = -R; mx = R; }
-				else
+				var q0 = St(ta); double k = L16bK(t, tw, ta), Rw = grow > 0 || tr > 0 ? R0 : q0.R;
+				g.setLineDash(new double[] { 12, 10 }); g.strokeStyle = L16bG(0.12 + 0.35 * k); g.lineWidth = 2; g.beginPath(); L16bRosePath(q0.x, q0.y, n, Rw, q0.a); g.stroke(); g.setLineDash(new double[0]);
+				g.lineJoin = "miter"; g.lineCap = "butt"; return;
+			}
+			var q = St(t); double b = BT(t), fade = 1 - L16bK(t, te, te + 0.4 * SPB);
+			if (t < te)
+			{
+				for (int i = 0; i + 1 < ost.Length; i += 2)
 				{
-					mn = 1e9; mx = -1e9;
-					foreach (var (px, py) in new[] { (0.0, 0.0), (W, 0.0), (0.0, H), (W, H) }) { double pr = (px - q.x) * ex + (py - q.y) * ey; mn = Math.Min(mn, pr); mx = Math.Max(mx, pr); }
+					double sb = ost[i]; if (b < sb - 1 || b >= sb) continue;
+					var q2 = St(B(sb + od + 0.01)); double k = L16bK(b, sb - 1, sb);
+					g.strokeStyle = L16bG(0.15 + 0.4 * k); g.lineWidth = 2; g.setLineDash(new double[] { 10, 8 }); g.beginPath(); L16bRosePath(q2.x, q2.y, n, q2.R, q2.a, 1, q.gone); g.stroke(); g.setLineDash(new double[0]);
 				}
-				int k0 = (int)Math.Floor((mn - o) / s) - 1, k1 = (int)Math.Ceiling((mx - o) / s) + 1;
-				for (int k = k0; k <= k1; k++)
-				{
-					double d = o + k * s, dn = Math.Max(0, Math.Abs(d) - w / 2), half = R > 0 ? Math.Sqrt(Math.Max(0, R * R - dn * dn)) : 2200; if (half <= 0) continue;
-					double px = q.x + ex * d, py = q.y + ey * d; g.moveTo(px - lx * half, py - ly * half); g.lineTo(px + lx * half, py + ly * half);
-				}
+				if (dp > 0) { g.strokeStyle = L16bP(0.14); g.lineWidth = 2; g.beginPath(); L16bRosePath(q.x, q.y, n, q.R + dp * (1 - L16bPulse(pl, b)), q.a, q.f, q.gone); g.stroke(); }
+			}
+			g.save(); if (t >= te) g.globalAlpha *= fade * 0.6; L16bGlow(14); g.strokeStyle = t < te ? PINK : L16bG(1); g.lineWidth = th; g.beginPath(); L16bRosePath(q.x, q.y, n, q.R, q.a, q.f, q.gone); g.stroke(); g.restore();
+			if (t < te) { g.strokeStyle = L16bLt; g.lineWidth = Math.Max(1.5, th * 0.18); g.beginPath(); L16bRosePath(q.x, q.y, n, q.R, q.a, q.f, q.gone); g.stroke(); }
+			if (q.f < 1 && t < te) { var pen = L16bRosePen(q.x, q.y, n, q.R, q.a, q.f); g.save(); L16bGlow(20); g.fillStyle = PINK; circle(pen.x, pen.y, th / 2 + 2); g.restore(); g.fillStyle = L16bLt; circle(pen.x, pen.y, th * 0.22); }
+			g.lineJoin = "miter"; g.lineCap = "butt";
+		};
+		h.hit = (p, t) =>
+		{
+			if (t < ta || t >= te) return false;
+			var q = St(t); return L16bRoseHit(p.x, p.y, q.x, q.y, n, q.R, q.a, th / 2 + L16bM(p), q.f, q.gone);
+		};
+		return h;
+	}
+
+	// ---------- a thorn vine ----------
+	// from (x0, y0) at angle an, L long, waving A across every lam px (phase ph); its tip grows v px/s from ta; at te it dries (harmless) and
+	// fades. Its path shows (dashed) from tw
+	public static Hz L16bVine(double x0, double y0, double an, double L, double A, double lam, double ph, double v, double th, double tw, double ta, double te)
+	{
+		var h = new Hz { kind = "L16bVine" };
+		double c = JS.cos(an), s = JS.sin(an); var P = new List<(double x, double y)>();
+		for (double d = 0; d <= L + 0.1; d += 10) { double w = A * Math.Sin(TAU * d / lam + ph); P.Add((x0 + d * c - w * s, y0 + d * s + w * c)); }
+		int N(double t) => Math.Min(P.Count, 1 + (int)Math.Floor(Math.Max(0, v * (t - ta)) / 10));
+		h.update = (t, dt) => { if (t >= te + 0.5 * SPB) h.dead = true; };
+		void Body(int n, string col, bool thorns)
+		{
+			if (n < 2) return;
+			g.strokeStyle = col; g.lineWidth = th; g.lineCap = "round"; g.lineJoin = "round"; g.beginPath(); L16bPath(P.Take(n).ToList(), false); g.stroke(); g.lineCap = "butt"; g.lineJoin = "miter";
+			if (!thorns) return;
+			g.fillStyle = col; g.beginPath();
+			for (int i = 3, sd = 1; i < n - 1; i += 4, sd = -sd)
+			{
+				double tx = P[i + 1].x - P[i - 1].x, ty = P[i + 1].y - P[i - 1].y, tl = Math.Max(1e-6, hypot(tx, ty)); tx /= tl; ty /= tl; double nx = -ty * sd, ny = tx * sd;
+				g.moveTo(P[i].x - tx * 5 + nx * th * 0.3, P[i].y - ty * 5 + ny * th * 0.3); g.lineTo(P[i].x + tx * 5 + nx * th * 0.3, P[i].y + ty * 5 + ny * th * 0.3); g.lineTo(P[i].x + tx * 3 + nx * (th / 2 + 7), P[i].y + ty * 3 + ny * (th / 2 + 7)); g.closePath();
+			}
+			g.fill();
+		}
+		h.draw = t =>
+		{
+			if (t < tw) return;
+			if (t < ta) { double k = L16bK(t, tw, ta); g.setLineDash(new double[] { 10, 10 }); g.strokeStyle = L16bG(0.12 + 0.4 * k); g.lineWidth = 2; g.beginPath(); L16bPath(P, false); g.stroke(); g.setLineDash(new double[0]); return; }
+			int n = N(t);
+			if (t >= te) { g.save(); g.globalAlpha *= 0.6 * (1 - L16bK(t, te, te + 0.5 * SPB)); Body(n, "rgba(90,70,60,1)", true); g.restore(); return; }
+			if (n < P.Count) { g.setLineDash(new double[] { 10, 10 }); g.strokeStyle = L16bG(0.3); g.lineWidth = 2; g.beginPath(); L16bPath(P.Skip(n - 1).ToList(), false); g.stroke(); g.setLineDash(new double[0]); }
+			g.save(); L16bGlow(12); Body(n, PINK, true); g.restore();
+			g.strokeStyle = L16bLt; g.lineWidth = 2; g.beginPath(); L16bPath(P.Take(n).ToList(), false); g.stroke();
+			if (n < P.Count) { var hd = P[n - 1]; g.save(); L16bGlow(16); g.fillStyle = PINK; circle(hd.x, hd.y, th / 2 + 3); g.restore(); g.fillStyle = L16bLt; circle(hd.x, hd.y, 3); }
+		};
+		h.hit = (p, t) =>
+		{
+			if (t < ta || t >= te) return false;
+			double lim = th / 2 + 1 + L16bM(p), u = (p.x - x0) * c + (p.y - y0) * s, w = -(p.x - x0) * s + (p.y - y0) * c;
+			if (Math.Abs(w) > A + lim + 2 || u < -lim - 2 || u > L + lim + 2) return false;
+			int n = N(t), i0 = Math.Max(1, (int)((u - A - lim) / 10) - 1), i1 = Math.Min(n - 1, (int)((u + A + lim) / 10) + 2);
+			for (int i = i0; i <= i1; i++) if (L16bSeg(p.x, p.y, P[i - 1].x, P[i - 1].y, P[i].x, P[i].y) < lim) return true;
+			return n == 1 && hypot(p.x - P[0].x, p.y - P[0].y) < lim;
+		};
+		return h;
+	}
+
+	// ---------- petals and splinters thrown out ----------
+	// from (x, y) along the angles an (starting d0 out), v px/s from ta. shape 0: a rose petal (aa long, bb wide), 1: a glass splinter (a
+	// sharp triangle that spins sp rad/s). Their lines show from tw
+	public static Hz L16bPetal(double x, double y, double[] an, double v, double aa, double bb, int shape, double sp, double tw, double ta, double d0 = 0)
+	{
+		var h = new Hz { kind = "L16bPetal" };
+		h.update = (t, dt) => { if (t > ta + (1700 - d0) / v) h.dead = true; };
+		List<(double x, double y)> Tri(double px, double py, double a) => new() { (px + aa * JS.cos(a), py + aa * JS.sin(a)), (px + bb * JS.cos(a + 2.3), py + bb * JS.sin(a + 2.3)), (px + bb * 0.8 * JS.cos(a - 2.5), py + bb * 0.8 * JS.sin(a - 2.5)) };
+		h.draw = t =>
+		{
+			if (t < tw) return;
+			if (t < ta)
+			{
+				double k = L16bK(t, tw, ta); g.strokeStyle = L16bG(0.1 + 0.35 * k); g.lineWidth = 2; g.beginPath();
+				foreach (var a in an) { g.moveTo(x + (d0 + 20) * JS.cos(a), y + (d0 + 20) * JS.sin(a)); g.lineTo(x + 1500 * JS.cos(a), y + 1500 * JS.sin(a)); }
+				g.stroke(); return;
+			}
+			double d = d0 + v * (t - ta);
+			g.save(); L16bGlow(12); g.fillStyle = PINK;
+			foreach (var a in an)
+			{
+				double px = x + d * JS.cos(a), py = y + d * JS.sin(a);
+				if (shape == 0) { g.beginPath(); g.ellipse(px, py, aa, bb, a, 0, TAU); g.fill(); }
+				else { g.beginPath(); L16bPath(Tri(px, py, a + sp * (t - ta))); g.fill(); }
+			}
+			g.restore();
+			g.strokeStyle = L16bLt; g.lineWidth = 1.5; g.beginPath();
+			foreach (var a in an)
+			{
+				double px = x + d * JS.cos(a), py = y + d * JS.sin(a);
+				if (shape == 0) { g.moveTo(px - aa * 0.7 * JS.cos(a), py - aa * 0.7 * JS.sin(a)); g.lineTo(px + aa * 0.7 * JS.cos(a), py + aa * 0.7 * JS.sin(a)); }
+				else { var T = Tri(px, py, a + sp * (t - ta)); g.moveTo((T[0].x + px) / 2, (T[0].y + py) / 2); g.lineTo((T[1].x + px) / 2, (T[1].y + py) / 2); }
 			}
 			g.stroke();
-		}
-		void Clip((double x, double y, double a, double u, double v, double th) q) { if (R > 0) { g.beginPath(); g.arc(q.x, q.y, R, 0, TAU); g.clip(); } }
-		void Rim((double x, double y, double a, double u, double v, double th) q, double al) { if (R <= 0) return; g.strokeStyle = L16bAu(al); g.lineWidth = 3; g.beginPath(); g.arc(q.x, q.y, R + 6, 0, TAU); g.stroke(); }
-		h.update = (t, dt) => { if (t >= te) h.dead = true; };
-		h.draw = t =>
-		{
-			if (t < tw || t >= te) return;
-			if (t < ta) { var q0 = St(ta); double k = L16bK(t, tw, ta); g.save(); Clip(q0); Lines(q0, 2 + 2 * k, L16bG(0.12 + 0.3 * k)); g.restore(); Rim(q0, 0.3 * k); return; }
-			var q = St(t); double b = BT(t);
-			g.save(); Clip(q);
-			for (int i = 0; i + 2 < st.Length; i += 3)
-			{
-				double sb = st[i]; if (b < sb - 1 || b >= sb) continue;
-				double k = L16bK(b, sb - 1, sb); var q2 = St(B(sb + 0.24)); Lines(q2, 2 + 1.5 * k, L16bG(0.18 + 0.45 * k));
-			}
-			if (th1 > th0) Lines(q, th1, L16bP(0.2));
-			L16bGlow(12); Lines(q, q.th, PINK);
-			g.restore(); Rim(q, 0.55);
-		};
-		h.hit = (p, t) =>
-		{
-			if (t < ta || t >= te) return false;
-			var q = St(t); double ddx = p.x - q.x, ddy = p.y - q.y, m = L16bM(p);
-			if (R > 0 && hypot(ddx, ddy) > R + m) return false;
-			double c = JS.cos(q.a), sn = JS.sin(q.a), u = ddx * c + ddy * sn - q.u, v = -ddx * sn + ddy * c - q.v, lim = q.th / 2 + m;
-			if (Math.Abs(u - s * Math.Floor(u / s + 0.5)) < lim) return true;
-			return fam == 2 && Math.Abs(v - s * Math.Floor(v / s + 0.5)) < lim;
-		};
-		return h;
-	}
-
-	// ---------- an eight-pointed star ring ----------
-	// from (x, y), tips at R0 at ta, growing v px/s (v < 0: closing in), th thick, turned rot; gn of its 16 sides are missing around tip gi
-	// (the way through). From tw: a gold line shows where the gap is, and the star where it will be
-	public static Hz L16bStar(double x, double y, double R0, double v, double th, double rot, int gi, int gn, double tw, double ta)
-	{
-		var h = new Hz { kind = "L16bStar" };
-		double R(double t) => R0 + v * (t - ta);
-		var gap = new bool[16]; for (int j = 0; j < gn; j++) gap[(int)L16bMod(2 * gi - gn / 2 + j, 16)] = true;
-		double ga = rot + gi * Math.PI / 4;
-		h.update = (t, dt) => { double r = R(t); if (t > ta && (r > 1700 || r < 6)) h.dead = true; };
-		void Sides(double r, double w, string col)
-		{
-			var P = L16bStarPts(x, y, r, rot); g.strokeStyle = col; g.lineWidth = w; g.lineCap = "round"; g.beginPath();
-			for (int e = 0; e < 16; e++) { if (gap[e]) continue; var a = P[e]; var c = P[(e + 1) % 16]; g.moveTo(a.x, a.y); g.lineTo(c.x, c.y); }
-			g.stroke(); g.lineCap = "butt";
-		}
-		h.draw = t =>
-		{
-			if (t < tw) return;
-			if (t < ta)
-			{
-				double k = L16bK(t, tw, ta), rw = v >= 0 ? Math.Max(R0, 90) : Math.Min(R0, 660);
-				g.strokeStyle = L16bAu(0.15 + 0.35 * k); g.lineWidth = 3; g.beginPath(); g.moveTo(x + 30 * JS.cos(ga), y + 30 * JS.sin(ga)); g.lineTo(x + 1500 * JS.cos(ga), y + 1500 * JS.sin(ga)); g.stroke();
-				g.setLineDash(new double[] { 14, 10 }); Sides(rw, 2, L16bG(0.15 + 0.4 * k)); g.setLineDash(new double[0]);
-				return;
-			}
-			double r = R(t); if (r < 6) return;
-			g.save(); L16bGlow(14); Sides(r, th, PINK); g.restore();
 		};
 		h.hit = (p, t) =>
 		{
 			if (t < ta) return false;
-			double r = R(t), d = hypot(p.x - x, p.y - y), m = L16bM(p), lim = th / 2 + m; if (r < 6) return false;
-			if (d > r + lim + 2 || d < r * 0.7654 * 0.92 - lim - 2) return false;
-			var P = L16bStarPts(x, y, r, rot);
-			for (int e = 0; e < 16; e++) { if (gap[e]) continue; var a = P[e]; var c = P[(e + 1) % 16]; if (L16bSeg(p.x, p.y, a.x, a.y, c.x, c.y) < lim) return true; }
+			double d = d0 + v * (t - ta), m = L16bM(p);
+			foreach (var a in an)
+			{
+				double px = x + d * JS.cos(a), py = y + d * JS.sin(a), dx = p.x - px, dy = p.y - py; if (dx * dx + dy * dy > (aa + m + 2) * (aa + m + 2)) continue;
+				if (shape == 0) { double u = dx * JS.cos(a) + dy * JS.sin(a), w = -dx * JS.sin(a) + dy * JS.cos(a); if (u * u / ((aa + m) * (aa + m)) + w * w / ((bb + m) * (bb + m)) < 1) return true; }
+				else if (L16bInPoly(p.x, p.y, Tri(px, py, a + sp * (t - ta)), m)) return true;
+			}
 			return false;
 		};
 		return h;
 	}
 
-	// ---------- the rosette ----------
-	// n petals (kites: from the hub r0 out to R, pw wide) around (x, y), at a0 turning by the steps st (beat, angle) in 0.35 beat; R is rl,
-	// reaching rh on the pulse beats pl; the hub hurts too. Its outlines show from tw, its next turn 1 beat before
-	public static Hz L16bRose(double x, double y, int n, double r0, double rl, double rh, double pw, double a0, double[] st, double[] pl, double tw, double ta, double te)
+	// ---------- the mirror cracks ----------
+	// hit at (x, y) at ta: n jagged cracks (from angle a0, evenly) run out v px/s to past the edges, th thick, each with a branch; they hold
+	// till te, then fall (harmless). The hit point hurts for 0.6 beat. The cracks to come show (thin, grey) from tw
+	public static Hz L16bCrack(double x, double y, int n, double a0, double v, double th, uint seed, double tw, double ta, double te)
 	{
-		var h = new Hz { kind = "L16bRose" };
-		double A(double t) => a0 + L16bSteps(st, 2, 1, BT(t), 0.35);
-		double Rr(double t) { double k = L16bS(L16bK(t, ta, ta + 0.4 * SPB)); return r0 + (rl + (rh - rl) * L16bPulse(pl, BT(t)) - r0) * k; }
-		List<(double x, double y)> Petal(double a, double R, double w)
+		var h = new Hz { kind = "L16bCrack" }; uint s = seed;
+		var lines = new List<(List<(double x, double y)> P, List<double> cum, double s0)>();
+		for (int i = 0; i < n; i++)
 		{
-			double rm = r0 + (R - r0) * 0.4, c = JS.cos(a), s = JS.sin(a);
-			return new List<(double x, double y)> { (x + r0 * c, y + r0 * s), (x + rm * c - w / 2 * s, y + rm * s + w / 2 * c), (x + R * c, y + R * s), (x + rm * c + w / 2 * s, y + rm * s - w / 2 * c) };
+			double an = a0 + i * TAU / n; var P = new List<(double x, double y)> { (x + 24 * JS.cos(an), y + 24 * JS.sin(an)) }; double r = 24, cx2 = 0, cy2 = 0;
+			var cum = new List<double> { 0 }; int bi = 2 + (int)(L16bRnd(ref s) * 3);
+			while (r < 1600)
+			{
+				r += 55 + 25 * L16bRnd(ref s); double off = (L16bRnd(ref s) - 0.5) * 36;
+				var q = (x: x + r * JS.cos(an) - off * JS.sin(an), y: y + r * JS.sin(an) + off * JS.cos(an));
+				cum.Add(cum[^1] + hypot(q.x - P[^1].x, q.y - P[^1].y)); P.Add(q);
+				if (P.Count == bi + 1) { cx2 = q.x; cy2 = q.y; }
+			}
+			lines.Add((P, cum, 0));
+			// the branch
+			double ba = an + (L16bRnd(ref s) < 0.5 ? -1 : 1) * (0.45 + 0.2 * L16bRnd(ref s)); var Q = new List<(double x, double y)> { (cx2, cy2) }; var cq = new List<double> { 0 };
+			for (int j = 0; j < 4; j++) { ba += (L16bRnd(ref s) - 0.5) * 0.5; var q = (x: Q[^1].x + 55 * JS.cos(ba), y: Q[^1].y + 55 * JS.sin(ba)); cq.Add(cq[^1] + 55); Q.Add(q); }
+			lines.Add((Q, cq, cum[bi]));
 		}
-		void All(double a, double R, bool fill, string col, double lw)
-		{
-			g.beginPath(); for (int k = 0; k < n; k++) L16bPath(Petal(a + k * TAU / n, R, pw));
-			if (fill) { g.fillStyle = col; g.fill(); } else { g.strokeStyle = col; g.lineWidth = lw; g.stroke(); }
-		}
-		h.update = (t, dt) => { if (t >= te) h.dead = true; };
-		h.draw = t =>
-		{
-			if (t < tw || t >= te) return;
-			if (t < ta) { double k = L16bK(t, tw, ta); All(a0, rl, false, L16bG(0.15 + 0.45 * k), 2); g.strokeStyle = L16bG(0.15 + 0.45 * k); g.beginPath(); g.arc(x, y, r0 + 6, 0, TAU); g.stroke(); return; }
-			double b = BT(t), a = A(t), R = Rr(t);
-			for (int i = 0; i + 1 < st.Length; i += 2) { double sb = st[i]; if (b < sb - 1 || b >= sb) continue; double k = L16bK(b, sb - 1, sb); All(A(B(sb + 0.4)), rl, false, L16bG(0.15 + 0.4 * k), 2); }
-			if (rh > rl) All(a, rh, true, L16bP(0.16), 0);
-			g.save(); L16bGlow(14); All(a, R, true, PINK, 0); g.fillStyle = PINK; circle(x, y, r0 + 6); g.restore();
-			g.fillStyle = "rgba(255,150,185,1)"; circle(x, y, r0 * 0.45);
-		};
-		h.hit = (p, t) =>
-		{
-			if (t < ta || t >= te) return false;
-			double m = L16bM(p), d = hypot(p.x - x, p.y - y), R = Rr(t);
-			if (d < r0 + 6 + m) return true; if (d > R + m + 2) return false;
-			double a = A(t);
-			for (int k = 0; k < n; k++) if (L16bInPoly(p.x, p.y, Petal(a + k * TAU / n, R, pw), m)) return true;
-			return false;
-		};
-		return h;
-	}
-
-	// ---------- star shots ----------
-	// n small stars (r round) from (x, y) at off + k*TAU/n, v px/s from ta. back > 0: they stop at Rs, slide half a step round in back beats,
-	// and come back to the middle on the new lines ("تالي تجيني"). Their lines show from tw (the way back from 0.6 beat before they turn)
-	public static Hz L16bShot(double x, double y, int n, double off, double v, double r, double Rs, double back, double tw, double ta)
-	{
-		var h = new Hz { kind = "L16bShot" };
-		double t1 = ta + Rs / v, t2 = t1 + back * SPB, te = back > 0 ? t2 + Rs / v : ta + 1700 / v, st = TAU / n;
-		(double rr, double an) Pos(int i, double t)
-		{
-			if (back <= 0 || t < t1) return (v * (t - ta), off + i * st);
-			if (t < t2) return (Rs, off + i * st + st / 2 * L16bS(L16bK(t, t1, t2)));
-			return (Rs - v * (t - t2), off + (i + 0.5) * st);
-		}
-		h.update = (t, dt) => { if (t > te) h.dead = true; };
-		h.draw = t =>
-		{
-			if (t < tw) return;
-			if (t < ta)
-			{
-				double k = L16bK(t, tw, ta); g.strokeStyle = L16bG(0.1 + 0.3 * k); g.lineWidth = 2; g.beginPath();
-				for (int i = 0; i < n; i++) { double an = off + i * st, e = back > 0 ? Rs : 1500; g.moveTo(x + 40 * JS.cos(an), y + 40 * JS.sin(an)); g.lineTo(x + e * JS.cos(an), y + e * JS.sin(an)); }
-				g.stroke(); g.fillStyle = L16bP(0.3 + 0.5 * k); circle(x, y, 14 * k);
-				return;
-			}
-			if (back > 0 && t > t1 - 0.6 * SPB && t < t2 + 0.3 * SPB)
-			{
-				double k = L16bK(t, t1 - 0.6 * SPB, t1); g.strokeStyle = L16bG(0.12 + 0.3 * k); g.lineWidth = 2; g.beginPath();
-				for (int i = 0; i < n; i++) { double an = off + (i + 0.5) * st; g.moveTo(x + 30 * JS.cos(an), y + 30 * JS.sin(an)); g.lineTo(x + Rs * JS.cos(an), y + Rs * JS.sin(an)); }
-				g.stroke();
-			}
-			g.save(); L16bGlow(10); g.fillStyle = PINK; g.beginPath();
-			for (int i = 0; i < n; i++) { var q = Pos(i, t); if (q.rr < 0) continue; double px = x + q.rr * JS.cos(q.an), py = y + q.rr * JS.sin(q.an); L16bPath(L16bStarPts(px, py, r * 1.4, q.an)); }
-			g.fill(); g.restore();
-		};
-		h.hit = (p, t) =>
-		{
-			if (t < ta) return false;
-			double m = L16bM(p);
-			for (int i = 0; i < n; i++) { var q = Pos(i, t); if (q.rr < 0) continue; if (hypot(p.x - x - q.rr * JS.cos(q.an), p.y - y - q.rr * JS.sin(q.an)) < r + m) return true; }
-			return false;
-		};
-		return h;
-	}
-
-	// ---------- the courtyard floor ----------
-	// eight-pointed stars on a grid c apart (0.32 c their half-side), the crosses between them; from (ox, oy) moving (vx, vy) a beat, turning spin.
-	// pr (beat, kind, dur, si, sj): from beat for dur beats kind 0 = the stars hurt, 1 = the crosses hurt (all but the stars made
-	// 1.7 e smaller), 2 = all but star (si, sj) hurt. Each shows grey wn beats before
-	public static Hz L16bFloor(double c, double e, double ox, double oy, double vx, double vy, double spin, double[] pr, double wn, double tw, double ta, double te)
-	{
-		var h = new Hz { kind = "L16bFloor", layer = -1 }; double b0 = BT(ta), A = 0.32 * c;
-		(double x, double y, double a) O(double t) { double db = BT(t) - b0; return (ox + vx * db, oy + vy * db, spin * db); }
-		int Cur(double b, double pre) { for (int i = 0; i + 4 < pr.Length; i += 5) if (b >= pr[i] - pre && b < pr[i] + pr[i + 2]) return i; return -1; }
-		void Grid(double t, Action<double, double, int, int> f)
-		{
-			int K = (int)Math.Ceiling(820 / c) + 1;
-			for (int i = -K; i <= K; i++) for (int j = -K; j <= K; j++) f(i * c, j * c, i, j);
-		}
-		void Region(double t, int kind, int si, int sj, string col)
-		{
-			var o = O(t); g.save(); g.translate(o.x, o.y); g.rotate(o.a); g.beginPath();
-			if (kind == 0) Grid(t, (x, y, i, j) => L16bPath(L16bStarPts(x, y, (A - 2) * 1.41421356, 0)));
-			else
-			{
-				g.rect(-1600, -1600, 3200, 3200);
-				if (kind == 1) Grid(t, (x, y, i, j) => L16bPath(L16bStarPts(x, y, (A - 1.7 * e) * 1.41421356, 0)));
-				else L16bPath(L16bStarPts(si * c, sj * c, (A - 1.7 * e) * 1.41421356, 0));
-			}
-			g.fillStyle = col; g.fill(kind == 0 ? "nonzero" : "evenodd"); g.restore();
-		}
-		h.update = (t, dt) => { if (t >= te) h.dead = true; };
-		h.draw = t =>
-		{
-			if (t < tw || t >= te) return;
-			double b = BT(t), al = Math.Min(L16bK(t, tw, ta), 1 - L16bK(t, te - 0.4 * SPB, te));
-			{
-				var o = O(t); g.save(); g.translate(o.x, o.y); g.rotate(o.a); g.strokeStyle = L16bAu(0.12 + 0.12 * al); g.lineWidth = 2; g.beginPath();
-				Grid(t, (x, y, i, j) => L16bPath(L16bStarPts(x, y, A * 1.41421356, 0))); g.stroke(); g.restore();
-			}
-			for (int i = 0; i + 4 < pr.Length; i += 5)
-			{
-				double sb = pr[i]; int kind = (int)pr[i + 1], si = (int)pr[i + 3], sj = (int)pr[i + 4];
-				if (b >= sb - wn && b < sb) Region(t, kind, si, sj, L16bG(0.04 + 0.12 * L16bK(b, sb - wn, sb)));
-				if (kind == 2 && b >= sb - wn && b < sb + pr[i + 2])
-				{
-					var o = O(t); g.save(); g.translate(o.x, o.y); g.rotate(o.a); g.strokeStyle = L16bAu(0.9); g.lineWidth = 4; g.beginPath();
-					L16bPath(L16bStarPts(si * c, sj * c, (A - 1.7 * e) * 1.41421356, 0)); g.stroke(); g.restore();
-				}
-			}
-			int ci = Cur(b, 0); if (ci < 0 || b < BT(ta)) return;
-			Region(t, (int)pr[ci + 1], (int)pr[ci + 3], (int)pr[ci + 4], L16bP(0.88));
-		};
-		h.hit = (p, t) =>
-		{
-			if (t < ta || t >= te) return false;
-			int ci = Cur(BT(t), 0); if (ci < 0) return false;
-			var o = O(t); double dx = p.x - o.x, dy = p.y - o.y, ca = JS.cos(-o.a), sa = JS.sin(-o.a), lx = dx * ca - dy * sa, ly = dx * sa + dy * ca;
-			int gi = (int)Math.Floor(lx / c + 0.5), gj = (int)Math.Floor(ly / c + 0.5); double x = lx - gi * c, y = ly - gj * c, m = L16bM(p);
-			int kind = (int)pr[ci + 1];
-			if (kind == 0) return L16bInStar(x, y, A - 2 + m);
-			if (kind == 1) return !L16bInStar(x, y, A - 1.7 * e - m);
-			return !(gi == (int)pr[ci + 3] && gj == (int)pr[ci + 4] && L16bInStar(x, y, A - 1.7 * e - m));
-		};
-		return h;
-	}
-
-	// "هيجي جزاته": the whole floor burns but one star, the one nearest the square when it locks (si, sj, found by the kind); same floor as
-	// L16bFloor (b0 = its first beat). The star shows gold from tw, the rest grey; from ta to te all else is pink
-	public static Hz L16bOne(double c, double e, double ox, double oy, double vx, double vy, double spin, double b0, int si, int sj, double tw, double ta, double te)
-	{
-		var h = new Hz { kind = "L16bOne", layer = -1 }; double A = 0.32 * c;
-		(double x, double y, double a) O(double t) { double db = BT(t) - b0; return (ox + vx * db, oy + vy * db, spin * db); }
-		void Draw(double t, string col)
-		{
-			var o = O(t); g.save(); g.translate(o.x, o.y); g.rotate(o.a); g.beginPath(); g.rect(-1600, -1600, 3200, 3200);
-			L16bPath(L16bStarPts(si * c, sj * c, (A - 1.7 * e) * 1.41421356, 0)); g.fillStyle = col; g.fill("evenodd");
-			g.strokeStyle = L16bAu(0.95); g.lineWidth = 4; g.beginPath(); L16bPath(L16bStarPts(si * c, sj * c, (A - 1.7 * e - 4) * 1.41421356, 0)); g.stroke(); g.restore();
-		}
-		h.update = (t, dt) => { if (t >= te) h.dead = true; };
-		h.draw = t =>
-		{
-			if (t < tw || t >= te) return;
-			if (t < ta) { Draw(t, L16bG(0.04 + 0.14 * L16bK(t, tw, ta))); return; }
-			Draw(t, L16bP(0.88));
-		};
-		h.hit = (p, t) =>
-		{
-			if (t < ta || t >= te) return false;
-			var o = O(t); double dx = p.x - o.x, dy = p.y - o.y, ca = JS.cos(-o.a), sa = JS.sin(-o.a), lx = dx * ca - dy * sa, ly = dx * sa + dy * ca;
-			return !L16bInStar(lx - si * c, ly - sj * c, A - 1.7 * e - L16bM(p));
-		};
-		return h;
-	}
-	static (int i, int j) L16bNearStar(double c, double ox, double oy, double vx, double vy, double spin, double b0, double t, double px, double py)
-	{
-		double db = BT(t) - b0, x = ox + vx * db, y = oy + vy * db, a = spin * db, dx = px - x, dy = py - y, ca = JS.cos(-a), sa = JS.sin(-a);
-		double lx = dx * ca - dy * sa, ly = dx * sa + dy * ca; return ((int)Math.Floor(lx / c + 0.5), (int)Math.Floor(ly / c + 0.5));
-	}
-
-	// ---------- the arcade ----------
-	// a wall T thick crossing the room at v px/s from ta (dir 0 down from the top, 1 up, 2 right from the left, 3 left), with pointed arches
-	// every P (the first at o): an arch is ow wide at its foot and 0.45 ow at its top. The arches' lanes show from tw
-	public static Hz L16bArch(int dir, double T, double P, double o, double ow, double v, double tw, double ta)
-	{
-		var h = new Hz { kind = "L16bArch" };
-		double Lt = dir < 2 ? H : W, Lc = dir < 2 ? W : H, te = ta + (Lt + T + 20) / v;
-		double Pos(double t) => -T / 2 - 10 + v * (t - ta);
-		(double x, double y) Map(double across, double along) => dir switch { 0 => (across, along), 1 => (across, H - along), 2 => (along, across), _ => (W - along, across) };
-		double Hw(double f) => f < 0.55 * T ? ow / 2 : ow / 2 * (1 - 0.55 * L16bS(clamp((f - 0.55 * T) / (0.45 * T), 0, 1)));
-		void Shape(double pos, string col)
-		{
-			double front = pos + T / 2; g.beginPath();
-			var R = new List<(double x, double y)> { Map(-20, front), Map(Lc + 20, front), Map(Lc + 20, front - T), Map(-20, front - T) }; L16bPath(R);
-			for (int k = -1; o + k * P < Lc + P; k++)
-			{
-				double cx = o + k * P + P / 2; var A = new List<(double x, double y)>();
-				for (int s = 0; s <= 24; s++) { double f = T * s / 24.0; A.Add(Map(cx - Hw(f), front - f)); }
-				for (int s = 24; s >= 0; s--) { double f = T * s / 24.0; A.Add(Map(cx + Hw(f), front - f)); }
-				L16bPath(A);
-			}
-			g.fillStyle = col; g.fill("evenodd");
-		}
-		h.update = (t, dt) => { if (t > te) h.dead = true; };
-		h.draw = t =>
-		{
-			if (t < tw) return;
-			if (t < ta)
-			{
-				double k = L16bK(t, tw, ta); g.strokeStyle = L16bAu(0.1 + 0.3 * k); g.lineWidth = 2; g.beginPath();
-				for (int j = -1; o + j * P < Lc + P; j++) { double cx = o + j * P + P / 2; foreach (var sg in new[] { -1, 1 }) { var a = Map(cx + sg * ow / 2, 0); var bq = Map(cx + sg * ow / 2, Lt); g.moveTo(a.x, a.y); g.lineTo(bq.x, bq.y); } }
-				g.stroke(); Shape(T / 2, L16bG(0.08 + 0.25 * k)); return;
-			}
-			g.save(); L16bGlow(12); Shape(Pos(t), PINK); g.restore();
-		};
-		h.hit = (p, t) =>
-		{
-			if (t < ta) return false;
-			double along = dir == 0 ? p.y : dir == 1 ? H - p.y : dir == 2 ? p.x : W - p.x, across = dir < 2 ? p.x : p.y, m = L16bM(p);
-			double f = Pos(t) + T / 2 - along; if (f < -m || f > T + m) return false;
-			double rel = Math.Abs(L16bMod(across - o, P) - P / 2), ff = clamp(f, 0, T);
-			double hw = Math.Min(Hw(ff), Hw(clamp(f - m, 0, T))); hw = Math.Min(hw, Hw(clamp(f + m, 0, T)));
-			return !(rel < hw - m);
-		};
-		return h;
-	}
-
-	// ---------- the traitor's dagger ----------
-	// a blade w wide through (px, py) along a (aimed at the square): its line shows from tw, it thrusts across at ta and stays hold beats
-	public static Hz L16bDagger(double px, double py, double a, double w, double tw, double ta, double hold)
-	{
-		var h = new Hz { kind = "L16bDagger" }; double c = JS.cos(a), s = JS.sin(a), te = ta + hold * SPB, ext = 0.12 * SPB;
-		double sx = px - c * 1500, sy = py - s * 1500;   // where it comes from (off the room)
-		double Tip(double t) => 3000 * L16bS(L16bK(t, ta, ta + ext));
-		h.update = (t, dt) => { if (t > te + 0.2) h.dead = true; };
-		h.draw = t =>
-		{
-			if (t < tw) return;
-			if (t < ta)
-			{
-				double k = L16bK(t, tw, ta); g.strokeStyle = L16bG(0.2 + 0.5 * k); g.lineWidth = 2 + 2 * k; g.beginPath(); g.moveTo(sx, sy); g.lineTo(px + c * 1500, py + s * 1500); g.stroke();
-				g.strokeStyle = L16bG(0.08 + 0.12 * k); g.lineWidth = w * k; g.beginPath(); g.moveTo(sx, sy); g.lineTo(px + c * 1500, py + s * 1500); g.stroke();
-				return;
-			}
-			double al = 1 - L16bK(t, te, te + 0.2); if (al <= 0) return;
-			double tip = Tip(t), ex = sx + c * tip, ey = sy + s * tip, nx = -s * w / 2, ny = c * w / 2;
-			g.save(); g.globalAlpha = al; L16bGlow(14); g.fillStyle = PINK; g.beginPath();
-			g.moveTo(sx + nx, sy + ny); g.lineTo(ex - c * 70 + nx, ey - s * 70 + ny); g.lineTo(ex, ey); g.lineTo(ex - c * 70 - nx, ey - s * 70 - ny); g.lineTo(sx - nx, sy - ny); g.closePath(); g.fill();
-			g.strokeStyle = "rgba(255,150,185,1)"; g.lineWidth = 3; g.beginPath(); g.moveTo(sx, sy); g.lineTo(ex - c * 30, ey - s * 30); g.stroke(); g.restore();
-		};
-		h.hit = (p, t) =>
-		{
-			if (t < ta || t >= te) return false;
-			double dx = p.x - sx, dy = p.y - sy, along = dx * c + dy * s, perp = Math.Abs(-dx * s + dy * c), m = L16bM(p), tip = Tip(t);
-			if (along > tip + m) return false;
-			double hw = along > tip - 70 ? w / 2 * Math.Max(0, (tip - along) / 70) : w / 2;
-			return perp < hw + m;
-		};
-		return h;
-	}
-
-	// ---------- the doors ----------
-	// two leaves close from the sides in cl beats from ta down to a slit sw wide at gx, stay hold beats and open again in cl beats.
-	// The slit shows (gold) and the leaves (grey) from tw
-	public static Hz L16bDoor(double gx, double sw, double tw, double ta, double cl, double hold)
-	{
-		var h = new Hz { kind = "L16bDoor" }; double tc = ta + cl * SPB, to = tc + hold * SPB, te = to + cl * SPB, l = gx - sw / 2, r = gx + sw / 2;
-		double K(double t) => t < tc ? L16bS(L16bK(t, ta, tc)) : t < to ? 1 : 1 - L16bS(L16bK(t, to, te));
-		void Leaves(double xl, double xr, string col, bool lines)
-		{
-			g.fillStyle = col; g.fillRect(-10, -10, xl + 10, H + 20); g.fillRect(xr, -10, W + 10 - xr, H + 20);
-			if (!lines) return;
-			g.strokeStyle = "rgba(255,150,185,1)"; g.lineWidth = 3; g.beginPath();
-			foreach (var (x0, x1) in new[] { (0.0, xl), (xr, W) })
-			{
-				if (x1 - x0 < 30) continue;
-				g.rect(x0 + 18, 30, x1 - x0 - 36, H / 2 - 45); g.rect(x0 + 18, H / 2 + 15, x1 - x0 - 36, H / 2 - 45);
-			}
-			g.stroke();
-		}
-		h.update = (t, dt) => { if (t > te) h.dead = true; };
-		h.draw = t =>
-		{
-			if (t < tw) return;
-			if (t < ta)
-			{
-				double k = L16bK(t, tw, ta); Leaves(l, r, L16bG(0.05 + 0.15 * k), false);
-				g.strokeStyle = L16bAu(0.4 + 0.5 * k); g.lineWidth = 3; g.setLineDash(new double[] { 16, 10 }); g.beginPath(); g.moveTo(l, 0); g.lineTo(l, H); g.moveTo(r, 0); g.lineTo(r, H); g.stroke(); g.setLineDash(new double[0]);
-				return;
-			}
-			if (t >= te) return;
-			double k2 = K(t); g.save(); L16bGlow(16); Leaves(l * k2, W - (W - r) * k2, PINK, true); g.restore();
-		};
-		h.hit = (p, t) =>
-		{
-			if (t < ta || t >= te) return false;
-			double k = K(t), m = L16bM(p); return p.x - m < l * k || p.x + m > W - (W - r) * k;
-		};
-		return h;
-	}
-
-	// ---------- the dome's ribs ----------
-	// n ribs (th thick) curving out from (x, y) (twist radians a pixel), at a0, turning at the rates sp (beat, radians a beat, from that beat on);
-	// they grow out from ta in 0.5 beat; their lines show from tw
-	public static Hz L16bRibs(double x, double y, int n, double twist, double th, double a0, double[] sp, double tw, double ta, double te)
-	{
-		var h = new Hz { kind = "L16bRibs" }; double b0 = BT(ta);
-		double A(double t) => a0 + L16bInt(sp, 2, 1, b0, BT(t));
-		double Rmax(double t) => 46 + 1500 * L16bS(L16bK(t, ta, ta + 0.5 * SPB));
-		List<(double x, double y)> Rib(double a, double rm)
-		{
-			var P = new List<(double x, double y)>();
-			for (double r = 46; ; r += 40) { double rr = Math.Min(r, rm), an = a + twist * rr; P.Add((x + rr * JS.cos(an), y + rr * JS.sin(an))); if (rr >= rm) break; }
-			return P;
-		}
-		void Draw(double a, double rm, double w, string col)
+		double Len(double t) => v * (t - ta);
+		void Draw(double L, string col, double w)
 		{
 			g.strokeStyle = col; g.lineWidth = w; g.lineCap = "round"; g.lineJoin = "round"; g.beginPath();
-			for (int k = 0; k < n; k++) { var P = Rib(a + k * TAU / n, rm); g.moveTo(P[0].x, P[0].y); for (int i = 1; i < P.Count; i++) g.lineTo(P[i].x, P[i].y); }
+			foreach (var (P, cum, s0) in lines)
+			{
+				double ll = L - s0; if (ll <= 0) continue; g.moveTo(P[0].x, P[0].y);
+				for (int i = 1; i < P.Count; i++)
+				{
+					if (cum[i] <= ll) { g.lineTo(P[i].x, P[i].y); continue; }
+					double k = (ll - cum[i - 1]) / (cum[i] - cum[i - 1]); g.lineTo(P[i - 1].x + (P[i].x - P[i - 1].x) * k, P[i - 1].y + (P[i].y - P[i - 1].y) * k); break;
+				}
+			}
 			g.stroke(); g.lineCap = "butt"; g.lineJoin = "miter";
 		}
-		h.update = (t, dt) => { if (t >= te) h.dead = true; };
+		h.update = (t, dt) => { if (t >= te + 0.5 * SPB) h.dead = true; };
 		h.draw = t =>
 		{
-			if (t < tw || t >= te) return;
-			if (t < ta) { double k = L16bK(t, tw, ta); Draw(a0, 1546, 2 + 2 * k, L16bG(0.12 + 0.4 * k)); return; }
-			g.save(); L16bGlow(14); Draw(A(t), Rmax(t), th, PINK); g.fillStyle = PINK; circle(x, y, 50); g.restore();
-			g.fillStyle = "rgba(255,150,185,1)"; circle(x, y, 20);
+			if (t < tw) return;
+			if (t < ta)
+			{
+				double k = L16bK(t, tw, ta); Draw(1e9, L16bG(0.1 + 0.35 * k), 1.5);
+				g.strokeStyle = L16bG(0.2 + 0.5 * k); g.lineWidth = 2; g.beginPath(); g.arc(x, y, 30 - 12 * k, 0, TAU); g.stroke(); return;
+			}
+			if (t >= te) { g.save(); g.globalAlpha *= 0.4 * (1 - L16bK(t, te, te + 0.35 * SPB)); Draw(1e9, "rgba(90,70,90,1)", th * 0.5); g.restore(); return; }
+			g.save(); L16bGlow(12); Draw(Len(t), PINK, th); if (t < ta + 0.6 * SPB) { g.fillStyle = PINK; circle(x, y, 32); } g.restore();
+			Draw(Len(t), L16bLt, Math.Max(1.5, th * 0.2));
 		};
 		h.hit = (p, t) =>
 		{
 			if (t < ta || t >= te) return false;
-			double m = L16bM(p), d = hypot(p.x - x, p.y - y); if (d < 50 + m) return true;
-			double rm = Rmax(t); if (d > rm + th / 2 + m) return false;
-			double a = A(t), lim = th / 2 + m;
-			for (int k = 0; k < n; k++)
+			double m = L16bM(p), lim = th / 2 + m, L = Len(t);
+			if (t < ta + 0.6 * SPB && hypot(p.x - x, p.y - y) < 32 + m) return true;
+			foreach (var (P, cum, s0) in lines)
 			{
-				// only the part of the rib near the square's distance
-				double ak = a + k * TAU / n; double r0 = Math.Max(46, d - 80), r1 = Math.Min(rm, d + 80); if (r1 < r0) continue;
-				double px0 = 0, py0 = 0; bool first = true;
-				for (double r = r0; ; r += 16)
+				double ll = L - s0; if (ll <= 0) continue;
+				for (int i = 1; i < P.Count; i++)
 				{
-					double rr = Math.Min(r, r1), an = ak + twist * rr, qx = x + rr * JS.cos(an), qy = y + rr * JS.sin(an);
-					if (!first && L16bSeg(p.x, p.y, px0, py0, qx, qy) < lim) return true;
-					px0 = qx; py0 = qy; first = false; if (rr >= r1) break;
+					if (cum[i - 1] >= ll) break;
+					double ex = P[i].x, ey = P[i].y;
+					if (cum[i] > ll) { double k = (ll - cum[i - 1]) / (cum[i] - cum[i - 1]); ex = P[i - 1].x + (P[i].x - P[i - 1].x) * k; ey = P[i - 1].y + (P[i].y - P[i - 1].y) * k; }
+					if (L16bSeg(p.x, p.y, P[i - 1].x, P[i - 1].y, ex, ey) < lim) return true;
 				}
 			}
 			return false;
 		};
 		return h;
+	}
+
+	// ---------- a falling piece of the mirror ----------
+	// a jagged piece S big, turned rot, lands on (x, y) at ta: its shadow grows from tw (and the piece comes down from above). It stays hold
+	// beats, then breaks into ns splinters that fly out vs px/s
+	public static Hz[] L16bDrop(double x, double y, double S, double rot, uint seed, int ns, double vs, double tw, double ta, double hold)
+	{
+		var h = new Hz { kind = "L16bDrop" }; uint s = seed; double ts = ta + hold * SPB;
+		var shp = new List<(double x, double y)>(); int nv = 6 + (int)(L16bRnd(ref s) * 2);
+		for (int i = 0; i < nv; i++) { double an = rot + i * TAU / nv + (L16bRnd(ref s) - 0.5) * 0.5, r = S * (i == 0 ? 1.25 : i % 2 == 0 ? 0.8 + 0.2 * L16bRnd(ref s) : 0.5 + 0.2 * L16bRnd(ref s)); shp.Add((r * JS.cos(an), r * JS.sin(an))); }
+		List<(double x, double y)> At(double cx, double cy, double sc) => shp.Select(q => (cx + q.x * sc, cy + q.y * sc)).ToList();
+		var sa = Enumerable.Range(0, ns).Select(i => rot + 0.4 + i * TAU / ns).ToArray();
+		var spl = L16bPetal(x, y, sa, vs, 20, 11, 1, 5, ts, ts, S * 0.4);
+		h.update = (t, dt) => { if (t > ts + 1700 / vs) h.dead = true; };
+		var warn = L16bWarn("L16bDropWarn", t =>
+		{
+			if (t < tw || t >= ta) return;
+			{
+				double k = L16bK(t, tw, ta);
+				g.fillStyle = "rgba(0,0,0," + str(0.2 + 0.3 * k) + ")"; g.beginPath(); L16bPath(At(x, y, 0.4 + 0.6 * k)); g.fill();
+				g.strokeStyle = L16bG(0.2 + 0.5 * k); g.lineWidth = 2; g.beginPath(); L16bPath(At(x, y, 1)); g.stroke();
+				double up = 380 * (1 - k) * (1 - k); g.fillStyle = "rgba(200,215,245," + str(0.12 + 0.25 * k) + ")"; g.strokeStyle = "rgba(235,240,255," + str(0.25 + 0.4 * k) + ")";
+				g.beginPath(); L16bPath(At(x, y - up, 1 + 0.5 * (1 - k))); g.fill(); g.stroke();
+			}
+		}, ta);
+		h.draw = t =>
+		{
+			if (t < ta) return;
+			if (t < ts)
+			{
+				g.save(); L16bGlow(14); g.fillStyle = PINK; g.beginPath(); L16bPath(At(x, y, 1)); g.fill(); g.restore();
+				g.strokeStyle = L16bLt; g.lineWidth = 2; g.beginPath(); var P = At(x, y, 1); for (int i = 0; i < P.Count; i += 2) { g.moveTo(x, y); g.lineTo((P[i].x + x * 2) / 3, (P[i].y + y * 2) / 3); } g.stroke();
+				return;
+			}
+			spl.draw(t);
+		};
+		h.hit = (p, t) =>
+		{
+			if (t < ta) return false;
+			if (t < ts) return hypot(p.x - x, p.y - y) < S * 1.25 + 8 && L16bInPoly(p.x, p.y, At(x, y, 1), L16bM(p));
+			return spl.hit(p, t);
+		};
+		return new[] { warn, h };
+	}
+
+	// ---------- a cut across the whole mirror ----------
+	// a jagged line through (x, y) at angle an; from ta it opens from 12 to wm wide in op beats, holds hold beats and closes in 0.5 beat
+	// (then it is gone). It shows (grey) from tw
+	public static Hz L16bCut(double x, double y, double an, double wm, double op, double hold, uint seed, double tw, double ta)
+	{
+		var h = new Hz { kind = "L16bCut" }; uint s = seed; double c = JS.cos(an), sn = JS.sin(an), t1 = ta + op * SPB, t2 = t1 + hold * SPB, t3 = t2 + 0.5 * SPB;
+		var P = new List<(double x, double y)>();
+		for (double d = -1500; d <= 1500; d += 60) { double off = (L16bRnd(ref s) - 0.5) * 34; P.Add((x + d * c - off * sn, y + d * sn + off * c)); }
+		double Wd(double t) => t < t1 ? 12 + (wm - 12) * L16bS(L16bK(t, ta, t1)) : t < t2 ? wm : wm * (1 - L16bS(L16bK(t, t2, t3)));
+		h.update = (t, dt) => { if (t > t3) h.dead = true; };
+		h.draw = t =>
+		{
+			if (t < tw) return;
+			g.lineJoin = "round"; g.lineCap = "round";
+			if (t < ta) { double k = L16bK(t, tw, ta); g.strokeStyle = L16bG(0.12 + 0.4 * k); g.lineWidth = 2 + 2 * k; g.beginPath(); L16bPath(P, false); g.stroke(); }
+			else
+			{
+				double w = Wd(t);
+				if (t < t1) { g.strokeStyle = L16bP(0.14); g.lineWidth = wm; g.beginPath(); L16bPath(P, false); g.stroke(); }
+				g.save(); L16bGlow(14); g.strokeStyle = PINK; g.lineWidth = Math.Max(1, w); g.beginPath(); L16bPath(P, false); g.stroke(); g.restore();
+				g.strokeStyle = L16bLt; g.lineWidth = Math.Max(1, w * 0.15); g.beginPath(); L16bPath(P, false); g.stroke();
+			}
+			g.lineJoin = "miter"; g.lineCap = "butt";
+		};
+		h.hit = (p, t) =>
+		{
+			if (t < ta || t >= t3) return false;
+			double lim = Wd(t) / 2 + L16bM(p), w = Math.Abs(-(p.x - x) * sn + (p.y - y) * c); if (w > lim + 20 || Wd(t) < 3) return false;
+			return L16bNearLine(p.x, p.y, P, lim);
+		};
+		return h;
+	}
+
+	// ---------- a wedding ring ----------
+	// a ring R big, its band th thick, a stone on top, spinning like a coin (spin turns a beat). orbit (orad > 0): round (cx, cy) at orad (up
+	// by dor on the pulse beats pl) from oa0 at the rate program osp (beat, rad a beat). Else thrown from (cx, cy) to (x1, y1) at v px/s; back > 0:
+	// it waits back beats there and comes back. Its way shows from tw; it is gone at te (orbit), back home, or past the edge
+	public static Hz L16bRing(double cx, double cy, double R, double th, double spin, double orad, double dor, double[] pl, double oa0, double[] osp,
+		double x1, double y1, double v, double back, double tw, double ta, double te)
+	{
+		var h = new Hz { kind = "L16bRing" }; double b0 = BT(ta), D = hypot(x1 - cx, y1 - cy), ux = D > 0 ? (x1 - cx) / D : 0, uy = D > 0 ? (y1 - cy) / D : 1;
+		double tA = ta + D / Math.Max(1, v), tB = tA + back * SPB, tE = orad > 0 ? te : back > 0 ? tB + D / Math.Max(1, v) : ta + 1700 / Math.Max(1, v);
+		(double x, double y) Pos(double t)
+		{
+			if (orad > 0) { double b = BT(t), r = orad + dor * L16bPulse(pl, b), a = oa0 + L16bInt(osp, 2, 1, b0, b); return (cx + r * JS.cos(a), cy + r * JS.sin(a)); }
+			double d = back <= 0 || t < tA ? v * (t - ta) : t < tB ? D : D - v * (t - tB);
+			return (cx + ux * d, cy + uy * d);
+		}
+		double Rx(double t) => Math.Max(th / 2, R * Math.Abs(JS.cos(TAU * spin * (t - ta) / SPB)));
+		List<(double x, double y)> Ell(double x, double y, double rx)
+		{
+			var P = new List<(double x, double y)>(41); for (int i = 0; i <= 40; i++) { double a = i * TAU / 40; P.Add((x + rx * JS.cos(a), y + R * JS.sin(a))); }
+			return P;
+		}
+		h.update = (t, dt) => { if (t >= tE) h.dead = true; };
+		void Ring(double x, double y, double rx, string col, double w, bool stone)
+		{
+			g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.ellipse(x, y, rx, R, 0, 0, TAU); g.stroke();
+			if (!stone) return;
+			g.fillStyle = col; g.beginPath(); g.moveTo(x, y - R - 20); g.lineTo(x + 9, y - R - 9); g.lineTo(x, y - R + 2); g.lineTo(x - 9, y - R - 9); g.closePath(); g.fill();
+		}
+		h.draw = t =>
+		{
+			if (t < tw || t >= tE) return;
+			if (t < ta)
+			{
+				double k = L16bK(t, tw, ta); g.strokeStyle = L16bG(0.12 + 0.35 * k); g.lineWidth = 2; g.setLineDash(new double[] { 10, 10 }); g.beginPath();
+				if (orad > 0) g.arc(cx, cy, orad, 0, TAU);
+				else { double e = back > 0 ? D : 1600; g.moveTo(cx, cy); g.lineTo(cx + ux * e, cy + uy * e); }
+				g.stroke(); g.setLineDash(new double[0]);
+				var p0 = Pos(ta); Ring(p0.x, p0.y, R, L16bG(0.2 + 0.4 * k), 2, false);
+				if (orad <= 0 && back > 0) { g.strokeStyle = L16bG(0.2 + 0.4 * k); g.beginPath(); g.arc(cx + ux * D, cy + uy * D, R, 0, TAU); g.stroke(); }
+				return;
+			}
+			var p = Pos(t); double rx = Rx(t);
+			g.save(); L16bGlow(16); Ring(p.x, p.y, rx, PINK, th, true); g.restore();
+			g.strokeStyle = L16bLt; g.lineWidth = Math.Max(1.5, th * 0.25); g.beginPath(); g.ellipse(p.x, p.y, Math.Max(0.5, rx - th * 0.2), R - th * 0.2, 0, Math.PI * 1.1, Math.PI * 1.7); g.stroke();
+			g.fillStyle = L16bLt; g.beginPath(); g.moveTo(p.x, p.y - R - 15); g.lineTo(p.x + 4, p.y - R - 9); g.lineTo(p.x, p.y - R - 4); g.lineTo(p.x - 4, p.y - R - 9); g.closePath(); g.fill();
+		};
+		h.hit = (p, t) =>
+		{
+			if (t < ta || t >= tE) return false;
+			var q = Pos(t); double m = L16bM(p), dx = p.x - q.x, dy = p.y - q.y;
+			if (Math.Abs(dx) > R + th + m || dy > R + th + m || dy < -R - 22 - m) return false;
+			if (hypot(dx, dy + R + 9) < 7 + m) return true;
+			return L16bNearLine(p.x, p.y, Ell(q.x, q.y, Rx(t)), th / 2 + m);
+		};
+		return h;
+	}
+
+	// ---------- her veil's lace ----------
+	// a band bw wide sweeping the room (dir 0: standing up, moving across from x = p0 at v px/s; dir 1: lying down, moving down/up from
+	// y = p0), with round holes hr big at the places hs along it: you pass through a hole. The holes' lanes show from tw
+	public static Hz L16bLace(int dir, double p0, double v, double bw, double[] hs, double hr, double tw, double ta)
+	{
+		var h = new Hz { kind = "L16bLace" }; double hw = bw / 2, Lmax = dir == 0 ? H : W, Cmax = dir == 0 ? W : H;
+		double C(double t) => p0 + v * (t - ta);
+		// al, ac: along the band and across it
+		(double x, double y) XY(double al, double ac) => dir == 0 ? (ac, al) : (al, ac);
+		h.update = (t, dt) => { double c = C(t); if (t > ta && (c < -bw - 40 || c > Cmax + bw + 40)) h.dead = true; };
+		void Band(double c)
+		{
+			g.save(); g.beginPath(); var a = XY(-10, c - hw - 6); var b2 = XY(Lmax + 10, c + hw + 6); g.rect(Math.Min(a.x, b2.x), Math.Min(a.y, b2.y), Math.Abs(b2.x - a.x), Math.Abs(b2.y - a.y)); g.clip();
+			g.beginPath(); var r0 = XY(-10, c - hw - 3); var r1 = XY(Lmax + 10, c + hw + 3); g.rect(Math.Min(r0.x, r1.x), Math.Min(r0.y, r1.y), Math.Abs(r1.x - r0.x), Math.Abs(r1.y - r0.y));
+			foreach (var hc in hs) { var q = XY(hc, c); g.moveTo(q.x + hr, q.y); g.arc(q.x, q.y, hr, 0, TAU); }
+			L16bGlow(12); g.fillStyle = PINK; g.fill("evenodd");
+			// the scallops along both edges (not over the holes)
+			g.beginPath();
+			for (double al = 0; al <= Lmax; al += 12)
+			{
+				bool skip = false; foreach (var hc in hs) if (Math.Abs(al - hc) < hr + 8) skip = true; if (skip) continue;
+				foreach (int sd in new[] { -1, 1 }) { var q = XY(al, c + sd * (hw - 2)); g.moveTo(q.x + 7, q.y); g.arc(q.x, q.y, 7, 0, TAU); }
+			}
+			g.fill();
+			g.restore();
+		}
+		h.draw = t =>
+		{
+			if (t < tw) return;
+			if (t < ta)
+			{
+				double k = L16bK(t, tw, ta); g.strokeStyle = L16bG(0.12 + 0.35 * k); g.lineWidth = 2; g.setLineDash(new double[] { 12, 10 }); g.beginPath();
+				foreach (var hc in hs) { var a = XY(hc, -50); var b2 = XY(hc, Cmax + 50); g.moveTo(a.x, a.y); g.lineTo(b2.x, b2.y); }
+				g.stroke(); g.setLineDash(new double[0]);
+				double ce = clamp(p0, 40, Cmax - 40); g.strokeStyle = L16bAu(0.25 + 0.5 * k);
+				foreach (var hc in hs) { var q = XY(hc, ce); g.beginPath(); g.arc(q.x, q.y, hr - 6, 0, TAU); g.stroke(); }
+				return;
+			}
+			double c = C(t); Band(c);
+			// the lace's flowers on the band, and gold round the holes
+			for (double al = 22; al < Lmax; al += 44)
+			{
+				bool skip = false; foreach (var hc in hs) if (Math.Abs(al - hc) < hr + 16) skip = true; if (skip) continue;
+				var q = XY(al, c); g.fillStyle = "rgba(200,20,84,1)"; for (int i = 0; i < 5; i++) { double an = i * TAU / 5 + 0.3; circle(q.x + 7 * JS.cos(an), q.y + 7 * JS.sin(an), 3.2); }
+				g.fillStyle = L16bLt; circle(q.x, q.y, 2.4);
+			}
+			g.save(); g.beginPath(); var c0 = XY(-10, c - hw); var c1 = XY(Lmax + 10, c + hw); g.rect(Math.Min(c0.x, c1.x), Math.Min(c0.y, c1.y), Math.Abs(c1.x - c0.x), Math.Abs(c1.y - c0.y)); g.clip();
+			g.strokeStyle = L16bAu(0.85); g.lineWidth = 2; foreach (var hc in hs) { var q = XY(hc, c); g.beginPath(); g.arc(q.x, q.y, hr - 7, 0, TAU); g.stroke(); }
+			g.restore();
+		};
+		h.hit = (p, t) =>
+		{
+			if (t < ta) return false;
+			double m = L16bM(p), c = C(t), al = dir == 0 ? p.y : p.x, ac = (dir == 0 ? p.x : p.y) - c;
+			if (Math.Abs(ac) > hw + 3 + m) return false;
+			foreach (var hc in hs) if (hypot(al - hc, ac) < hr - m) return false;
+			return true;
+		};
+		return h;
+	}
+
+	// ---------- the coins thrown over the bride ----------
+	// from (x, y) at the angles an with the speeds vs (px/s), falling gr px/s/s, r big. Their arcs show (dotted) from tw
+	public static Hz L16bCoin(double x, double y, double[] an, double[] vs, double gr, double r, double tw, double ta)
+	{
+		var h = new Hz { kind = "L16bCoin" }; int n = an.Length;
+		(double x, double y) P(int i, double tau) => (x + vs[i] * JS.cos(an[i]) * tau, y + vs[i] * JS.sin(an[i]) * tau + 0.5 * gr * tau * tau);
+		h.update = (t, dt) =>
+		{
+			if (t < ta) return; double tau = t - ta; bool all = true;
+			for (int i = 0; i < n; i++) { var q = P(i, tau); if (q.y < H + 40 && q.x > -40 && q.x < W + 40) { all = false; break; } }
+			if (all || tau > 6) h.dead = true;
+		};
+		h.draw = t =>
+		{
+			if (t < tw) return;
+			if (t < ta)
+			{
+				double k = L16bK(t, tw, ta); g.fillStyle = L16bG(0.15 + 0.45 * k);
+				for (int i = 0; i < n; i++) for (double tau = 0.06; tau < 3; tau += 0.06) { var q = P(i, tau); if (q.y > H + 20 || q.x < -20 || q.x > W + 20) break; g.fillRect(q.x - 1.5, q.y - 1.5, 3, 3); }
+				return;
+			}
+			double tt = t - ta;
+			g.save(); L16bGlow(12); g.fillStyle = PINK; for (int i = 0; i < n; i++) { var q = P(i, tt); circle(q.x, q.y, r); } g.restore();
+			g.strokeStyle = L16bLt; g.lineWidth = 1.5; g.beginPath(); for (int i = 0; i < n; i++) { var q = P(i, tt); g.moveTo(q.x + r * 0.6, q.y); g.arc(q.x, q.y, r * 0.6, 0, TAU); } g.stroke();
+			g.fillStyle = L16bLt; for (int i = 0; i < n; i++) { var q = P(i, tt); circle(q.x, q.y, r * 0.22); }
+		};
+		h.hit = (p, t) =>
+		{
+			if (t < ta) return false; double tt = t - ta, lim = r + L16bM(p);
+			for (int i = 0; i < n; i++) { var q = P(i, tt); if (Math.Abs(q.x - p.x) < lim && Math.Abs(q.y - p.y) < lim && hypot(q.x - p.x, q.y - p.y) < lim) return true; }
+			return false;
+		};
+		return h;
+	}
+
+	// ---------- her bouquet ----------
+	// thrown from (x0, y0) at tl, it lands on (x1, y1) at ta (harmless in the air) and opens into an n-petal rose Rb big, turning spin rad a
+	// beat, for hold beats. Where it lands shows from tl
+	public static Hz[] L16bBouquet(double x0, double y0, double x1, double y1, double Rb, int n, double spin, double hold, double tl, double ta)
+	{
+		var h = new Hz { kind = "L16bBouquet" }; double te = ta + hold * SPB, a0 = Math.Atan2(y1 - y0, x1 - x0);
+		const double TH = 20;
+		double R(double t) => Rb * L16bS(L16bK(t, ta, ta + 0.3 * SPB));
+		double A(double t) => a0 + spin * (t - ta) / SPB;
+		h.update = (t, dt) => { if (t > te + 0.4 * SPB) h.dead = true; };
+		var air = L16bWarn("L16bBouquetAir", t =>
+		{
+			if (t < tl || t >= ta && t < te) return;
+			g.lineJoin = "round"; g.lineCap = "round";
+			if (t >= te)
+			{
+				// the spent rose fades here, under every attack
+				g.save(); g.globalAlpha *= 1 - L16bK(t, te, te + 0.4 * SPB); g.strokeStyle = L16bG(1); g.lineWidth = TH; g.beginPath(); L16bRosePath(x1, y1, n, R(t), A(t)); g.stroke(); g.restore();
+			}
+			else
+			{
+				double k = L16bK(t, tl, ta), px = x0 + (x1 - x0) * k, py = y0 + (y1 - y0) * k - 160 * 4 * k * (1 - k);
+				g.strokeStyle = L16bG(0.15 + 0.4 * k); g.lineWidth = 2; g.setLineDash(new double[] { 10, 8 }); g.beginPath(); L16bRosePath(x1, y1, n, Rb, a0); g.stroke(); g.setLineDash(new double[0]);
+				g.beginPath(); g.arc(x1, y1, 16, 0, TAU); g.stroke();
+				// the bouquet in the air: white roses, green leaves
+				g.save(); g.translate(px, py); g.rotate(k * 6);
+				g.fillStyle = "rgba(46,92,60,1)"; for (int i = 0; i < 5; i++) { double an = i * TAU / 5; g.beginPath(); g.ellipse(14 * JS.cos(an), 14 * JS.sin(an), 8, 4, an, 0, TAU); g.fill(); }
+				g.fillStyle = "rgba(252,248,242,1)"; circle(0, 0, 8); for (int i = 0; i < 5; i++) { double an = i * TAU / 5 + 0.6; circle(9 * JS.cos(an), 9 * JS.sin(an), 6); }
+				g.strokeStyle = "rgba(200,188,186,0.9)"; g.lineWidth = 1; g.beginPath(); g.arc(0, 0, 4, 0, 4.7); g.stroke();
+				g.restore();
+			}
+			g.lineJoin = "miter"; g.lineCap = "butt";
+		}, te + 0.4 * SPB);
+		h.draw = t =>
+		{
+			if (t < ta || t >= te) return;
+			g.lineJoin = "round"; g.lineCap = "round";
+			{
+				g.save(); L16bGlow(14); g.strokeStyle = PINK; g.lineWidth = TH; g.beginPath(); L16bRosePath(x1, y1, n, R(t), A(t)); g.stroke();
+				g.fillStyle = PINK; circle(x1, y1, 18);
+				g.restore();
+				g.strokeStyle = L16bLt; g.lineWidth = 3; g.beginPath(); L16bRosePath(x1, y1, n, R(t), A(t)); g.stroke(); g.fillStyle = L16bLt; circle(x1, y1, 6);
+			}
+			g.lineJoin = "miter"; g.lineCap = "butt";
+		};
+		h.hit = (p, t) =>
+		{
+			if (t < ta || t >= te) return false;
+			double m = L16bM(p); if (hypot(p.x - x1, p.y - y1) < 18 + m) return true;
+			return L16bRoseHit(p.x, p.y, x1, y1, n, R(t), A(t), TH / 2 + m);
+		};
+		return new[] { air, h };
 	}
 
 	// ---------- the kinds (the events in data/dodge_L16.json) ----------
 	// times are beats. Fixed attacks fire before their warning starts (the data's b), aimed ones ("rnd") lock on the square when they fire.
 	static double L16bez(double v, double ez) => easy ? v * ez : v;
 	static (double x, double y) L16bme() => (player?.x ?? W / 2, player?.y ?? H / 2);
+	static double L16bWn(DodgeEv e, double d = 1) => e.num("wn", d) * (easy ? 1.3 : 1);
+	static double[] L16bDeg(double[] a, int stride, int col, double ez = 1) => a.Select((v, i) => i % stride == col ? L16bez(v, ez) * Math.PI / 180 : v).ToArray();
 	static readonly int _k16bfx = DodgeKind("L16bfx", e => () =>
 	{
 		double v = e.num("v", 0.3), s = e.num("s", 10), dur = Math.Min(2, e.num("dur", 2)), t0 = B(e.b); var h = new Hz { kind = "L16bfx" };
 		h.update = (t, dt) => { double k = 1 - (t - t0) / dur; if (k <= 0) { h.dead = true; return; } flash = Math.Max(flash, v * k * 0.4); shake = Math.Max(shake, s * k); };
 		hazards.Add(h);
 	});
-	static readonly int _k16bstage = DodgeKind("L16bstage", e => () => hazards.Add(L16bStage(e.nums("pb"), B(e.num("to")))));
-	static double L16bWn(DodgeEv e, double d = 1) => e.num("wn", d) * (easy ? 1.3 : 1);
-	static readonly int _k16blat = DodgeKind("L16blat", e => { double wn = L16bWn(e); return () =>
-	{
-		double hit = e.num("hit"), th0 = L16bez(e.num("th", 28), 0.72), th1 = e.has("th1") && !easy ? th0 + e.num("th1") - e.num("th", 28) : th0;   // Easy: no swelling
-		bool nw = e.flag("nw");
-		// Easy: the holes 12% bigger (and the jumps with them), the turning and drifting slower
-		hazards.Add(L16bLat(e.i("fam", 2), L16bez(e.num("s", 200), 1.12), e.num("a0") * Math.PI / 180, L16bez(e.num("spin"), 0.6) * Math.PI / 180, th0, th1, e.nums("pl"),
-			e.nums("st").Select((v, i) => i % 3 == 0 ? v : L16bez(v, 1.12)).ToArray(),
-			e.num("cx", W / 2), e.num("cy", H / 2), L16bez(e.num("dx"), 0.6), L16bez(e.num("dy"), 0.6), e.num("R"), e.num("orad"), e.num("oa0") * Math.PI / 180,
-			L16bez(e.num("ospin"), 0.6) * Math.PI / 180, nw ? B(hit) : B(hit - wn), B(hit), B(e.num("to")),
-			e.nums("sp").Select((v, i) => i % 2 == 1 ? L16bez(v, 0.6) * Math.PI / 180 : v).ToArray(), e.nums("dr").Select((v, i) => i % 3 == 0 ? v : L16bez(v, 0.6)).ToArray()));
-	}; });
-	static readonly int _k16bstar = DodgeKind("L16bstar", e => { double wn = L16bWn(e); return () =>
-	{
-		if (easy && e.flag("ezskip")) return;
-		double hit = e.num("hit");
-		hazards.Add(L16bStar(e.num("x", W / 2), e.num("y", H / 2), e.num("R0", 30), L16bez(e.num("v", 430), 0.8), L16bez(e.num("th", 26), 0.8), e.num("rot") * Math.PI / 180,
-			e.i("gi"), e.i("gn", 2) + (easy ? 2 : 0), B(hit - wn), B(hit)));
-	}; });
+	static readonly int _k16bstage = DodgeKind("L16bstage", e => () => hazards.Add(L16bStage(e.nums("pb"), B(e.num("to")), e.nums("bp"), e.nums("mc"))));
 	static readonly int _k16brose = DodgeKind("L16brose", e => { double wn = L16bWn(e); return () =>
 	{
-		double hit = e.num("hit"), rl = e.num("rl", 430), rh = e.num("rh", rl);
-		hazards.Add(L16bRose(e.num("x", W / 2), e.num("y", H / 2), e.i("n", 8), e.num("r0", 44), rl, rl + (rh - rl) * (easy ? 0.55 : 1), L16bez(e.num("pw", 120), 0.75),
-			e.num("a0") * Math.PI / 180, e.nums("st").Select((v, i) => i % 2 == 1 ? v * Math.PI / 180 : v).ToArray(), e.nums("pl"), B(hit - wn), B(hit), B(e.num("to"))));
+		if (easy && e.flag("ezskip")) return;
+		double hit = e.num("hit");
+		// Easy: thinner, a smaller swell, slower turning
+		hazards.Add(L16bRose(e.num("x", W / 2), e.num("y", H / 2), e.num("orad"), e.num("oa0") * Math.PI / 180, L16bDeg(e.nums("ost"), 2, 1), e.i("n", 5), e.num("R", 300),
+			e.nums("rst"), e.nums("pl"), L16bez(e.num("dp"), 0.5), e.num("grow"), e.num("a0") * Math.PI / 180, L16bDeg(e.nums("sp"), 2, 1, 0.7), L16bez(e.num("th", 22), 0.75),
+			e.num("tr"), e.nums("drop"), B(hit - wn), B(hit), B(e.num("to")), L16bez(e.num("od", 1), 1.3)));
 	}; });
-	static readonly int _k16bshot = DodgeKind("L16bshot", e => { double wn = L16bWn(e, 0.75); return () =>
+	static readonly int _k16bvine = DodgeKind("L16bvine", e => { double wn = L16bWn(e); return () =>
 	{
 		if (easy && e.flag("ezskip")) return;
-		double hit = e.num("hit"); int n = e.i("n", 16); if (easy) n = Math.Max(6, (int)Math.Round(n * 0.6));
-		hazards.Add(L16bShot(e.num("x", W / 2), e.num("y", H / 2), n, e.num("off") * Math.PI / 180, L16bez(e.num("v", 380), 0.78), e.num("r", 12), e.num("Rs", 520), e.num("back"), B(hit - wn), B(hit)));
+		double hit = e.num("hit"), x = e.num("x"), y = e.num("y"), tw = B(hit - wn);
+		if (e.flag("rnd"))
+		{
+			// aimed: it grows along your row (a 0 / 180) or your column (a 90 / -90) from the edge
+			var p = L16bme(); tw = B(e.b); hit = e.b + L16bez(e.num("wn", 1), 1.3); double a = e.num("a");
+			if (Math.Abs(Math.Cos(a * Math.PI / 180)) > 0.5) y = p.y; else x = p.x;
+		}
+		hazards.Add(L16bVine(x, y, e.num("a") * Math.PI / 180, e.num("L", 1400), L16bez(e.num("A", 30), 0.7), e.num("lam", 220), e.num("ph"),
+			L16bez(e.num("v", 1100), 0.8), L16bez(e.num("th", 18), 0.8), tw, B(hit), B(e.flag("rnd") ? hit + e.num("dur", 2) : e.num("to"))));
 	}; });
-	static readonly int _k16bfloor = DodgeKind("L16bfloor", e => { double wn = L16bWn(e); return () =>
-	{
-		double hit = e.num("hit"); var pr = e.nums("pr");
-		if (easy) { var q = new List<double>(); for (int i = 0; i + 4 < pr.Length; i += 5) if (pr[i + 2] >= 1 && pr[i + 1] == 0) q.AddRange(pr.Skip(i).Take(5)); pr = q.ToArray(); }   // Easy: only the stars burn, on the slow steps
-		hazards.Add(L16bFloor(e.num("c", 280), L16bez(e.num("e", 26), 0.4), e.num("ox", W / 2), e.num("oy", H / 2), L16bez(e.num("vx"), 0.75), L16bez(e.num("vy"), 0.75),
-			L16bez(e.num("spin"), 0.75) * Math.PI / 180, pr, L16bez(e.num("pwn", 1), 1.3), B(hit - wn), B(hit), B(e.num("to"))));
-	}; });
-	static readonly int _k16bone = DodgeKind("L16bone", e => () =>
+	static readonly int _k16bpetal = DodgeKind("L16bpetal", e => { double wn = L16bWn(e, 0.75); return () =>
 	{
 		if (easy && e.flag("ezskip")) return;
-		var p = L16bme(); double tl = B(e.b), c = e.num("c", 280), ox = e.num("ox", W / 2), oy = e.num("oy", H / 2), vx = L16bez(e.num("vx"), 0.75), vy = L16bez(e.num("vy"), 0.75);
-		double spin = L16bez(e.num("spin"), 0.75) * Math.PI / 180, fb = e.num("fb"), ta = tl + L16bez(e.num("wn", 2), 1.3) * SPB;
-		var q = L16bNearStar(c, ox, oy, vx, vy, spin, fb, tl, p.x, p.y);
-		hazards.Add(L16bOne(c, L16bez(e.num("e", 26), 0.4), ox, oy, vx, vy, spin, fb, q.i, q.j, tl, ta, ta + e.num("dur", 1.2) * SPB));
+		double hit = e.num("hit"); var an = e.nums("an").Select(v => v * Math.PI / 180).ToArray();
+		if (easy && an.Length > 6) an = an.Where((v, i) => i % 3 != 2).ToArray();
+		hazards.Add(L16bPetal(e.num("x", W / 2), e.num("y", H / 2), an, L16bez(e.num("v", 400), 0.75), e.num("aa", 30), e.num("bb", 16), e.i("shape"), e.num("sp", 4), B(hit - wn), B(hit), e.num("d0")));
+	}; });
+	static readonly int _k16bcrack = DodgeKind("L16bcrack", e => { double wn = L16bWn(e); return () =>
+	{
+		if (easy && e.flag("ezskip")) return;
+		double hit = e.num("hit"), x = e.num("x", W / 2), y = e.num("y", H / 2), a0 = e.num("a0") * Math.PI / 180, tw = B(hit - wn); int n = e.i("n", 6);
+		if (e.flag("rnd"))
+		{
+			// aimed: it hits where you are (or your place in the mirror, "mir", with a crack pointing at you)
+			var p = L16bme(); tw = B(e.b); hit = e.b + L16bez(e.num("wn", 1), 1.3);
+			if (e.flag("mir")) { x = W - p.x; y = p.y; a0 += Math.Atan2(p.y - y, p.x - x); } else { x = p.x; y = p.y; }
+		}
+		if (easy) n = Math.Max(3, n * 2 / 3);
+		hazards.Add(L16bCrack(x, y, n, a0, e.num("v", 2600), L16bez(e.num("th", 16), 0.75), (uint)e.i("seed", 1), tw, B(hit), B(hit + e.num("hold", 2))));
+	}; });
+	static readonly int _k16bdrop = DodgeKind("L16bdrop", e => { double wn = L16bWn(e); return () =>
+	{
+		if (easy && e.flag("ezskip")) return;
+		double hit = e.num("hit"), x = e.num("x"), y = e.num("y"), tw = B(hit - wn);
+		if (e.flag("rnd")) { var p = L16bme(); x = p.x; y = p.y; tw = B(e.b); hit = e.b + L16bez(e.num("wn", 1), 1.3); }   // aimed: it falls where you are
+		hazards.AddRange(L16bDrop(x, y, L16bez(e.num("S", 80), 0.85), e.num("rot") * Math.PI / 180, (uint)e.i("seed", 1), easy ? Math.Max(2, e.i("ns", 4) - 2) : e.i("ns", 4),
+			L16bez(e.num("vs", 420), 0.75), tw, B(hit), e.num("hold", 1)));
+	}; });
+	static readonly int _k16bcut = DodgeKind("L16bcut", e => { double wn = L16bWn(e); return () =>
+	{
+		if (easy && e.flag("ezskip")) return;
+		double hit = e.num("hit"), x = e.num("x", W / 2), y = e.num("y", H / 2), tw = B(hit - wn);
+		if (e.flag("rnd")) { var p = L16bme(); x = p.x; y = p.y; tw = B(e.b); hit = e.b + L16bez(e.num("wn", 1), 1.3); }
+		hazards.Add(L16bCut(x, y, e.num("a") * Math.PI / 180, L16bez(e.num("w", 80), 0.7), e.num("op", 0.5), e.num("hold", 1), (uint)e.i("seed", 1), tw, B(hit)));
+	}; });
+	static readonly int _k16bring = DodgeKind("L16bring", e => { double wn = L16bWn(e); return () =>
+	{
+		if (easy && e.flag("ezskip")) return;
+		double hit = e.num("hit"), x1 = e.num("x1"), y1 = e.num("y1"), tw = B(hit - wn), x = e.num("x", W / 2), y = e.num("y", 150);
+		if (e.flag("rnd"))
+		{
+			// aimed: thrown at where you are, D px out (or past the edge)
+			var p = L16bme(); tw = B(e.b); hit = e.b + L16bez(e.num("wn", 1), 1.3); double dx = p.x - x, dy = p.y - y, l = Math.Max(1, hypot(dx, dy)), d = e.num("D", 1600);
+			x1 = x + dx / l * d; y1 = y + dy / l * d;
+		}
+		hazards.Add(L16bRing(x, y, e.num("R", 44), L16bez(e.num("th", 12), 0.8), e.num("spin", 0.5), e.num("orad"), L16bez(e.num("dor"), 0.6), e.nums("pl"), e.num("oa0") * Math.PI / 180,
+			L16bDeg(e.nums("osp"), 2, 1, 0.75), x1, y1, L16bez(e.num("v", 600), 0.75), e.num("back"), tw, B(hit), B(e.num("to", hit + 4))));
+	}; });
+	static readonly int _k16blace = DodgeKind("L16blace", e => { double wn = L16bWn(e); return () =>
+	{
+		if (easy && e.flag("ezskip")) return;
+		double hit = e.num("hit");
+		hazards.Add(L16bLace(e.i("dir"), e.num("p0"), L16bez(e.num("v", 300), 0.75), e.num("bw", 70), e.nums("hs"), L16bez(e.num("hr", 58), 1.15), B(hit - wn), B(hit)));
+	}; });
+	static readonly int _k16bcoin = DodgeKind("L16bcoin", e => { double wn = L16bWn(e); return () =>
+	{
+		if (easy && e.flag("ezskip")) return;
+		double hit = e.num("hit"); var an = e.nums("an").Select(v => v * Math.PI / 180).ToArray(); var vs = e.nums("vs");
+		if (vs.Length < an.Length) vs = an.Select(_ => e.num("v", 600)).ToArray();
+		if (easy && an.Length > 5) { var keep = an.Select((v, i) => i % 3 != 1).ToArray(); an = an.Where((v, i) => keep[i]).ToArray(); vs = vs.Where((v, i) => keep[i]).ToArray(); }
+		hazards.Add(L16bCoin(e.num("x", W / 2), e.num("y", 300), an, vs, e.num("gr", 900), L16bez(e.num("r", 13), 0.85), B(hit - wn), B(hit)));
+	}; });
+	static readonly int _k16bbq = DodgeKind("L16bbq", e => () =>
+	{
+		if (easy && e.flag("ezskip")) return;
+		var p = L16bme(); double tl = B(e.b), ta = tl + L16bez(e.num("wn", 1.25), 1.3) * SPB;
+		hazards.AddRange(L16bBouquet(e.num("x", W / 2), e.num("y", 300), p.x, p.y, L16bez(e.num("Rb", 170), 0.8), e.i("n", 5), L16bez(e.num("spin", 0.6), 0.6), e.num("hold", 1.2), tl, ta));
 	});
-	static readonly int _k16barch = DodgeKind("L16barch", e => { double wn = L16bWn(e); return () =>
-	{
-		if (easy && e.flag("ezskip")) return;
-		double hit = e.num("hit");
-		hazards.Add(L16bArch(e.i("dir"), e.num("T", 80), e.num("P", 320), e.num("o"), L16bez(e.num("ow", 150), 1.4), L16bez(e.num("v", 300), 0.8), B(hit - wn), B(hit)));
-	}; });
-	static readonly int _k16bdagger = DodgeKind("L16bdagger", e => () =>
-	{
-		if (easy && e.flag("ezskip")) return;
-		var p = L16bme(); double tl = B(e.b);
-		hazards.Add(L16bDagger(p.x, p.y, e.num("a") * Math.PI / 180, L16bez(e.num("w", 70), 0.8), tl, tl + L16bez(e.num("wn", 1), 1.45) * SPB, e.num("hold", 0.35)));
-	});
-	static readonly int _k16bdoor = DodgeKind("L16bdoor", e => { double wn = L16bWn(e, 1.3); return () =>
-	{
-		double hit = e.num("hit");
-		hazards.Add(L16bDoor(e.num("gx"), L16bez(e.num("sw", 120), 1.6), B(hit - wn), B(hit), L16bez(e.num("cl", 0.35), 1.3), e.num("hold", 1)));
-	}; });
-	static readonly int _k16bribs = DodgeKind("L16bribs", e => { double wn = L16bWn(e); return () =>
-	{
-		double hit = e.num("hit");
-		hazards.Add(L16bRibs(e.num("x", W / 2), e.num("y", H / 2), easy ? Math.Max(3, e.i("n", 6) - 2) : e.i("n", 6), e.num("tw", 0.0016), L16bez(e.num("th", 30), 0.8),
-			e.num("a0") * Math.PI / 180, e.nums("sp").Select((v, i) => i % 2 == 1 ? L16bez(v, 0.6) * Math.PI / 180 : v).ToArray(), B(hit - wn), B(hit), B(e.num("to"))));
-	}; });
 }
