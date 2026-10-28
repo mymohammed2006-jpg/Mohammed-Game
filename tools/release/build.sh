@@ -21,7 +21,7 @@ fi
 
 rm -rf build/win build/release; mkdir -p build/win build/release
 "$GD" --headless --import --path . >/dev/null 2>&1 || true
-"$GD" --headless --path . --export-release "Windows Desktop" "$MG/build/win/Mohammed Game.exe" 2>&1 | grep -E "ERROR|error" && { grep -h -E "error|Error" .godot/mono/build_logs/*/msbuild_log.txt 2>/dev/null | sort -u | head -40; exit 1; } || true   # show why the .NET build failed
+"$GD" --headless --path . --export-release "Windows Desktop" "$MG/build/win/Mohammed Game.exe" 2>&1 | grep -E "ERROR|error" && { cat ~/.local/share/godot/mono/build_logs/*/msbuild_issues.csv; grep -h -E "error" ~/.local/share/godot/mono/build_logs/*/msbuild_log.txt 2>/dev/null | sort -u | head -40; exit 1; } || true   # show why the .NET build failed
 [ -f "build/win/Mohammed Game.exe" ] && [ -f "build/win/Mohammed Game.pck" ] || { echo "export failed"; exit 1; }
 rm -f build/win/*_console.exe
 cp -r licenses build/win/   # the libraries' licenses go with the game
