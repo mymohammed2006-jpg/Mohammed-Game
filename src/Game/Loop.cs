@@ -194,7 +194,7 @@ public static partial class G
 			if (actx.state == "running" && cur.buf != null) { if (startBeat == 0 && introOn) { introOn = false; state = "levelIntro"; introAt = now; player = null; hazards = new List<Hz>(); particles = new List<Particle>(); if (cur.boss) bossSceneMusic(); } else beginRun(startBeat); }
 			else if (now - startReqAt > 500) audioHint = true;
 		}
-		else if (state == "levelIntro" && !bnOn) { if (now - introAt > (cur.boss ? BOSS_SCENE * 1000 : 3200)) beginRun(0); }   // a boss level: its scene (UI/BossScene.cs)
+		else if (state == "levelIntro" && !bnOn) { if (now - introAt > (cur.boss ? bossSceneLen * 1000 : 3200)) beginRun(0); }   // a boss level: its scene (UI/BossScene.cs)
 		else if (state == "play" && bnOn && inp.pz) bnLeaveKey(now);   // online boss: no pause (the others go on); twice = leave the room
 		else if (state == "bnWipe") { if (inp.back) netEnd(null, true); }
 		else if (state == "levelIntro" && bnOn) { }   // online: UI/BossNet.cs starts it at the same moment on every PC
