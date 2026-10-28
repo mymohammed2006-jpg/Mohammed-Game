@@ -82,7 +82,7 @@ public static partial class G
 			double u = t - ta, gr = Math.Min(1, u / 0.08);
 			if (u < hold)
 			{
-				g.fillStyle = u < 0.05 ? "#fff" : PINK; circle(x, y, R * gr);
+				g.fillStyle = u < 0.05 ? PINKW : PINK; circle(x, y, R * gr);
 				for (int i = 0; i < 6; i++) { double a = ang + i * TAU / 6; circle(x + JS.cos(a) * sd * gr, y + JS.sin(a) * sd * gr, sr * gr); }
 				if (u >= 0.05) { g.fillStyle = "rgba(110,0,36,0.35)"; circle(x - R * 0.2, y - R * 0.2, R * 0.45 * gr); }
 				return;
