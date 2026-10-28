@@ -363,7 +363,7 @@ public static partial class G
 			double ww = i == n ? 0 : w * Math.Pow(JS.sin(Math.PI * Math.Min(1, 0.15 + u)), 0.6) * (i % 2 == 0 ? 1 : 0.45);
 			lx[i] = px + nx * ww; ly[i] = py + ny * ww; if (i < n) { rx[i] = px - nx * ww; ry[i] = py - ny * ww; }
 		}
-		return L19bPoly(lx.Concat(rx.Reverse()).ToArray(), ly.Concat(ry.Reverse()).ToArray());
+		return L19bPoly(lx.Concat(Enumerable.Reverse(rx)).ToArray(), ly.Concat(Enumerable.Reverse(ry)).ToArray());
 	}
 
 	// ---------- the events ----------
