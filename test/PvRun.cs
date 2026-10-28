@@ -59,6 +59,19 @@ public class PvRun
 			at[401] = () => File.AppendAllText(Path.Combine(outDir, "states.txt"), $"after back x2: state {G.state}\n");
 			endF = 410; G.last = now(); return;
 		}
+		if (System.Environment.GetEnvironmentVariable("MG_PV") == "b2list")
+		{
+			// boss 2: the bosses' list with a PlayStation controller's buttons: the first boss, left (the list goes right to left) -> رقصة الموت, confirm opens it, back, back
+			void tap(string k) { G.OnKeyDown(k, false); rel.Add(k); }
+			at[1] = () => { G.gatePassed = true; G.kindForce = "ps"; G.state = "modes"; G.modeSel = 2; }; at[30] = () => tap("Enter"); shots[90] = "1-boss-list";
+			at[91] = () => tap("ArrowLeft"); shots[140] = "2-boss-list-second";
+			at[141] = () => File.WriteAllText(Path.Combine(outDir, "states.txt"), $"after left: state {G.state} bossLv {G.bossLv}\n");
+			at[150] = () => tap("Enter"); shots[210] = "3-boss2-screen";
+			at[211] = () => File.AppendAllText(Path.Combine(outDir, "states.txt"), $"after confirm: state {G.state} boss {G.BOSSLV[G.bossLv].id}\n");
+			at[220] = () => tap("Backspace"); at[250] = () => tap("Backspace"); shots[280] = "4-back-to-modes";
+			at[281] = () => File.AppendAllText(Path.Combine(outDir, "states.txt"), $"after back x2: state {G.state}\n");
+			endF = 290; G.last = now(); return;
+		}
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "cpfix") { CpFix(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "v49") { V49Tour(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "hc2") { HcOrder(now); G.last = now(); return; }

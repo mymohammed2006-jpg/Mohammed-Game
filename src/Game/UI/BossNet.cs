@@ -113,7 +113,7 @@ public static partial class G
 		var L = n.BL; cur = L; fromList = "bossMenu"; levelTiming(L); hitsTotal = 0; deaths = 0; rec = new RecState(); checkpoint = 0; startBeat = 0;
 		player = null; hazards = new List<Hz>(); particles = new List<Particle>(); introOn = false;
 		state = "levelIntro"; introAt = goAt; bnSceneMusicAt = goAt; netSetPhase("play");
-		if (bnTestFrom > 0) { introAt = goAt - BOSS_SCENE * 1000; bnSceneMusicAt = -1; }
+		if (bnTestFrom > 0) { introAt = goAt - bossSceneLen * 1000; bnSceneMusicAt = -1; }
 	}
 	static double bnSceneMusicAt = -1;
 	// everyone down: the same new start on every PC (no scene)
@@ -136,7 +136,7 @@ public static partial class G
 		bnDownAdded(n.vseat);
 		if (n.host) bnCheckWipe();
 	}
-	static void bnDownAdded(int s) { hazards.Add(B1DownRing(s, songT)); }
+	static void bnDownAdded(int s) { hazards.Add(cur?.id == "B2" ? B2DownRing(s, songT) : B1DownRing(s, songT)); }
 	static void bnCheckWipe()
 	{
 		var n = net; if (n == null || !n.host || n.wipeAt >= 0 || n.phase != "play") return;
@@ -180,7 +180,7 @@ public static partial class G
 	{
 		var n = net; if (n.phase != "play") return;
 		if (state == "levelIntro" && bnSceneMusicAt > 0 && now >= bnSceneMusicAt) { bnSceneMusicAt = -1; bossSceneMusic(); }
-		if (state == "levelIntro" && now - introAt > BOSS_SCENE * 1000) { beginRun(bnTestFrom); return; }
+		if (state == "levelIntro" && now - introAt > bossSceneLen * 1000) { beginRun(bnTestFrom); return; }
 		if (state == "bnWipe" && n.wipeAt >= 0 && now >= n.wipeAt) { bnRestart(); return; }
 		if (state != "play" || player == null) return;
 		if (now - n.sendAt >= 33)

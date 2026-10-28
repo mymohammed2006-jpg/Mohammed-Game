@@ -9,7 +9,10 @@ namespace MG;
 // - A boss level is a dodge data file (data/dodge_B1.json) with 3 hearts, no Easy and no checkpoint (a down = from the start).
 public static partial class G
 {
-	public static readonly string[] BOSS_IDS = { "B1" };
+	public static readonly string[] BOSS_IDS = { "B1", "B2" };
+	// who made each boss's song (the card's line under the name) and its picture
+	static string bossArtist(Level L) => L?.id == "B2" ? "Shirobon" : "Nitro Fun";
+	static void bossIcon(Level L, double x, double y, double r, double now) { if (L?.id == "B2") B2Icon(x, y, r, now / 1000 * 128 / 60); else B1CoreDraw(x, y, r, now / 1000 * 130 / 60, 1); }
 	public static readonly List<Level> BOSSLV = new();
 	public const int BOSS_HP = 3;
 	public static int bnTestHp;   // tests only (test/BossNetTest.cs): fewer hearts
@@ -73,9 +76,9 @@ public static partial class G
 			if (ok)
 			{
 				var L = BOSSLV[i];
-				B1CoreDraw(x, cy - 50 + lf, 46, now / 1000 * 130 / 60, 1);
+				bossIcon(L, x, cy - 50 + lf, 46, now);
 				{ double fs = 32; g.font = $"800 {str(fs)}px {FONT}"; while (fs > 18 && g.measureText(L.name).width > cw - 24) { fs--; g.font = $"800 {str(fs)}px {FONT}"; } txt(L.name, x, cy + 45 + lf, fs, "#fff", 800); }
-				g.font = $"20px {TFONT}"; g.fillStyle = PINK; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText("Nitro Fun - " + L.song, x, cy + 88 + lf);
+				{ string sl = bossArtist(L) + " - " + L.song; double fs = 20; g.font = $"{str(fs)}px {TFONT}"; while (fs > 12 && g.measureText(sl).width > cw - 24) { fs--; g.font = $"{str(fs)}px {TFONT}"; } g.fillStyle = PINK; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText(sl, x, cy + 88 + lf); }
 				txt(L.best != null ? "أفضل حرف: " + L.best : "ما خلصتها للحين", x, cy + 135 + lf, 22, L.best != null ? NGOLD : "rgba(255,255,255,0.5)", 700);
 			}
 			else { lockIcon(x, cy - 30 + lf); txt("؟؟؟", x, cy + 55 + lf, 32, "rgba(255,255,255,0.4)", 800); txt("قريب", x, cy + 105 + lf, 22, "rgba(255,255,255,0.35)", 600); }
@@ -92,9 +95,9 @@ public static partial class G
 		// the boss's card on the left: its core, name, song, best letter
 		double cx = 330, cy = H / 2 + 30, cw = 380, chh = 400, sx = bossShake > 0 ? JS.sin(bossShake * 60) * 8 * bossShake / 0.4 : 0;
 		rr(cx - cw / 2 + sx, cy - chh / 2, cw, chh, 22); g.fillStyle = CARD; g.fill(); g.strokeStyle = "rgba(255,42,109,0.5)"; g.lineWidth = 2; g.stroke();
-		B1CoreDraw(cx + sx, cy - 70, 54, now / 1000 * 130 / 60, 1);
+		bossIcon(L, cx + sx, cy - 70, 54, now);
 		txt(L.name, cx + sx, cy + 50, 38, "#fff", 800);
-		g.font = $"22px {TFONT}"; g.fillStyle = PINK; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText("Nitro Fun - " + L.song, cx + sx, cy + 95);
+		g.font = $"22px {TFONT}"; g.fillStyle = PINK; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText(bossArtist(L) + " - " + L.song, cx + sx, cy + 95);
 		txt(L.best != null ? "أفضل حرف: " + L.best : "ما خلصتها للحين", cx + sx, cy + 145, 24, L.best != null ? NGOLD : "rgba(255,255,255,0.5)", 700);
 		// the choices on the right
 		for (int i = 0; i < BOSS_OPTS.Length; i++)
