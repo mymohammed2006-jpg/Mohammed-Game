@@ -31,7 +31,7 @@ public class DodgeEv
 public static partial class G
 {
 	// the new dodge levels, in the order they come after L11
-	public static readonly string[] DODGE_IDS = { "L12", "L13", "L14", "L15", "L16", "L17", "L18", "L19", "L20", "L21" };
+	public static readonly string[] DODGE_IDS = { "L12", "L13", "L14", "L15", "L16", "L17", "L18", "L19", "L20", "L21", "L22" };
 	// the new friends' levels, in the order they come after F8
 	public static readonly string[] DODGE_FRIENDS = { "F9", "F10", "F11" };
 
@@ -61,14 +61,22 @@ public static partial class G
 		public JsonElement events { get; set; }
 	}
 
+	// v52: a level whose attacks changed keeps the old one as data/dodge_<id>_v51.json (a code-built one: DodgeBuild("<id>_v51", ...)),
+	// replays recorded before (v < 7) play on it, as they were recorded
 	public static Level LoadDodge(string id)
 	{
-		using var f = FileAccess.Open($"res://data/dodge_{id}.json", FileAccess.ModeFlags.Read);
+		var L = LoadDodge(id, "");
+		if (L != null && FileAccess.FileExists($"res://data/dodge_{id}_v51.json")) { L.v51 = LoadDodge(id, "_v51"); if (L.v51 != null) L.v51.isV51 = true; }
+		return L;
+	}
+	static Level LoadDodge(string id, string sfx)
+	{
+		using var f = FileAccess.Open($"res://data/dodge_{id}{sfx}.json", FileAccess.ModeFlags.Read);
 		if (f == null) return null;
 		var D = JsonSerializer.Deserialize<DodgeFile>(f.GetAsText());
 		var evs = D.events.ValueKind == JsonValueKind.Array ? D.events.EnumerateArray().Select(e => new DodgeEv(e.Clone())).ToList() : null;
 		Func<double> ez(string k) => D.ez.TryGetValue(k, out var v) ? () => v : null;
-		SONG_FILE[D.id] = D.file;
+		if (sfx == "") SONG_FILE[D.id] = D.file;
 		return new Level
 		{
 			id = D.id, name = D.name, song = D.song, by = D.by, ver = D.ver, bpm = D.bpm, off = D.off, beats = D.beats, end = D.end, cps = D.cps, energy = D.energy,
@@ -76,7 +84,7 @@ public static partial class G
 			buildName = "dodge" + D.id,
 			build = () =>
 			{
-				if (evs == null) return DB.TryGetValue(D.id, out var bf) ? bf() : new List<Ev>();
+				if (evs == null) return DB.TryGetValue(D.id + sfx, out var bf) ? bf() : new List<Ev>();
 				var E = new List<Ev>();
 				foreach (var e in evs)
 				{

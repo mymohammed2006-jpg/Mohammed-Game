@@ -13,7 +13,7 @@ namespace MG;
 //                                           protection after a hit), and how much of the screen hurts (coverage), the same numbers for any level
 //   -- --dodge hbot <id> <n|e> <outDir> [seed] [maxatt]   the human-limited bot (old game's limits, test/DodgeHBot.cs): finds an S like a
 //                                           person practising; writes rec.txt (RP4=<rec.txt> --bot-run for frames) and bot.json's entry (botrun.json)
-//   -- --dodge rpcheck <id> <n|e>          plays the level's bot.json run the way "watch the bot" does and counts the steps where it touches an attack (0 = in sync)
+//   -- --dodge rpcheck <id>[_v51] <n|e>    plays the level's bot.json run the way "watch the bot" does and counts the steps where it touches an attack (0 = in sync)
 public static partial class G
 {
 	public static void DodgeTool(string[] a, int k)
@@ -21,7 +21,8 @@ public static partial class G
 		localStorage.Memory = true; noMus = true; padsDisabled = true; classicUi = false;
 		performance.manual = 100000; AudioCtx.manualTime = 0; InitSound(); JS.SeedRandom(12345);
 		string mode = a[k], id = a[k + 1], m = a[k + 2];
-		var L = ALL_LV().Concat(HCLV).Concat(BOSSLV).First(x => x.id == id); easy = m == "e"; cur = L; levelTiming(L);
+		bool old = id.EndsWith("_v51"); if (old) id = id[..^4];   // <id>_v51: the old design of a level with new attacks and its <id><m>_v51 bot run
+		var L = ALL_LV().Concat(HCLV).Concat(BOSSLV).First(x => x.id == id); if (old) L = L.v51; easy = m == "e"; cur = L; levelTiming(L);
 		if (mode == "diff") DodgeDiff(L);
 		else if (mode == "speed") DodgeSpeed(L);
 		else if (mode == "hbot") DodgeHBot.Run(a.Skip(k + 1).ToArray());
