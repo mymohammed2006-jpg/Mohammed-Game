@@ -136,7 +136,7 @@ public static partial class G
 		bnDownAdded(n.vseat);
 		if (n.host) bnCheckWipe();
 	}
-	static void bnDownAdded(int s) { hazards.Add(cur?.id == "B2" ? B2DownRing(s, songT) : B1DownRing(s, songT)); }
+	static void bnDownAdded(int s) { hazards.Add(cur?.id == "B2" ? B2DownRing(s, songT) : B1bDownRing(s, songT)); }
 	static void bnCheckWipe()
 	{
 		var n = net; if (n == null || !n.host || n.wipeAt >= 0 || n.phase != "play") return;
