@@ -37,6 +37,7 @@ public sealed class Surface
 
 	// ---------- test only: a hash of everything handed to Godot this frame (same hash = same picture) ----------
 	public static bool HashOn;
+	public static int SubN, SubV, ItemN;   // test only: triangle arrays and their vertices handed over this frame, canvas items used
 	public static ulong FH;
 	public static void Hb(ReadOnlySpan<byte> b)
 	{
@@ -67,6 +68,7 @@ public sealed class Surface
 	Rid Raw()
 	{
 		if (used == pool.Count) pool.Add(RenderingServer.CanvasItemCreate());
+		ItemN = used + 1;
 		return pool[used++];
 	}
 
@@ -142,6 +144,7 @@ public sealed class Surface
 		public void Submit(Rid item, Rid tex, bool uvs = true)
 		{
 			if (ni == 0) { Clear(); return; }
+			SubN++; SubV += nv;
 			if (HashOn) { Hv(0x5B17u); Hs(new ReadOnlySpan<int>(i, 0, ni)); Hs(new ReadOnlySpan<Vector2>(p, 0, nv)); Hs(new ReadOnlySpan<Color>(c, 0, nv)); if (uvs) Hs(new ReadOnlySpan<Vector2>(u, 0, nv)); Hv(tex.Id != 0); }
 			// v53: handed over as spans of the buffers (copies of them made megabytes of garbage a frame, and the clean-ups stalled the game)
 			RenderingServer.CanvasItemAddTriangleArray(item, new ReadOnlySpan<int>(i, 0, ni), new ReadOnlySpan<Vector2>(p, 0, nv), new ReadOnlySpan<Color>(c, 0, nv),

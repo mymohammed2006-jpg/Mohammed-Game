@@ -144,6 +144,7 @@ public class BotRun
 	// PERF=<file>: no pictures; every frame is drawn and handed over, one per engine frame, and its cost is written:
 	// frame songT simMs drawMs submitMs allocKB gen0 gen1 gen2 items
 	static readonly string PERF = System.Environment.GetEnvironmentVariable("PERF");
+	static readonly bool PERFSUB = System.Environment.GetEnvironmentVariable("PERFSUB") == "1";
 	static readonly bool HASH = System.Environment.GetEnvironmentVariable("HASH") == "1";   // HASH=1: also a hash of all drawing handed to Godot per frame
 	StringBuilder perf;
 	void PerfFrame()
@@ -156,7 +157,7 @@ public class BotRun
 		double tSim = sw.Elapsed.TotalMilliseconds;
 		if (int.TryParse(System.Environment.GetEnvironmentVariable("PERFGC"), out var pg) && i % pg == 0) GC.Collect(System.Environment.GetEnvironmentVariable("PERFGCF") == "1" ? 2 : 0, GCCollectionMode.Forced, true, true);
 		if (int.TryParse(System.Environment.GetEnvironmentVariable("PERFSLEEP"), out var psl) && i == psl) { GD.Print("SLEEPING"); System.Threading.Thread.Sleep(6000); }
-		MG.Canvas.Surface.HashOn = HASH; MG.Canvas.Surface.FH = 0;
+		MG.Canvas.Surface.HashOn = HASH; MG.Canvas.Surface.FH = 0; MG.Canvas.Surface.SubN = 0; MG.Canvas.Surface.SubV = 0;
 		G.gfx.BeginFrame();
 		G.draw(performance.manual.Value);
 		double tDraw = sw.Elapsed.TotalMilliseconds;
@@ -166,6 +167,7 @@ public class BotRun
 			.Append((tEnd - tDraw).ToString("F3")).Append(' ').Append((GC.GetAllocatedBytesForCurrentThread() - a0) / 1024).Append(' ')
 			.Append(GC.CollectionCount(0) - g0).Append(' ').Append(GC.CollectionCount(1) - g1).Append(' ').Append(GC.CollectionCount(2) - g2);
 		if (HASH) perf.Append(" h ").Append(MG.Canvas.Surface.FH.ToString("x16"));
+		if (PERFSUB) perf.Append(" sub ").Append(MG.Canvas.Surface.SubN).Append(" v ").Append(MG.Canvas.Surface.SubV).Append(" items ").Append(MG.Canvas.Surface.ItemN);
 		if (GC.CollectionCount(0) != g0)
 		{
 			var gi = GC.GetGCMemoryInfo(GCKind.Any);
