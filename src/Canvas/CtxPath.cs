@@ -19,11 +19,22 @@ public partial class Ctx
 	Vector2 last => curSub != null && curSub.pts.Count > 0 ? curSub.pts[^1] : Vector2.Zero;
 	bool hasPoint => curSub != null && curSub.pts.Count > 0;
 
-	public void beginPath() { path.Clear(); curSub = null; }
+	// v54: subpaths are reused after beginPath() (new ones for every shape were a lot of garbage)
+	readonly List<Sub> subPool = new();
+	int subUsed;
+	Sub TakeSub()
+	{
+		if (subUsed == subPool.Count) subPool.Add(new Sub());
+		var s = subPool[subUsed++];
+		s.pts.Clear(); s.closed = false;
+		return s;
+	}
+
+	public void beginPath() { path.Clear(); curSub = null; subUsed = 0; }
 
 	void NewSub(Vector2 p)
 	{
-		curSub = new Sub();
+		curSub = TakeSub();
 		curSub.pts.Add(p);
 		path.Add(curSub);
 	}
@@ -49,7 +60,7 @@ public partial class Ctx
 		if (curSub == null || curSub.pts.Count == 0) return;
 		curSub.closed = true;
 		var p0 = curSub.pts[0];
-		curSub = new Sub();
+		curSub = TakeSub();
 		curSub.pts.Add(p0);
 		path.Add(curSub);
 	}
@@ -202,9 +213,10 @@ public partial class Ctx
 	}
 
 	// ---------- the subpaths used for filling (each closed) ----------
+	readonly List<List<Vector2>> fillPolys = new();
 	List<List<Vector2>> FillPolys()
 	{
-		var res = new List<List<Vector2>>();
+		var res = fillPolys; res.Clear();
 		foreach (var s in path)
 		{
 			if (s.pts.Count < 3) continue;

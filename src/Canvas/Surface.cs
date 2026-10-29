@@ -35,6 +35,21 @@ public sealed class Surface
 		RenderingServer.CanvasItemAddRect(whiteRoot, new Rect2(0, 0, WhiteBlock, WhiteBlock), new Color(1, 1, 1, 1));
 	}
 
+	// ---------- test only: a hash of everything handed to Godot this frame (same hash = same picture) ----------
+	public static bool HashOn;
+	public static ulong FH;
+	public static void Hb(ReadOnlySpan<byte> b)
+	{
+		ulong h = FH;
+		var u = System.Runtime.InteropServices.MemoryMarshal.Cast<byte, ulong>(b);
+		foreach (var v in u) h = (h ^ v) * 0x100000001b3UL + (h >> 29);
+		for (int k = u.Length * 8; k < b.Length; k++) h = (h ^ b[k]) * 0x100000001b3UL;
+		FH = h ^ (ulong)b.Length;
+	}
+	public static void Hs<T>(ReadOnlySpan<T> v) where T : struct => Hb(System.Runtime.InteropServices.MemoryMarshal.AsBytes(v));
+	public static void Hv<T>(T v) where T : struct => Hs(new ReadOnlySpan<T>(new[] { v }));
+	public static void Hstr(string t) => Hb(System.Runtime.InteropServices.MemoryMarshal.AsBytes(t.AsSpan()));
+
 	// ---------- pooled canvas items ----------
 	readonly List<Rid> pool = new();
 	int used, usedLast;
@@ -42,7 +57,10 @@ public sealed class Surface
 	int gradUsed;
 
 	// a container: the picture itself (0) or one clip. A clip keeps its mask and its region (for clips inside it).
-	struct Cont { public Rid item; public int next; public bool live; public Vector2[] mp; public Color[] mc; public int[] mi; public Clipper2Lib.PathsD region; public Rect2? rect; }
+	struct Cont { public Rid item; public int next; public bool live; public Vector2[] mp; public Color[] mc; public int[] mi; public int np, ni; public Clipper2Lib.PathsD region; public Rect2? rect; }
+	// v54: the clip masks' arrays are kept per clip number and reused every frame
+	readonly List<(Vector2[] p, Color[] c, int[] i)> clipBufs = new();
+	Vector2[] whiteUvs = new Vector2[256];
 	readonly List<Cont> conts = new();
 	int rootLast;          // which container the last item added to the picture belongs to
 
@@ -68,7 +86,14 @@ public sealed class Surface
 		RenderingServer.CanvasItemSetMaterial(it, default);
 		RenderingServer.CanvasItemSetDefaultTextureFilter(it, RenderingServer.CanvasItemTextureFilter.Linear);
 		RenderingServer.CanvasItemSetCanvasGroupMode(it, RenderingServer.CanvasGroupMode.ClipOnly, 0, true, 0, false);
-		if (c.mi.Length > 0) RenderingServer.CanvasItemAddTriangleArray(it, c.mi, c.mp, c.mc, Enumerable.Repeat(WhiteUV, c.mp.Length).ToArray(), null, null, atlasTex);
+		var mi = new ReadOnlySpan<int>(c.mi, 0, c.ni); var mp = new ReadOnlySpan<Vector2>(c.mp, 0, c.np); var mc = new ReadOnlySpan<Color>(c.mc, 0, c.np);
+		if (HashOn) { Hv(0xC11Bu + cont); Hs(mi); Hs(mp); Hs(mc); }
+		if (c.ni > 0)
+		{
+			if (whiteUvs.Length < c.np) { whiteUvs = new Vector2[Math.Max(c.np, whiteUvs.Length * 2)]; }
+			if (whiteUvs[0] != WhiteUV || whiteUvs[^1] != WhiteUV) Array.Fill(whiteUvs, WhiteUV);
+			RenderingServer.CanvasItemAddTriangleArray(it, mi, mp, mc, new ReadOnlySpan<Vector2>(whiteUvs, 0, c.np), ReadOnlySpan<int>.Empty, ReadOnlySpan<float>.Empty, atlasTex, -1);
+		}
 		c.item = it; c.next = 0; c.live = true;
 		conts[cont] = c;
 		rootLast = cont;
@@ -79,6 +104,7 @@ public sealed class Surface
 		Place(cont);
 		var it = Raw();
 		var c = conts[cont];
+		if (HashOn) { Hv(cont); Hv(c.next); Hv(linear); Hv(material.Id != 0); }
 		RenderingServer.CanvasItemClear(it);
 		RenderingServer.CanvasItemSetParent(it, c.item);
 		RenderingServer.CanvasItemSetDrawIndex(it, c.next++);
@@ -104,12 +130,19 @@ public sealed class Surface
 			if (nv == p.Length) { Array.Resize(ref p, nv * 2); Array.Resize(ref c, nv * 2); Array.Resize(ref u, nv * 2); }
 			p[nv] = pos; c[nv] = col; u[nv] = uv; return nv++;
 		}
+		public void ReserveV(int more)
+		{
+			if (nv + more <= p.Length) return;
+			int sz = p.Length; while (sz < nv + more) sz *= 2;
+			Array.Resize(ref p, sz); Array.Resize(ref c, sz); Array.Resize(ref u, sz);
+		}
 		public void Reserve(int moreIdx) { if (ni + moreIdx > i.Length) Array.Resize(ref i, Math.Max(i.Length * 2, ni + moreIdx)); }
 		public void T(int a, int b, int d) { Reserve(3); i[ni++] = a; i[ni++] = b; i[ni++] = d; }
 		public void Q(int a, int b, int d, int e) { T(a, b, d); T(a, d, e); }
 		public void Submit(Rid item, Rid tex, bool uvs = true)
 		{
 			if (ni == 0) { Clear(); return; }
+			if (HashOn) { Hv(0x5B17u); Hs(new ReadOnlySpan<int>(i, 0, ni)); Hs(new ReadOnlySpan<Vector2>(p, 0, nv)); Hs(new ReadOnlySpan<Color>(c, 0, nv)); if (uvs) Hs(new ReadOnlySpan<Vector2>(u, 0, nv)); Hv(tex.Id != 0); }
 			// v53: handed over as spans of the buffers (copies of them made megabytes of garbage a frame, and the clean-ups stalled the game)
 			RenderingServer.CanvasItemAddTriangleArray(item, new ReadOnlySpan<int>(i, 0, ni), new ReadOnlySpan<Vector2>(p, 0, nv), new ReadOnlySpan<Color>(c, 0, nv),
 				uvs ? new ReadOnlySpan<Vector2>(u, 0, nv) : ReadOnlySpan<Vector2>.Empty, ReadOnlySpan<int>.Empty, ReadOnlySpan<float>.Empty, tex, -1);
@@ -147,6 +180,7 @@ public sealed class Surface
 		mask.Submit(maskRoot, default, false);
 		blurH.Submit(blurHRoot, default, false);
 		blurV.Submit(blurVRoot, default, false);
+		if (HashOn) { Hv(used); Hv(gradUsed); Hv(shadowsSkipped); }
 		for (int i = used; i < usedLast; i++)
 		{
 			RenderingServer.CanvasItemClear(pool[i]);
@@ -175,9 +209,16 @@ public sealed class Surface
 		if (m.ni == 0 || col.A <= 0) return;
 		EnsureBatch(cont);
 		int b0 = batch.nv;
-		for (int k = 0; k < m.nv; k++) batch.V(m.pos[k], new Color(col.R, col.G, col.B, col.A * m.cov[k]), WhiteUV);
+		// v54: room made once and the arrays filled directly (same values as batch.V per vertex)
+		batch.ReserveV(m.nv);
+		var bp = batch.p; var bc = batch.c; var bu = batch.u; var mp = m.pos; var mc = m.cov;
+		float r = col.R, g = col.G, b = col.B, a = col.A;
+		for (int k = 0, d = b0; k < m.nv; k++, d++) { bp[d] = mp[k]; bc[d] = new Color(r, g, b, a * mc[k]); bu[d] = WhiteUV; }
+		batch.nv = b0 + m.nv;
 		batch.Reserve(m.ni);
-		for (int k = 0; k < m.ni; k++) batch.i[batch.ni++] = b0 + m.idx[k];
+		var bi = batch.i; var mi = m.idx; int ni0 = batch.ni;
+		for (int k = 0; k < m.ni; k++) bi[ni0 + k] = b0 + mi[k];
+		batch.ni = ni0 + m.ni;
 	}
 
 	// ---------- gradients ----------
@@ -205,21 +246,28 @@ public sealed class Surface
 		var it = NewItem(cont, mat.GetRid());
 		RenderingServer.CanvasItemAddSetTransform(it, xf);
 		var col = new Color(1, 1, 1, alpha);
+		if (HashOn) { Hv(0x6A7u); Hstr(text); Hv(fontSize); Hv(xf); Hv(col); Hv(dir); Hv(outline); Hstr(f.GetFontName()); }
 		if (outline > 0) f.DrawStringOutline(it, Vector2.Zero, text, HorizontalAlignment.Left, -1, fontSize, outline, col, TextServer.JustificationFlag.None, dir);
 		else f.DrawString(it, Vector2.Zero, text, HorizontalAlignment.Left, -1, fontSize, col, TextServer.JustificationFlag.None, dir);
 	}
+	// v54: the parameter names are made once, and a pooled material only gets the values that changed since it was last used
+	// (each set made new Godot objects that the clean-ups had to finalize)
+	static readonly StringName pInvAbcd = "inv_abcd", pInvEf = "inv_ef", pKind = "kind", pP0 = "p0", pP1 = "p1", pN = "n", pOffs = "offs", pCols = "cols";
+	sealed class GradSet { public Vector4 abcd; public Vector2 ef; public int kind = -1, n = -1; public Vector3 p0, p1; public float[] offs = new float[8]; public Vector4[] cols = new Vector4[8]; public bool any; }
+	readonly List<GradSet> gradSet = new();
 	ShaderMaterial GradMat(Gradient gr, Mat inv)
 	{
-		if (gradUsed == gradPool.Count) gradPool.Add(new ShaderMaterial { Shader = gradShader });
+		if (gradUsed == gradPool.Count) { gradPool.Add(new ShaderMaterial { Shader = gradShader }); gradSet.Add(new GradSet()); }
+		var gs = gradSet[gradUsed];
 		var mat = gradPool[gradUsed++];
-		mat.SetShaderParameter("inv_abcd", new Vector4((float)inv.a, (float)inv.b, (float)inv.c, (float)inv.d));
-		mat.SetShaderParameter("inv_ef", new Vector2((float)inv.e, (float)inv.f));
-		mat.SetShaderParameter("kind", gr.radial ? 1 : 0);
-		mat.SetShaderParameter("p0", new Vector3((float)gr.x0, (float)gr.y0, (float)gr.r0));
-		mat.SetShaderParameter("p1", new Vector3((float)gr.x1, (float)gr.y1, (float)gr.r1));
+		var abcd = new Vector4((float)inv.a, (float)inv.b, (float)inv.c, (float)inv.d);
+		var ef = new Vector2((float)inv.e, (float)inv.f);
+		int kind = gr.radial ? 1 : 0;
+		var p0 = new Vector3((float)gr.x0, (float)gr.y0, (float)gr.r0);
+		var p1 = new Vector3((float)gr.x1, (float)gr.y1, (float)gr.r1);
 		int n = Math.Min(gr.stops.Count, 8);
-		var offs = new float[8];
-		var cols = new Vector4[8];
+		Span<float> offs = stackalloc float[8];
+		Span<Vector4> cols = stackalloc Vector4[8];
 		for (int k = 0; k < 8; k++)
 		{
 			var s = gr.stops[Math.Min(k, n - 1)];
@@ -227,11 +275,20 @@ public sealed class Surface
 			// premultiplied, the canvas interpolates gradients that way
 			cols[k] = new Vector4(s.col.R * s.col.A, s.col.G * s.col.A, s.col.B * s.col.A, s.col.A);
 		}
-		mat.SetShaderParameter("n", n);
-		mat.SetShaderParameter("offs", offs);
-		mat.SetShaderParameter("cols", cols);
+		if (HashOn) { Hv(abcd); Hv(ef); Hv(gr.radial); Hv(p0); Hv(p1); Hv(n); Hs<float>(offs); Hs<Vector4>(cols); }
+		// compared bit for bit (a NaN or -0 still counts as a change)
+		if (!gs.any || !Same(gs.abcd, abcd)) { mat.SetShaderParameter(pInvAbcd, abcd); gs.abcd = abcd; }
+		if (!gs.any || !Same(gs.ef, ef)) { mat.SetShaderParameter(pInvEf, ef); gs.ef = ef; }
+		if (gs.kind != kind) { mat.SetShaderParameter(pKind, kind); gs.kind = kind; }
+		if (!gs.any || !Same(gs.p0, p0)) { mat.SetShaderParameter(pP0, p0); gs.p0 = p0; }
+		if (!gs.any || !Same(gs.p1, p1)) { mat.SetShaderParameter(pP1, p1); gs.p1 = p1; }
+		if (gs.n != n) { mat.SetShaderParameter(pN, n); gs.n = n; }
+		if (!gs.any || !System.Runtime.InteropServices.MemoryMarshal.AsBytes(offs).SequenceEqual(System.Runtime.InteropServices.MemoryMarshal.AsBytes(gs.offs.AsSpan()))) { offs.CopyTo(gs.offs); mat.SetShaderParameter(pOffs, offs.ToArray()); }
+		if (!gs.any || !System.Runtime.InteropServices.MemoryMarshal.AsBytes(cols).SequenceEqual(System.Runtime.InteropServices.MemoryMarshal.AsBytes(gs.cols.AsSpan()))) { cols.CopyTo(gs.cols); mat.SetShaderParameter(pCols, cols.ToArray()); }
+		gs.any = true;
 		return mat;
 	}
+	static bool Same<T>(T a, T b) where T : struct => System.Runtime.InteropServices.MemoryMarshal.AsBytes(new ReadOnlySpan<T>(in a)).SequenceEqual(System.Runtime.InteropServices.MemoryMarshal.AsBytes(new ReadOnlySpan<T>(in b)));
 	readonly TriBuf gradBuf = new();
 
 	// ---------- clip ----------
@@ -240,9 +297,15 @@ public sealed class Surface
 	{
 		FlushBatch();
 		curIsBatch = false;
-		var mc = new Color[m.nv];
-		for (int k = 0; k < m.nv; k++) mc[k] = new Color(1, 1, 1, m.cov[k]);
-		conts.Add(new Cont { mp = m.pos[..m.nv], mc = mc, mi = m.idx[..m.ni], region = region, rect = rect });
+		int ci = conts.Count;
+		while (clipBufs.Count <= ci) clipBufs.Add((new Vector2[64], new Color[64], new int[128]));
+		var (bp, bc, bi) = clipBufs[ci];
+		if (bp.Length < m.nv) { bp = new Vector2[Math.Max(m.nv, bp.Length * 2)]; bc = new Color[bp.Length]; }
+		if (bi.Length < m.ni) bi = new int[Math.Max(m.ni, bi.Length * 2)];
+		clipBufs[ci] = (bp, bc, bi);
+		Array.Copy(m.pos, bp, m.nv); Array.Copy(m.idx, bi, m.ni);
+		for (int k = 0; k < m.nv; k++) bc[k] = new Color(1, 1, 1, m.cov[k]);
+		conts.Add(new Cont { mp = bp, mc = bc, mi = bi, np = m.nv, ni = m.ni, region = region, rect = rect });
 		return conts.Count - 1;
 	}
 	public Clipper2Lib.PathsD ClipRegion(int cont) => cont == 0 ? null : conts[cont].region;
@@ -254,6 +317,7 @@ public sealed class Surface
 		if (col.A <= 0) return;
 		EnsureBatch(cont);
 		FlushBatch();
+		if (HashOn) { Hv(0x7E47u); Hstr(text); Hv(fontSize); Hv(xf); Hv(col); Hv(dir); Hv(outline); Hstr(f.GetFontName()); }
 		RenderingServer.CanvasItemAddSetTransform(curItem, xf);
 		if (outline > 0) f.DrawStringOutline(curItem, Vector2.Zero, text, HorizontalAlignment.Left, -1, fontSize, outline, col, TextServer.JustificationFlag.None, dir);
 		else f.DrawString(curItem, Vector2.Zero, text, HorizontalAlignment.Left, -1, fontSize, col, TextServer.JustificationFlag.None, dir);
@@ -339,15 +403,21 @@ public sealed class Surface
 	public void MaskTris(CovMesh m, float alpha, ShadowMap map)
 	{
 		int b0 = mask.nv;
-		for (int k = 0; k < m.nv; k++) mask.V(map.Map(m.pos[k]), new Color(1, 1, 1, alpha * m.cov[k]), Vector2.Zero);
+		mask.ReserveV(m.nv);
+		var bp = mask.p; var bc = mask.c; var bu = mask.u; var mp = m.pos; var mc = m.cov;
+		for (int k = 0, d = b0; k < m.nv; k++, d++) { bp[d] = map.Map(mp[k]); bc[d] = new Color(1, 1, 1, alpha * mc[k]); bu[d] = Vector2.Zero; }
+		mask.nv = b0 + m.nv;
 		mask.Reserve(m.ni);
-		for (int k = 0; k < m.ni; k++) mask.i[mask.ni++] = b0 + m.idx[k];
+		var bi = mask.i; var mi = m.idx; int ni0 = mask.ni;
+		for (int k = 0; k < m.ni; k++) bi[ni0 + k] = b0 + mi[k];
+		mask.ni = ni0 + m.ni;
 	}
 
 	public void MaskText(Font f, string text, int fontSize, Transform2D deviceXf, float alpha, TextServer.Direction dir, ShadowMap map, int outline = 0)
 	{
 		RenderingServer.CanvasItemAddSetTransform(maskTextRoot, map.Xf * deviceXf);
 		var c = new Color(1, 1, 1, alpha);
+		if (HashOn) { Hv(0x3A5Cu); Hstr(text); Hv(fontSize); Hv(map.Xf * deviceXf); Hv(c); Hv(dir); Hv(outline); Hstr(f.GetFontName()); }
 		if (outline > 0) f.DrawStringOutline(maskTextRoot, Vector2.Zero, text, HorizontalAlignment.Left, -1, fontSize, outline, c, TextServer.JustificationFlag.None, dir);
 		else f.DrawString(maskTextRoot, Vector2.Zero, text, HorizontalAlignment.Left, -1, fontSize, c, TextServer.JustificationFlag.None, dir);
 	}
@@ -360,6 +430,7 @@ public sealed class Surface
 		var it = NewItem(cont, default);
 		var tb = gradBuf; tb.Clear();
 		var c = new Color(1, 1, 1, alpha);
+		if (HashOn) { Hv(0x1A6Eu); Hv(tex.Id); }
 		int i0 = tb.V(quad[0], c, uv[0]), i1 = tb.V(quad[1], c, uv[1]), i2 = tb.V(quad[2], c, uv[2]), i3 = tb.V(quad[3], c, uv[3]);
 		tb.Q(i0, i1, i2, i3);
 		tb.Submit(it, tex);

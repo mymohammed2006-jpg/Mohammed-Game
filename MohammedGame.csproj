@@ -14,7 +14,11 @@
     <Compile Remove="installer/**" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Clipper2" Version="1.5.4" />
+    <!-- the exported game uses .NET's older memory clean-up (the one that ships next to the runtime): its clean-ups in play stop for far shorter -->
+    <RuntimeHostConfigurationOption Include="System.GC.Name" Value="clrgc.dll" Condition="$(RuntimeIdentifier.StartsWith('win'))" />
+    <RuntimeHostConfigurationOption Include="System.GC.Name" Value="libclrgc.so" Condition="$(RuntimeIdentifier.StartsWith('linux'))" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="LibTessDotNet" Version="1.1.15" />
     <PackageReference Include="SIPSorcery" Version="10.0.17" />
   </ItemGroup>

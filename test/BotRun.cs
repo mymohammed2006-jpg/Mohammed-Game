@@ -141,8 +141,47 @@ public class BotRun
 		return true;
 	}
 
+	// PERF=<file>: no pictures; every frame is drawn and handed over, one per engine frame, and its cost is written:
+	// frame songT simMs drawMs submitMs allocKB gen0 gen1 gen2 items
+	static readonly string PERF = System.Environment.GetEnvironmentVariable("PERF");
+	static readonly bool HASH = System.Environment.GetEnvironmentVariable("HASH") == "1";   // HASH=1: also a hash of all drawing handed to Godot per frame
+	StringBuilder perf;
+	void PerfFrame()
+	{
+		perf ??= new StringBuilder();
+		long a0 = GC.GetAllocatedBytesForCurrentThread();
+		int g0 = GC.CollectionCount(0), g1 = GC.CollectionCount(1), g2 = GC.CollectionCount(2);
+		var sw = System.Diagnostics.Stopwatch.StartNew();
+		if (!Sim()) { done = true; File.WriteAllText(PERF, perf.ToString()); if (MG.Canvas.Geo.TriCheck) GD.Print($"tricheck {MG.Canvas.Geo.triChecked} diff {MG.Canvas.Geo.triDiff}"); return; }
+		double tSim = sw.Elapsed.TotalMilliseconds;
+		if (int.TryParse(System.Environment.GetEnvironmentVariable("PERFGC"), out var pg) && i % pg == 0) GC.Collect(System.Environment.GetEnvironmentVariable("PERFGCF") == "1" ? 2 : 0, GCCollectionMode.Forced, true, true);
+		if (int.TryParse(System.Environment.GetEnvironmentVariable("PERFSLEEP"), out var psl) && i == psl) { GD.Print("SLEEPING"); System.Threading.Thread.Sleep(6000); }
+		MG.Canvas.Surface.HashOn = HASH; MG.Canvas.Surface.FH = 0;
+		G.gfx.BeginFrame();
+		G.draw(performance.manual.Value);
+		double tDraw = sw.Elapsed.TotalMilliseconds;
+		G.gfx.EndFrame();
+		double tEnd = sw.Elapsed.TotalMilliseconds;
+		perf.Append(i).Append(' ').Append(str(G.songT)).Append(' ').Append(tSim.ToString("F3")).Append(' ').Append((tDraw - tSim).ToString("F3")).Append(' ')
+			.Append((tEnd - tDraw).ToString("F3")).Append(' ').Append((GC.GetAllocatedBytesForCurrentThread() - a0) / 1024).Append(' ')
+			.Append(GC.CollectionCount(0) - g0).Append(' ').Append(GC.CollectionCount(1) - g1).Append(' ').Append(GC.CollectionCount(2) - g2);
+		if (HASH) perf.Append(" h ").Append(MG.Canvas.Surface.FH.ToString("x16"));
+		if (GC.CollectionCount(0) != g0)
+		{
+			var gi = GC.GetGCMemoryInfo(GCKind.Any);
+			perf.Append(" gc gen").Append(gi.Generation).Append(" pause ").Append(gi.PauseDurations[0].TotalMilliseconds.ToString("F1")).Append("ms promotedKB ").Append(gi.PromotedBytes / 1024)
+				.Append(" heapMB ").Append(gi.HeapSizeBytes >> 20).Append(" concurrent ").Append(gi.Concurrent).Append(" compacted ").Append(gi.Compacted).Append(" pinned ").Append(gi.PinnedObjectsCount).Append(" finPending ").Append(gi.FinalizationPendingCount).Append(" fragKB ").Append(gi.FragmentedBytes / 1024);
+		}
+		perf.Append('\n');
+	}
+
 	public void Process()
 	{
+		if (PERF != null && !play)
+		{
+			if (done) { File.WriteAllText(Path.Combine(outDir, "state.log"), log.ToString()); GD.Print("perf done frames=", i); host.GetTree().Quit(); return; }
+			PerfFrame(); return;
+		}
 		if (play && !done)
 		{
 			if (pendingShot) { G.gfx.game.GetTexture().GetImage().SavePng(Path.Combine(outDir, $"f{shotFrame:D6}.png")); pendingShot = false; }

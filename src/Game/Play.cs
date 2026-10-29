@@ -137,6 +137,8 @@ public static partial class G
 		if (state is not ("replay" or "rpLoad")) redoneClear(cur);   // v52: the yellow tag goes once the player goes in (UI/Redone.cs)
 		runSeed = seed ?? (testSeed != null ? testSeed() : i32(random() * 4294967296)); rngS = hstr(str(runSeed) + ":b");
 		hazards = new List<Hz>(); particles = new List<Particle>(); gloom = gloomT = 0; events = cur.build(); ezStart();
+		// v54: clean up memory now, before the song is timed, so the level's own things are settled and the clean-ups during play stay short
+		System.GC.Collect(2, System.GCCollectionMode.Forced, true, true);
 		double fromB = cp == 0 ? 0 : cp - 2, fromT = cp == 0 ? 0 : B(fromB);
 		evIdx = events.FindIndex(e => e.b >= fromB); if (evIdx < 0) evIdx = events.Count; afkStart(fromB);
 		player = new Player { x = 200, y = H / 2, r = easy ? EZ_R : 5, hp = maxHp(cur), inv = 1.0, hurt = 0, dash = 0, cd = 0, fx = 1, fy = 0, ddx = 1, ddy = 0, ang = 0 };

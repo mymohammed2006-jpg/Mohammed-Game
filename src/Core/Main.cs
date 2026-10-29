@@ -32,6 +32,18 @@ public partial class Main : Node
 	bool devLog;              // --dev-log: print timing once a second
 	double devAt, devWorst; int devFrames; double devCost;
 
+	// v54: the memory clean-up sets itself up for a game-sized heap once, here at start; before, the first clean-up while playing
+	// did that and stopped the game for a moment (tens of ms)
+	static void WarmGc()
+	{
+		var sw = System.Diagnostics.Stopwatch.StartNew();
+		object keep = null;
+		for (int q = 0; q < 3_000_000; q++) keep = new byte[48];
+		GC.KeepAlive(keep);
+		GC.Collect();
+		GD.Print($"gc warm-up {sw.ElapsedMilliseconds} ms");
+	}
+
 	public override void _Ready()
 	{
 		CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
@@ -65,6 +77,7 @@ public partial class Main : Node
 		gfx = new Gfx();
 		AddChild(gfx);
 		G.gfx = gfx; G.g = gfx.g;
+		WarmGc();
 		if (canvasTestOut != null) return;
 		if (shotOut != null) { upd = new Updater { state = shotState, percent = shotPct, shown = shotPct }; G.gfx.Resize(1280, 720); return; }
 		if (botRun != null) { botRun.Start(this); return; }

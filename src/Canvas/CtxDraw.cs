@@ -120,7 +120,7 @@ public partial class Ctx
 		if (Bad(x) || Bad(y) || Bad(w) || Bad(h)) return;
 		if (w == 0 && h == 0) return;
 		mesh.Clear();
-		var pts = new List<Vector2>();
+		var pts = rectPts; pts.Clear();
 		if (w == 0 || h == 0)
 		{
 			pts.Add(S.m.P(x, y)); pts.Add(S.m.P(x + w, y + h));
@@ -140,6 +140,8 @@ public partial class Ctx
 		return (Math.Abs(m.a - m.d) < 1e-6 * s && Math.Abs(m.b + m.c) < 1e-6 * s) || (Math.Abs(m.a + m.d) < 1e-6 * s && Math.Abs(m.b - m.c) < 1e-6 * s);
 	}
 
+	readonly List<Vector2> strokeSrc = new(), rectPts = new();
+	double[] dashBuf = Array.Empty<double>();
 	void StrokeSub(List<Vector2> pts, bool closed, CovMesh m)
 	{
 		if (pts.Count < 2) return;
@@ -153,7 +155,7 @@ public partial class Ctx
 		{
 			// stretched transform: stroke in user space (scaled to about device size) and map back
 			var inv = M.Inv();
-			src = new List<Vector2>(pts.Count);
+			src = strokeSrc; src.Clear();
 			foreach (var p in pts) src.Add(new Vector2((float)(k * inv.X(p.X, p.Y)), (float)(k * inv.Y(p.X, p.Y))));
 			back = M.Mul(new Mat(1 / k, 0, 0, 1 / k, 0, 0));
 		}
@@ -161,7 +163,8 @@ public partial class Ctx
 		float w = (float)(S.lineWidth * k);
 		if (S.dash.Length > 0)
 		{
-			var dash = new double[S.dash.Length];
+			if (dashBuf.Length != S.dash.Length) dashBuf = new double[S.dash.Length];
+			var dash = dashBuf;
 			double tot = 0;
 			for (int i = 0; i < dash.Length; i++) { dash[i] = S.dash[i] * k; tot += dash[i]; }
 			if (tot > 0)

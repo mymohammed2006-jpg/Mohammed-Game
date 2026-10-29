@@ -122,6 +122,7 @@ public static class CssColor
 		int p = s.IndexOf('(');
 		if (p > 0 && s.EndsWith(")"))
 		{
+			if (FastRgb(s, p, ref c, out bool okFast)) return okFast;
 			string fn = s.Substring(0, p).Trim().ToLowerInvariant();
 			var parts = s.Substring(p + 1, s.Length - p - 2).Split(new[] { ',', ' ', '/' }, StringSplitOptions.RemoveEmptyEntries);
 			if (fn == "rgb" || fn == "rgba")
@@ -155,6 +156,39 @@ public static class CssColor
 			case "transparent": c = new Color(0, 0, 0, 0); return true;
 		}
 		return false;
+	}
+	// v54: rgb()/rgba() made of plain numbers (what the game builds every frame) read without making new strings; same result as the general way below
+	static bool FastRgb(string s, int p, ref Color c, out bool ok)
+	{
+		ok = false;
+		var fn = s.AsSpan(0, p);
+		if (!fn.SequenceEqual("rgb") && !fn.SequenceEqual("rgba")) return false;
+		var inner = s.AsSpan(p + 1, s.Length - p - 2);
+		foreach (char ch in inner) if (!(ch is (>= '0' and <= '9') or '.' or ',' or ' ' or '/' or '%' or '-' or '+' or 'e' or 'E')) return false;
+		Span<double> v = stackalloc double[4];
+		int n = 0, i = 0;
+		while (i < inner.Length)
+		{
+			while (i < inner.Length && inner[i] is ',' or ' ' or '/') i++;
+			if (i >= inner.Length) break;
+			int j = i;
+			while (j < inner.Length && inner[j] is not (',' or ' ' or '/')) j++;
+			if (n < 4)
+			{
+				var t = inner[i..j];
+				bool pct = t[^1] == '%';
+				if (pct) t = t.TrimEnd('%');
+				double x = double.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d : double.NaN;
+				v[n] = pct ? (n < 3 ? x / 100 * 255 : x / 100) : x;
+			}
+			n++; i = j;
+		}
+		if (n < 3) return true;
+		double r = v[0], g = v[1], b = v[2], a = n >= 4 ? v[3] : 1;
+		if (double.IsNaN(r) || double.IsNaN(g) || double.IsNaN(b) || double.IsNaN(a)) return true;
+		c = new Color((float)(Math.Round(Math.Clamp(r, 0, 255)) / 255), (float)(Math.Round(Math.Clamp(g, 0, 255)) / 255), (float)(Math.Round(Math.Clamp(b, 0, 255)) / 255), (float)Math.Clamp(a, 0, 1));
+		ok = true;
+		return true;
 	}
 	static (double r, double g, double b) Hsl(double h, double s, double l)
 	{

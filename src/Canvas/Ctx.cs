@@ -92,7 +92,7 @@ public partial class Ctx
 		width = w; height = h;
 		S = CtxState.Default();
 		stack.Clear();
-		path.Clear(); curSub = null;
+		path.Clear(); curSub = null; subUsed = 0;
 	}
 
 	// ---------- state ----------
