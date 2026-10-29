@@ -94,7 +94,9 @@ public static partial class G
 	static void DodgeAfk(Level L)
 	{
 		beginRun(0, 1); dry = true; double end = double.TryParse(System.Environment.GetEnvironmentVariable("AFKEND"), out var ae) ? B(ae) : B(L.end); const int CX = 32, CY = 18; var since = new double[CX * CY]; var best = new double[CX * CY]; var at = new double[CX * CY];
-		for (int i = 0; i < since.Length; i++) since[i] = sim0;
+		// AFKFROM=<beat>: only the stands from that beat on (one part or section of a level)
+		double from = double.TryParse(System.Environment.GetEnvironmentVariable("AFKFROM"), out var af) ? B(af) : sim0;
+		for (int i = 0; i < since.Length; i++) since[i] = from;
 		var pr = new Player { r = 5 }; double next = 0;
 		for (long k = 1; ; k++)
 		{
@@ -106,6 +108,7 @@ public static partial class G
 			{
 				int q = j * CX + i; pr.x = 20 + i * 40; pr.y = 20 + j * 40; if (i == 15 && j == 8) continue;   // the middle: the shadow follows the parked square there
 				if (System.Environment.GetEnvironmentVariable("AFKPT") is string ap && ap == $"{pr.x},{pr.y}" && hazards.Any(z => z.hit(pr, t))) GD.Print($"hit {toFixed(t, 2)} b {toFixed(BT(t), 2)} {string.Join(",", hazards.Where(z => z.hit(pr, t)).Select(z => z.kind))}");
+				if (t < from) continue;
 				if (hazards.Any(z => z.hit(pr, t))) { if (t - since[q] > best[q]) { best[q] = t - since[q]; at[q] = since[q]; } since[q] = t; }
 			}
 		}
