@@ -28,6 +28,39 @@ public static partial class G
 		else if (mode == "hbot") DodgeHBot.Run(a.Skip(k + 1).ToArray());
 		else if (mode == "rpcheck") DodgeRpCheck(L, m);
 		else if (mode == "afk") DodgeAfk(L);
+		else if (mode == "cpcheck") DodgeCpCheck(L);
+	}
+
+	// ---------- a restart from each save: what hurts (a 40 px grid) and the kinds of things out, against the same moments of a run from the start ----------
+	//   -- --dodge cpcheck <id> n      the square parked in the middle, never hurt; prints the moments where the two differ (none = the save is whole)
+	static void DodgeCpCheck(Level L)
+	{
+		string Snap(double t)
+		{
+			var pr = new Player { r = 1 }; var sb = new StringBuilder();
+			for (int gx = 0; gx < 32; gx++) for (int gy = 0; gy < 18; gy++) { pr.x = 20 + gx * 40; pr.y = 20 + gy * 40; sb.Append(hazards.Any(h => !h.dead && h.hit(pr, t)) ? '#' : '.'); }
+			sb.Append(' ').Append(string.Join(",", hazards.Where(h => !h.dead).GroupBy(h => h.kind ?? "?").OrderBy(gq => gq.Key).Select(gq => gq.Key + "x" + gq.Count())));
+			return sb.ToString();
+		}
+		Dictionary<int, string> Run(double cp, double upTo)
+		{
+			var o = new Dictionary<int, string>(); beginRun(cp, 777); dry = true;
+			for (long n = 1; ; n++)
+			{
+				double t = sim0 + n * STEP; if (t > upTo) break; songT = t;
+				player.x = W / 2; player.y = H / 2; player.inv = 1e9;
+				fireEvents(t); stepHazards(t, STEP); hazards = hazards.Where(h => !h.dead).ToList(); particles.Clear();
+				int k = (int)Math.Floor(BT(t) * 4); if (BT(t) >= cp && !o.ContainsKey(k)) o[k] = Snap(t);
+			}
+			dry = false; return o;
+		}
+		foreach (var cp in L.cps.Skip(1))
+		{
+			double upTo = B(Math.Min(L.end, cp + 48));
+			var a = Run(0, upTo); var b = Run(cp, upTo); int bad = 0;
+			foreach (var k in a.Keys.OrderBy(x => x)) if (b.TryGetValue(k, out var v) && v != a[k]) { if (bad++ < 400) GD.Print($"beat {toFixed(k / 4.0, 2)}: from start {a[k][577..]} | from save {v[577..]}  cells {a[k][..576].Zip(v[..576]).Count(z => z.First != z.Second)}"); }
+			GD.Print($"RESULT {L.id} save {cp}: {bad} of {a.Count} quarter-beats differ");
+		}
 	}
 
 	// ---------- how hard ----------

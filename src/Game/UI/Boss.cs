@@ -6,7 +6,7 @@ using static MG.JS;
 namespace MG;
 
 // The co-op boss mode (طور الزعيم), Mohammed 10-25: one boss level for 1-4 players, in its own list.
-// - A boss level is a dodge data file (data/dodge_B1.json) with 3 hearts, no Easy and no checkpoint (a down = from the start).
+// - A boss level is a dodge data file (data/dodge_B1.json) with 3 hearts, no Easy and one save at half the level (his rule 10-29: every boss saves at 50%).
 public static partial class G
 {
 	public static readonly string[] BOSS_IDS = { "B1", "B2" };

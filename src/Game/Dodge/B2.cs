@@ -506,7 +506,7 @@ public static partial class G
 		return h;
 	}
 
-	// ---------- online: a downed square (seat s) sits in a pink ring with a gap that turns; the violinist throws notes at it every 2 beats ----------
+	// ---------- online: a downed square (seat s): the violinist throws notes at it every 2 beats (v56: no ring around it) ----------
 	public static Hz B2DownRing(int s, double t0)
 	{
 		var h = new Hz { kind = "B2Down" }; double nextB = Math.Ceiling(BT(t0) + 1);
@@ -518,17 +518,9 @@ public static partial class G
 			double bt = BT(t);
 			if (bt >= nextB) { nextB += 2; var c = at(); if (B2MaskR(bt) > 0) hazards.Add(B2Note(B2X, B2Y, JS.atan2(c.y - B2Y, c.x - B2X), 380 * B2K, B(bt + 1), SPB)); }
 		};
-		h.hit = (p, t) =>
-		{
-			if (t < t0 + 0.8 || !on() || s == bnMe || bnMeDown) return false; var c = at(); double d = hypot(p.x - c.x, p.y - c.y);
-			if (Math.Abs(d - 44) >= 5 + p.r) return false; return Math.Abs(B1Ang(JS.atan2(p.y - c.y, p.x - c.x) - t * 1.6)) > 0.55;
-		};
-		h.draw = t =>
-		{
-			if (!on()) return; var c = at(); double k = clamp((t - t0) / 0.8, 0, 1), ga = t * 1.6;
-			g.strokeStyle = k < 1 ? L15G(0.3 + 0.4 * k) : PINK; g.lineWidth = 10; if (k >= 1) { g.shadowColor = PINK; g.shadowBlur = 10; }
-			g.beginPath(); g.arc(c.x, c.y, 44, ga + 0.55, ga + TAU - 0.55); g.stroke(); g.shadowBlur = 0;
-		};
+		// v56 (his ask 10-29): no ring around the downed one any more, a plain touch brings it back; the boss still shoots at it
+		h.hit = (p, t) => false;
+		h.draw = t => { };
 		return h;
 	}
 

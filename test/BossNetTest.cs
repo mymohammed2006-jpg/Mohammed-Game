@@ -20,9 +20,11 @@ public class BossNetTest
 	static readonly System.Net.Http.HttpClient http = new();
 	static double Env(string k, double d) => double.TryParse(System.Environment.GetEnvironmentVariable(k), out var v) ? v : d;
 	readonly int NP = (int)Env("NP", 2), EVERY = (int)Env("EVERY", 60); readonly double TMAX = Env("T", 400), SCALE = Env("SCALE", 0.2);
-	readonly bool STILL = System.Environment.GetEnvironmentVariable("STILL") == "1";
+	readonly bool STILL = System.Environment.GetEnvironmentVariable("STILL") == "1", GOD = System.Environment.GetEnvironmentVariable("GOD") == "1";   // GOD=1: never hurt
 	readonly System.Diagnostics.Stopwatch wall = new();
 	string lastEv = ""; bool moved;
+	// the pause online (v56): BLUR_AT / ESC_AT = the song second where the window loses focus / Esc is pressed; PAUSE_FOR = game seconds until Esc closes it
+	readonly double BLUR = Env("BLUR_AT", -1), ESC = Env("ESC_AT", -1), HOLD = Env("PAUSE_FOR", 5); double pzAt = -1; bool pzDone;
 
 	public static BossNetTest FromArgs(string[] a, int k) => new BossNetTest { role = a[k], outDir = a[k + 1] };
 	public void Start(Main h)
@@ -64,6 +66,8 @@ public class BossNetTest
 		double now = performance.now(), t = (now - t0) / 1000; i++;
 		if (press != null && --pressN <= 0) { G.OnKeyUp(press); press = null; }
 		string codeF = Path.Combine(outDir, "..", "code.txt");
+		if (!pzDone && pzAt < 0 && press == null && G.state == "play") { if (BLUR >= 0 && G.songT >= BLUR) { G.OnBlur(); pzAt = t; } else if (ESC >= 0 && G.songT >= ESC) { Press("Escape"); pzAt = t; } }
+		if (pzAt >= 0 && !pzDone && press == null && t - pzAt > HOLD) { if (G.state == "bnPause") Press("Escape"); pzDone = true; }
 		if (press == null && now - stepAt > 150)
 		{
 			string s = G.state, ph = G.net?.phase;
@@ -80,6 +84,7 @@ public class BossNetTest
 			else if (step == 13) { Press("Enter"); step = 14; stepAt = now; }
 			else if (step == 3 && ph == "lobby" && G.net.vin.Count(b => b) >= NP && now - G.net.phaseAt > 600) { Press("Enter"); step = 4; stepAt = now; }
 		}
+		if (GOD && G.player != null) G.player.inv = 1e9;
 		// in the level: toward the goal (8 directions)
 		if (G.state == "play" && G.player != null)
 		{

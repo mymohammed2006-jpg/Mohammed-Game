@@ -56,7 +56,7 @@ public static partial class G
 	}
 	public static void OnKeyUp(string code) { keys[code] = false; }
 	public static void OnPointerDown() { ensureAudio(); anyKeyFlag = true; }
-	public static void OnBlur() { foreach (var k in keys.Keys.ToList()) keys[k] = false; if (state == "play") pause(); if (state == "pltPlay") { state = "pltPause"; pauseSel = 0; hostAsk = 0; if (!online) actx.suspend(); } if (state == "tmPlay" && tm?.won != true) { state = "tmPause"; pauseSel = 0; hostAsk = 0; } }
+	public static void OnBlur() { foreach (var k in keys.Keys.ToList()) keys[k] = false; if (state == "play" && bnOn) bnPauseOpen(); else if (state == "play") pause(); if (state == "pltPlay") { state = "pltPause"; pauseSel = 0; hostAsk = 0; if (!online) actx.suspend(); } if (state == "tmPlay" && tm?.won != true) { state = "tmPause"; pauseSel = 0; hostAsk = 0; } }
 
 	public static string padKind(int dev)
 	{
@@ -66,7 +66,7 @@ public static partial class G
 	public static void OnPadConnected(int dev, bool on)
 	{
 		if (on) { toastPad = padKind(dev); toast = toastPad == "ps" ? "تم توصيل يد سوني" : "تم توصيل يد إكس بوكس"; toastT = 2.4; }
-		else { toastPad = null; toast = "انفصلت يد التحكم"; toastT = 2.4; if (state == "play") pause(); }
+		else { toastPad = null; toast = "انفصلت يد التحكم"; toastT = 2.4; if (state == "play" && bnOn) bnPauseOpen(); else if (state == "play") pause(); }
 	}
 
 	// the browser "standard" gamepad buttons from Godot's (SDL) layout

@@ -23,9 +23,9 @@ public static partial class G
 		return e < MENU_LOOP ? e : MENU_DROP + ((e - MENU_LOOP) % (MENU_LOOP - MENU_DROP));
 	}
 
-	static readonly string[] IN_GAME = { "play", "paused", "pauseSet", "dead", "win", "starting", "replay", "rpGap", "rpEnd", "prEnd", "bnWipe" };
+	static readonly string[] IN_GAME = { "play", "paused", "pauseSet", "dead", "win", "starting", "replay", "rpGap", "rpEnd", "prEnd", "bnWipe", "bnPause", "bnSet" };
 	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "bossList", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins", "hcList", "myRp", "extras", "ratings" };
-	static readonly string[] FS_HINT = { "main", "levels", "modes", "bossList", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "pltPause", "pltSet", "tmPause", "tmSet", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "chal", "skins", "hcList", "extras", "ratings" };
+	static readonly string[] FS_HINT = { "main", "levels", "modes", "bossList", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "pltPause", "pltSet", "tmPause", "tmSet", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "bnPause", "bnSet", "chal", "skins", "hcList", "extras", "ratings" };
 
 	public static void draw(double now)
 	{
@@ -92,6 +92,7 @@ public static partial class G
 			}
 		}
 		if (state == "pauseSet") { overlay(0.95); drawSettings(); }
+		drawBnPause(now);
 		if (state == "dead")
 		{
 			overlay();
@@ -103,7 +104,7 @@ public static partial class G
 			}
 			if (now - deadAt > 700)
 			{
-				row(new[] { (K.confirm, pr.on ? "من نقطة التدريب" : cur?.boss == true ? "من البداية" : "كمّل من آخر حفظ") }, W / 2, H / 2 + 110, 38, "#fff", 30);
+				row(new[] { (K.confirm, pr.on ? "من نقطة التدريب" : cur?.boss == true && checkpoint == 0 ? "من البداية" : "كمّل من آخر حفظ") }, W / 2, H / 2 + 110, 38, "#fff", 30);
 				row(pr.on ? (myRpCan() ? new[] { myRpHint(deadAt), (K.back, "التدريب") } : new[] { (K.back, "التدريب") }) : myRpCan() ? new[] { (K.restart, "من بداية المرحلة"), myRpHint(deadAt), (K.back, "القائمة") } : new[] { (K.restart, "من بداية المرحلة"), (K.back, "القائمة") }, W / 2, H / 2 + 170);
 			}
 		}
@@ -163,6 +164,7 @@ public static partial class G
 		double dt = Math.Min(0.05, Math.Max(0, now - last) / 1000); last = now; fdt = dt;
 		var inp = readInput(); mouseApply(inp); syncField();
 		syncTick(now); netTick(now);
+		if (state == "bnSet" && bnOn) updatePlay(dt, BN_IDLE);   // the online boss's settings: the game goes on under them (UI/BossNet.cs)
 		if (state == "gate") { if ((f11Hit || fsOK()) && menuBuf != null) { ensureAudio(); gatePressAt = now; gatePassed = true; state = "gateWait"; } f11Hit = false; }
 		else if (state == "gateWait") { if (actx.state == "running") { playMenu(0); state = "splash"; } else if (now - gatePressAt > 600) { gateHint = true; if (inp.any) ensureAudio(); } }
 		else if (state == "splash") { if (menuPos() >= MENU_DROP) { goMain(now); } else if (inp.any && menuPos() > 1.2) { stopMenu(); playMenu(MENU_DROP); goMain(now); } }
@@ -195,7 +197,8 @@ public static partial class G
 			else if (now - startReqAt > 500) audioHint = true;
 		}
 		else if (state == "levelIntro" && !bnOn) { if (now - introAt > (cur.boss ? bossSceneLen * 1000 : 3200)) beginRun(0); }   // a boss level: its scene (UI/BossScene.cs)
-		else if (state == "play" && bnOn && inp.pz) bnLeaveKey(now);   // online boss: no pause (the others go on); twice = leave the room
+		else if (state == "play" && bnOn && inp.pz) bnPauseOpen();   // online boss: its own pause, the game goes on (the others too)
+		else if (state == "bnPause") bnPauseStep(inp, dt);
 		else if (state == "bnWipe") { if (inp.back) netEnd(null, true); }
 		else if (state == "levelIntro" && bnOn) { }   // online: UI/BossNet.cs starts it at the same moment on every PC
 		else if (state == "play") { if (inp.pz) pause(); else { updatePlay(pr.on ? dt * spd : dt, inp); if (pr.on) cpMsg = 0; } }

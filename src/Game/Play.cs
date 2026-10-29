@@ -21,7 +21,7 @@ public class Level
 	public object buf;            // the decoded song (null until loaded)
 	public bool err;
 	public bool hc;               // a Hardcore level (UI/Hard.cs): 3 hearts, no Easy
-	public bool boss;             // a boss level (UI/Boss.cs): 3 hearts, no Easy, no checkpoint
+	public bool boss;             // a boss level (UI/Boss.cs): 3 hearts, no Easy, a save at 50% (v56)
 	public bool plat;             // a platformer level (data/plat_<id>.json): only its letter is here, for XP, points, the board and the profile
 	public Dictionary<string, double> ezLifeOld, ezLifeNew, ezLife;
 	public Level v51; public bool isV51;   // v52: a level with new attacks keeps its v51 design (data/dodge_<id>_v51.json) for the replays recorded before (Replay.cs rpLevel)
@@ -221,7 +221,7 @@ public static partial class G
 		// steps before this frame's moment still use what the previous frame read; the new input (and a dash) starts at the step of this moment.
 		// So the same input at the same moment gives the same game at any frame rate.
 		int n = 0;
-		while (state == "play" && sim0 + (simN + 1) * STEP <= target + 1e-9)
+		while (bnPlaying && sim0 + (simN + 1) * STEP <= target + 1e-9)
 		{
 			simN++; n++; bool now = sim0 + (simN + 1) * STEP > target + 1e-9;
 			playStep(sim0 + simN * STEP, STEP, now ? inp.x : inX, now ? inp.y : inY, now);
@@ -267,7 +267,7 @@ public static partial class G
 			if (beat >= c && c > checkpoint) { checkpoint = c; cpMsg = 1.8; sfx(tt => { sTone(tt, 659, 0.25, "square", 0.06); sTone(tt + 0.08, 880, 0.3, "square", 0.06); }); }
 		}
 		if (pr.on && t >= B(cur.end) + 0.4 && state == "play") prFinish();
-		else if (t >= B(cur.end) + 0.4 && state == "play")
+		else if (t >= B(cur.end) + 0.4 && bnPlaying)
 		{
 			lastRank = (hitsTotal == 0 && deaths == 0) ? "S" : deaths == 0 ? "A" : deaths == 1 ? "B" : "C"; lastEz = easy;
 			double p0 = ptsOf(easy); xpMark(); string bk = easy ? "bestE" : "best"; string curBest = easy ? cur.bestE : cur.best;

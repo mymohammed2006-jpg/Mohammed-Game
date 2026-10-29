@@ -116,16 +116,19 @@ public static partial class G
 		if (bnTestFrom > 0) { introAt = goAt - bossSceneLen * 1000; bnSceneMusicAt = -1; }
 	}
 	static double bnSceneMusicAt = -1;
-	// everyone down: the same new start on every PC (no scene)
-	static void bnWipe(double at)
+	// everyone down: the same new start on every PC (no scene), from the save the maker had reached (v56: every boss saves at 50%, his rule 10-29)
+	static double bnWipeCp;
+	static void bnWipe(double at, double cp)
 	{
-		var n = net; if (n == null) return; n.wipeAt = at; n.bdown = new bool[VS_N]; bnMeDown = false; bnMsgT = 0;
-		if (state == "play") { stopMusic(); state = "bnWipe"; deadAt = performance.now(); }
+		var n = net; if (n == null) return; n.wipeAt = at; n.bdown = new bool[VS_N]; bnMeDown = false; bnMsgT = 0; bnWipeCp = cp;
+		if (bnPlaying) { stopMusic(); state = "bnWipe"; deadAt = performance.now(); }
 	}
 	static void bnRestart()
 	{
 		var n = net; n.wipeAt = -1; foreach (var l in n.vsn) l.Clear();
-		hitsTotal = 0; deaths = 0; rec = new RecState(); checkpoint = 0; startBeat = 0; beginRun(bnTestFrom);
+		double cp = bnWipeCp;
+		if (cp > 0) { checkpoint = cp; startBeat = cp; beginRun(cp); }   // the hits and downs so far still count (like "كمّل من آخر حفظ")
+		else { hitsTotal = 0; deaths = 0; rec = new RecState(); checkpoint = 0; startBeat = 0; beginRun(bnTestFrom); }
 	}
 	// my hearts ran out
 	public static void bnDown()
@@ -141,9 +144,9 @@ public static partial class G
 	{
 		var n = net; if (n == null || !n.host || n.wipeAt >= 0 || n.phase != "play") return;
 		var seats = bnSeats().ToList(); if (seats.Count == 0 || !seats.All(s => n.bdown[s])) return;
-		double at = performance.now() + 2600;
-		for (int s = 1; s < VS_N; s++) if (n.vplay[s] && !n.vleft[s] && n.vconnAt[s] > 0) n.vp[s].Send(new JsonObject { ["k"] = "wipe", ["d"] = 2600 - Math.Max(0, n.vrt[s]) / 2 }.ToJsonString());
-		bnWipe(at);
+		double at = performance.now() + 2600, cp = checkpoint;
+		for (int s = 1; s < VS_N; s++) if (n.vplay[s] && !n.vleft[s] && n.vconnAt[s] > 0) n.vp[s].Send(new JsonObject { ["k"] = "wipe", ["d"] = 2600 - Math.Max(0, n.vrt[s]) / 2, ["c"] = cp }.ToJsonString());
+		bnWipe(at, cp);
 	}
 	// a boss message (true = used); the maker passes each one on to the others
 	static bool bnMsg(string k, JsonNode j, int from, byte[] raw, double now)
@@ -154,21 +157,21 @@ public static partial class G
 		if (k == "dn" && w >= 0 && w < VS_N && w != n.vseat)
 		{
 			n.bdown[w] = true; n.bdpos[w] = (j["x"]?.GetValue<double>() ?? 0, j["y"]?.GetValue<double>() ?? 0);
-			if (state == "play") { bnDownAdded(w); bnNote($"{vsName(w)} طاح! المسه عشان يرجع"); }
+			if (bnPlaying) { bnDownAdded(w); bnNote($"{vsName(w)} طاح! المسه عشان يرجع"); }
 			if (n.host) bnCheckWipe();
 		}
 		else if (k == "rv" && w >= 0 && w < VS_N)
 		{
 			int r = j["r"]?.GetValue<int>() ?? -1; n.bdown[w] = false;
 			if (w != n.vseat && bnMsgT > 0 && bnMsgS == $"{vsName(w)} طاح! المسه عشان يرجع") bnMsgT = 0;   // he is back: the "touch him" line goes (Mohammed 14:33 10-25)
-			if (w == n.vseat && bnMeDown && state == "play")
+			if (w == n.vseat && bnMeDown && bnPlaying)
 			{
 				bnMeDown = false; player.hp = 1; player.inv = 1.5; player.hurt = 0; burst(player.x, player.y, CYAN, 30, 380);
 				bnNote((r >= 0 && r < VS_N ? vsName(r) : "") + " رجّعك! عندك قلب واحد");
 				sfx(tt => { sTone(tt, 523, 0.12, "triangle", 0.1); sTone(tt + 0.08, 784, 0.2, "triangle", 0.1); });
 			}
 		}
-		else if (k == "wipe" && !n.host) bnWipe(now + (j["d"]?.GetValue<double>() ?? 2600));
+		else if (k == "wipe" && !n.host) bnWipe(now + (j["d"]?.GetValue<double>() ?? 2600), j["c"]?.GetValue<double>() ?? 0);
 		else if (k == "fin" && w >= 0 && w < VS_N) n.bfin[w] = S(j["r"]);
 		else return k is "dn" or "rv" or "fin" or "wipe";
 		return true;
@@ -182,7 +185,7 @@ public static partial class G
 		if (state == "levelIntro" && bnSceneMusicAt > 0 && now >= bnSceneMusicAt) { bnSceneMusicAt = -1; bossSceneMusic(); }
 		if (state == "levelIntro" && now - introAt > bossSceneLen * 1000) { beginRun(bnTestFrom); return; }
 		if (state == "bnWipe" && n.wipeAt >= 0 && now >= n.wipeAt) { bnRestart(); return; }
-		if (state != "play" || player == null) return;
+		if (!bnPlaying || player == null) return;
 		if (now - n.sendAt >= 33)
 		{
 			n.sendAt = now; var q = player; var b = new byte[47]; int o = 0;
@@ -192,7 +195,7 @@ public static partial class G
 			vsSendB(false, b.AsSpan(0, o).ToArray());
 		}
 		// touching a downed square brings it back (once; the downed one's PC gives it its heart)
-		if (!bnMeDown && now - n.revAt > 500)
+		if (!bnMeDown && state == "play" && now - n.revAt > 500)
 			foreach (int s in bnSeats())
 			{
 				if (s == n.vseat || !n.bdown[s]) continue; var d = n.bdpos[s];
@@ -214,7 +217,34 @@ public static partial class G
 	// someone left during the match: they don't count any more (all the rest down = the new start)
 	static void bnGone(int s) { if (net?.boss == true && net.phase == "play") { net.bdown[s] = false; bnNote(vsName(s) + " طلع من الغرفة"); if (net.host) bnCheckWipe(); } }
 
-	static void bnLeaveKey(double now) { var n = net; if (n.leaveArm > 0 && now - n.leaveArm < 2500) netEnd(null, true); else n.leaveArm = now; }
+	// ---------- the pause online (his ask 10-29): Start / Esc / the window losing focus (the Windows key) open it; the game goes on for
+	// everyone, this square stands where it is (it can still be hit), like the co-op platformer's pause. Nothing stops the music here.
+	public static bool bnPlaying => state is "play" or "bnPause" or "bnSet";
+	public static readonly Inp BN_IDLE = new();
+	static readonly string[] BN_PAUSE = { "أكمل اللعب", "الإعدادات", "اطلع من الغرفة" };
+	public static void bnPauseOpen() { state = "bnPause"; pauseSel = 0; }
+	static void bnPauseStep(Inp inp, double dt)
+	{
+		int pn = BN_PAUSE.Length; if (inp.up) pauseSel = (pauseSel + pn - 1) % pn; if (inp.down) pauseSel = (pauseSel + 1) % pn;
+		if (inp.pz || inp.back || (inp.confirm && pauseSel == 0)) state = "play";
+		else if (inp.confirm && pauseSel == 1) { state = "bnSet"; setSel = 0; }
+		else if (inp.confirm) { netEnd(null, true); return; }
+		updatePlay(dt, BN_IDLE);
+	}
+	public static void drawBnPause(double now)
+	{
+		if (!bnOn || state is not ("bnPause" or "bnSet")) return;
+		overlay(state == "bnSet" ? 0.95 : 0.75);
+		if (state == "bnSet") { drawSettings(); return; }
+		txt("اللعبة متوقفة عندك", W / 2, 165, 56, "#fff");
+		txt("الباقين يكملون، ومربعك واقف مكانه", W / 2, 222, 22, "rgba(255,255,255,0.55)", 500);
+		for (int i = 0; i < BN_PAUSE.Length; i++)
+		{
+			double y = 310 + i * 80, bh = 68; bool sel = i == pauseSel; int ii = i; zone(W / 2 - 260, y - bh / 2, 520, bh, () => pauseSel = ii);
+			if (sel) { rr(W / 2 - 260, y - bh / 2, 520, bh, 16); g.fillStyle = $"rgba({RGB},0.12)"; g.fill(); g.strokeStyle = RED; g.lineWidth = 2; g.stroke(); }
+			txt(BN_PAUSE[i], W / 2, y, sel ? 38 : 32, sel ? "#fff" : "rgba(255,255,255,0.5)", 800);
+		}
+	}
 	// the win screen's lower part online: everyone's letter, then play again (the maker) or leave
 	static void bnWinRows(double now)
 	{
@@ -257,15 +287,15 @@ public static partial class G
 			for (int k = 0; k < maxHp(cur); k++) { double hx = x - k * 20; if (k < hp) { g.fillStyle = BN_COL[s]; g.fillRect(hx - 7, y - 7, 14, 14); } else { g.strokeStyle = BN_COL[s]; g.globalAlpha = 0.35; g.lineWidth = 2; g.strokeRect(hx - 6, y - 6, 12, 12); g.globalAlpha = 1; } }
 			txt(n.bdown[s] ? vsName(s) + " (طايح)" : vsName(s), x - maxHp(cur) * 20 - 8, y + 1, 18, n.bdown[s] ? "rgba(255,255,255,0.5)" : "#fff", 700, "right");
 		}
-		if (bnMeDown) txt("طحت! استنى أحد يلمسك عشان ترجع", W / 2, 120, 32, "#fff", 800);
+		if (state is "bnPause" or "bnSet") { }   // the pause's own words are there
+		else if (bnMeDown) txt("طحت! استنى أحد يلمسك عشان ترجع", W / 2, 120, 32, "#fff", 800);
 		else if (bnMsgT > 0 && bnMsgS != null) { g.globalAlpha = clamp(bnMsgT / 0.4, 0, 1); txt(bnMsgS, W / 2, 120, 30, "#fff", 800); g.globalAlpha = 1; }
-		if (n.leaveArm > 0 && now - n.leaveArm < 2500) txt("اضغط مرة ثانية عشان تطلع من الغرفة", W / 2, H - 70, 26, "rgba(255,255,255,0.85)", 700);
 	}
 	public static void drawBnWipe(double now)
 	{
 		overlay(0.6); double e = clamp((now - deadAt) / 220, 0, 1), sc = 1 + 0.6 * JS.pow(1 - e, 3);
 		g.save(); g.translate(W / 2, H / 2 - 40); g.scale(sc, sc); g.globalAlpha = e; txt("طحتوا كلكم!", 0, 0, 84, PINK); g.restore(); g.globalAlpha = 1;
-		txt("من بداية المرحلة" + new string('.', 1 + (int)Math.Floor(now / 400) % 3), W / 2, H / 2 + 50, 32, "#fff", 700);
+		txt((bnWipeCp > 0 ? "من آخر حفظ" : "من بداية المرحلة") + new string('.', 1 + (int)Math.Floor(now / 400) % 3), W / 2, H / 2 + 50, 32, "#fff", 700);
 	}
 	// the win screen, online: a card for each one with their letter
 	public static void drawBnCards(double now, double top)

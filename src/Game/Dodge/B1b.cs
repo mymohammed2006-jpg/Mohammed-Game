@@ -509,7 +509,7 @@ public static partial class G
 		return h;
 	}
 
-	// ---------- online: a downed square sits in a pink ring with a gap that turns; the core throws at it every 2 beats ----------
+	// ---------- online: a downed square: the core throws at it every 2 beats (v56: no ring around it) ----------
 	public static Hz B1bDownRing(int s, double t0)
 	{
 		var h = new Hz { kind = "B1bDown" }; double nextB = Math.Ceiling(BT(t0) + 1);
@@ -521,17 +521,9 @@ public static partial class G
 			double bt = BT(t);
 			if (bt >= nextB) { nextB += 2; var c = at(); var o = B1bCorePos(bt); if (B1bCoreR(bt) > 0) hazards.Add(B1bShot(o.x, o.y, JS.atan2(c.y - o.y, c.x - o.x), 380, B(bt + 1), SPB)); }
 		};
-		h.hit = (p, t) =>
-		{
-			if (t < t0 + 0.8 || !on() || s == bnMe || bnMeDown) return false; var c = at(); double d = hypot(p.x - c.x, p.y - c.y);
-			if (Math.Abs(d - 44) >= 5 + p.r) return false; return Math.Abs(B1Ang(JS.atan2(p.y - c.y, p.x - c.x) - t * 1.6)) > 0.55;
-		};
-		h.draw = t =>
-		{
-			if (!on()) return; var c = at(); double k = clamp((t - t0) / 0.8, 0, 1), ga = t * 1.6;
-			g.strokeStyle = k < 1 ? L15G(0.3 + 0.4 * k) : PINK; g.lineWidth = 10; if (k >= 1) { g.shadowColor = PINK; g.shadowBlur = 10; }
-			g.beginPath(); g.arc(c.x, c.y, 44, ga + 0.55, ga + TAU - 0.55); g.stroke(); g.shadowBlur = 0;
-		};
+		// v56 (his ask 10-29): no ring around the downed one any more, a plain touch brings it back; the boss still shoots at it
+		h.hit = (p, t) => false;
+		h.draw = t => { };
 		return h;
 	}
 
@@ -572,7 +564,7 @@ public static partial class G
 	static List<Ev> buildB1b()
 	{
 		var E = new List<Ev>();
-		void at(double b, Action f, bool keep = false, bool rnd = false) => E.Add(new Ev { b = b, f = f, keep = keep, rnd = rnd });
+		void at(double b, Action f, bool keep = false, bool rnd = false, bool keepNew = false) => E.Add(new Ev { b = b, f = f, keep = keep, rnd = rnd, keepNew = keepNew });
 		void add(Hz h) => hazards.Add(h);
 		double SB = SPB;
 		B1bCh = new();
@@ -599,7 +591,7 @@ public static partial class G
 		for (double b = 4; b < 30; b += b < 8 ? 1 : 0.5) { double bb = b, a0 = b * 0.61; int n = b < 16 ? 3 : 4; at(bb - 0.75, () => { for (int i = 0; i < n; i++) add(B1bShot(640, 360, a0 + i * TAU / n, 340, B(bb), 0.75 * SB)); }); }
 
 		// ===== snake (b30-64): out of the core to the apples; a second one from b46 =====
-		at(29, () => add(B1MarkFx(B(29), B(316))));
+		at(29, () => add(B1MarkFx(B(29), B(316))), keepNew: true);   // keepNew: back after the save (b160, v56)
 		void Snakes(List<B1bSnk> SS, double end, double sp)
 		{
 			B1bPlan(SS, 0.5, end,
@@ -649,7 +641,7 @@ public static partial class G
 				// from b160 they speed up, and turn back every 8 beats (the arrows say so a beat before)
 				double s0 = SP[j], s1 = SP[j] * 1.25;
 				var S = new L15Spin(j * 97, 126, 194, new double[] { 126, 160, 168, 176, 184 }, new double[] { s0, s1, -s1, s1, -s1 });
-				int jj = j; at(126, () => add(B1bLane(LY[jj], S, LEN[jj], GAP[jj], 128, 191)));
+				int jj = j; at(126, () => add(B1bLane(LY[jj], S, LEN[jj], GAP[jj], 128, 191)), keepNew: true);   // the save at b160 (v56) is on the road
 			}
 			// the circles: bottom, top-left, bottom-right, top-right, bottom-left (online: one for each standing player, side by side)
 			var CW = new (double a, double b, double y, double[] xs)[]

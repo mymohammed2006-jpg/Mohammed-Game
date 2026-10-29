@@ -37,7 +37,7 @@ public static partial class G
 	// the keyboard while typing a number: digits, Backspace, Enter puts it, Esc cancels. true = the key is used here
 	public static bool numKey(string code)
 	{
-		if (numRow == null || !(state is "settings" or "pauseSet" or "pltSet" or "tmSet")) { numRow = null; return false; }
+		if (numRow == null || !(state is "settings" or "pauseSet" or "pltSet" or "tmSet" or "bnSet")) { numRow = null; return false; }
 		string dg = code.StartsWith("Digit") ? code.Substring(5) : code.StartsWith("Kp") && code.Length == 3 && char.IsDigit(code[2]) ? code.Substring(2) : null;
 		if (dg != null) { if (numBuf.Length < 3) numBuf = (numBuf == "0" ? "" : numBuf) + dg; }
 		else if (code == "Backspace") { if (numBuf.Length > 0) numBuf = numBuf.Substring(0, numBuf.Length - 1); }

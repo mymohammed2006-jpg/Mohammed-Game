@@ -16,7 +16,7 @@ public static partial class G
 	public static readonly List<(int k, double x, double y)> mouseQ = new();   // 0 move, 1 left down, 2 left up, 3 right down, 4 wheel up, 5 wheel down
 	static Zone dragZ, holdZ; static double holdZT, holdZAcc;
 	static string[] curSt;   // made on first use: MENUISH is in another file and may not be set up yet
-	static string[] CUR_ST => curSt ??= MENUISH.Concat(new[] { "news", "practice", "paused", "pauseSet", "pltPause", "pltSet", "tmPause", "tmSet", "dead", "win", "prEnd" }).ToArray();
+	static string[] CUR_ST => curSt ??= MENUISH.Concat(new[] { "news", "practice", "paused", "pauseSet", "pltPause", "pltSet", "tmPause", "tmSet", "bnPause", "bnSet", "dead", "win", "prEnd" }).ToArray();
 	// lists that go right to left: the wheel moves along them
 	static readonly string[] WHEEL_X = { "levels", "friends", "skins", "chal", "news" };
 
