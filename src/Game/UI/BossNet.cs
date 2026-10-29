@@ -116,7 +116,7 @@ public static partial class G
 		if (bnTestFrom > 0) { introAt = goAt - bossSceneLen * 1000; bnSceneMusicAt = -1; }
 	}
 	static double bnSceneMusicAt = -1;
-	// everyone down: the same new start on every PC (no scene), from the save the maker had reached (v56: every boss saves at 50%, his rule 10-29)
+	// everyone down: the same new start on every PC (no scene), from the save the maker had reached (v55: every boss saves at 50%, his rule 10-29)
 	static double bnWipeCp;
 	static void bnWipe(double at, double cp)
 	{

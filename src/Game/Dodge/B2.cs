@@ -506,7 +506,7 @@ public static partial class G
 		return h;
 	}
 
-	// ---------- online: a downed square (seat s): the violinist throws notes at it every 2 beats (v56: no ring around it) ----------
+	// ---------- online: a downed square (seat s): the violinist throws notes at it every 2 beats (v55: no ring around it) ----------
 	public static Hz B2DownRing(int s, double t0)
 	{
 		var h = new Hz { kind = "B2Down" }; double nextB = Math.Ceiling(BT(t0) + 1);
@@ -518,7 +518,7 @@ public static partial class G
 			double bt = BT(t);
 			if (bt >= nextB) { nextB += 2; var c = at(); if (B2MaskR(bt) > 0) hazards.Add(B2Note(B2X, B2Y, JS.atan2(c.y - B2Y, c.x - B2X), 380 * B2K, B(bt + 1), SPB)); }
 		};
-		// v56 (his ask 10-29): no ring around the downed one any more, a plain touch brings it back; the boss still shoots at it
+		// v55 (his ask 10-29): no ring around the downed one any more, a plain touch brings it back; the boss still shoots at it
 		h.hit = (p, t) => false;
 		h.draw = t => { };
 		return h;

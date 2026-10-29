@@ -21,7 +21,7 @@ public class Level
 	public object buf;            // the decoded song (null until loaded)
 	public bool err;
 	public bool hc;               // a Hardcore level (UI/Hard.cs): 3 hearts, no Easy
-	public bool boss;             // a boss level (UI/Boss.cs): 3 hearts, no Easy, a save at 50% (v56)
+	public bool boss;             // a boss level (UI/Boss.cs): 3 hearts, no Easy, a save at 50% (v55)
 	public bool plat;             // a platformer level (data/plat_<id>.json): only its letter is here, for XP, points, the board and the profile
 	public Dictionary<string, double> ezLifeOld, ezLifeNew, ezLife;
 	public Level v51; public bool isV51;   // v52: a level with new attacks keeps its v51 design (data/dodge_<id>_v51.json) for the replays recorded before (Replay.cs rpLevel)

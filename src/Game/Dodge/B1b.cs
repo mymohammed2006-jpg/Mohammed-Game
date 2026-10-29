@@ -509,7 +509,7 @@ public static partial class G
 		return h;
 	}
 
-	// ---------- online: a downed square: the core throws at it every 2 beats (v56: no ring around it) ----------
+	// ---------- online: a downed square: the core throws at it every 2 beats (v55: no ring around it) ----------
 	public static Hz B1bDownRing(int s, double t0)
 	{
 		var h = new Hz { kind = "B1bDown" }; double nextB = Math.Ceiling(BT(t0) + 1);
@@ -521,7 +521,7 @@ public static partial class G
 			double bt = BT(t);
 			if (bt >= nextB) { nextB += 2; var c = at(); var o = B1bCorePos(bt); if (B1bCoreR(bt) > 0) hazards.Add(B1bShot(o.x, o.y, JS.atan2(c.y - o.y, c.x - o.x), 380, B(bt + 1), SPB)); }
 		};
-		// v56 (his ask 10-29): no ring around the downed one any more, a plain touch brings it back; the boss still shoots at it
+		// v55 (his ask 10-29): no ring around the downed one any more, a plain touch brings it back; the boss still shoots at it
 		h.hit = (p, t) => false;
 		h.draw = t => { };
 		return h;
@@ -591,7 +591,7 @@ public static partial class G
 		for (double b = 4; b < 30; b += b < 8 ? 1 : 0.5) { double bb = b, a0 = b * 0.61; int n = b < 16 ? 3 : 4; at(bb - 0.75, () => { for (int i = 0; i < n; i++) add(B1bShot(640, 360, a0 + i * TAU / n, 340, B(bb), 0.75 * SB)); }); }
 
 		// ===== snake (b30-64): out of the core to the apples; a second one from b46 =====
-		at(29, () => add(B1MarkFx(B(29), B(316))), keepNew: true);   // keepNew: back after the save (b160, v56)
+		at(29, () => add(B1MarkFx(B(29), B(316))), keepNew: true);   // keepNew: back after the save (b160, v55)
 		void Snakes(List<B1bSnk> SS, double end, double sp)
 		{
 			B1bPlan(SS, 0.5, end,
@@ -641,7 +641,7 @@ public static partial class G
 				// from b160 they speed up, and turn back every 8 beats (the arrows say so a beat before)
 				double s0 = SP[j], s1 = SP[j] * 1.25;
 				var S = new L15Spin(j * 97, 126, 194, new double[] { 126, 160, 168, 176, 184 }, new double[] { s0, s1, -s1, s1, -s1 });
-				int jj = j; at(126, () => add(B1bLane(LY[jj], S, LEN[jj], GAP[jj], 128, 191)), keepNew: true);   // the save at b160 (v56) is on the road
+				int jj = j; at(126, () => add(B1bLane(LY[jj], S, LEN[jj], GAP[jj], 128, 191)), keepNew: true);   // the save at b160 (v55) is on the road
 			}
 			// the circles: bottom, top-left, bottom-right, top-right, bottom-left (online: one for each standing player, side by side)
 			var CW = new (double a, double b, double y, double[] xs)[]
