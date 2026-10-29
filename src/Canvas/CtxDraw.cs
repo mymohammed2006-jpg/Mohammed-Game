@@ -42,6 +42,23 @@ public partial class Ctx
 		Emit(mesh, S.fill);
 	}
 
+	// not canvas (v53, L16's part 3 was slow): fill() for a path whose subpaths are each a simple outline (they may overlap) in a colour
+	// that is not see-through. Each subpath is filled on its own instead of merging them all first (the slow part); it looks the same.
+	// One shadow for all of them, like fill().
+	public void fillParts()
+	{
+		mesh.Clear();
+		foreach (var s in path)
+		{
+			if (s.pts.Count < 3) continue;
+			var p = Geo.DropSpikes(Geo.Clean(s.pts, true, tmpPoly));
+			if (p.Count < 3) continue;
+			if (Geo.IsConvex(p)) Geo.FillConvex(p, mesh);
+			else if (!Geo.FillSimple(p, mesh)) Geo.FillComplex(new List<List<Vector2>> { s.pts }, false, mesh);
+		}
+		Emit(mesh, S.fill);
+	}
+
 	void BuildFill(List<List<Vector2>> polys, bool evenOdd, CovMesh m)
 	{
 		if (polys.Count == 0) return;

@@ -11,9 +11,10 @@ namespace MG;
 public static partial class G
 {
 	public record NewsItem(string hd, string ic, string[] pts, int from, int to);
-	public static string NEWS_V => classicUi ? "37" : "52";   // the comparison tools stay on v39's page
+	public static string NEWS_V => classicUi ? "37" : "53";   // the comparison tools stay on v39's page
 	public static readonly NewsItem[] NEWS_ITEMS =
 	{
+		new("إصلاح", null, new[] { "المرحلة ١٦: الجزء الثالث صار ما يقطّع.", "واللعبة كلها صارت أنعم: وقفات مفاجئة أقل." }, 0, 53),
 		new("مرحلة جديدة", null, new[] { "المرحلة ٢٢: Shiawase\u00a0VIP.", "صارت في البروفايل والترتيب." }, 0, 52),
 		new("طور الزعيم", null, new[] { "زعيم جديد: رقصة الموت (Shirobon).", "لحالك أو مع الشباب أونلاين." }, 0, 52),
 		new("تصميم جديد", null, new[] { "المراحل من ١٦ إلى ٢١ صار لها تصميم جديد.", "ومن مراحل الشباب: Walk وأجمل غرامي.", "والزعيم الأول بعد.", "حرفك ونقاطك وترتيبك باقين مثل ما هم.", "والريبلاي القديم يبقى مثل ما انلعب." }, 0, 52),

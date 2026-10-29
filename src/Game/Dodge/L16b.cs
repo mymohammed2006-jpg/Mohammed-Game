@@ -169,7 +169,7 @@ public static partial class G
 			gr.addColorStop(0, "rgba(" + (int)(212 * shade) + "," + (int)(206 * shade) + "," + (int)(224 * shade) + ",1)");
 			gr.addColorStop(0.42, "rgba(255,253,250,1)"); gr.addColorStop(0.6, "rgba(250,247,244,1)");
 			gr.addColorStop(1, "rgba(" + (int)(196 * shade) + "," + (int)(190 * shade) + "," + (int)(210 * shade) + ",1)");
-			g.fillStyle = gr; g.fill(); g.strokeStyle = "rgba(190,180,204,0.7)"; g.lineWidth = 1.2; g.stroke();
+			g.fillStyle = gr; g.fillParts(); g.strokeStyle = "rgba(190,180,204,0.7)"; g.lineWidth = 1.2; g.stroke();
 			// the folds
 			g.strokeStyle = "rgba(180,172,198,0.35)"; g.lineWidth = 1.2; g.beginPath();
 			for (int i = 1; i < nsc; i++) { double k = (double)i / nsc, xt = -w0 + 2 * w0 * k, xb = -w1 + 2 * w1 * k + sway; g.moveTo(xt, y0 + 4); g.quadraticCurveTo((xt + xb) / 2 + 6 * sw2, (y0 + y1) / 2, xb, y1 + 6); }
@@ -808,7 +808,7 @@ public static partial class G
 				bool skip = false; foreach (var hc in hs) if (Math.Abs(al - hc) < hr + 8) skip = true; if (skip) continue;
 				foreach (int sd in new[] { -1, 1 }) { var q = XY(al, c + sd * (hw - 2)); g.moveTo(q.x + 7, q.y); g.arc(q.x, q.y, 7, 0, TAU); }
 			}
-			g.fill();
+			g.fillParts();   // v53: each scallop on its own (merging 200+ circles every frame was slow)
 			g.restore();
 		}
 		h.draw = t =>

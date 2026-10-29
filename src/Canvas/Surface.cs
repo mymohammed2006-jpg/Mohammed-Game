@@ -110,7 +110,9 @@ public sealed class Surface
 		public void Submit(Rid item, Rid tex, bool uvs = true)
 		{
 			if (ni == 0) { Clear(); return; }
-			RenderingServer.CanvasItemAddTriangleArray(item, i[..ni], p[..nv], c[..nv], uvs ? u[..nv] : null, null, null, tex);
+			// v53: handed over as spans of the buffers (copies of them made megabytes of garbage a frame, and the clean-ups stalled the game)
+			RenderingServer.CanvasItemAddTriangleArray(item, new ReadOnlySpan<int>(i, 0, ni), new ReadOnlySpan<Vector2>(p, 0, nv), new ReadOnlySpan<Color>(c, 0, nv),
+				uvs ? new ReadOnlySpan<Vector2>(u, 0, nv) : ReadOnlySpan<Vector2>.Empty, ReadOnlySpan<int>.Empty, ReadOnlySpan<float>.Empty, tex, -1);
 			Clear();
 		}
 	}
