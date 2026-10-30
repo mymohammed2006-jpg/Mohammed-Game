@@ -3,7 +3,7 @@
 #   CLIPS="540-1100,5150-5450,..." [CHAOS=1 ALL3=0.3 T=2400] bash tools/human-bot-plat/clips.sh <outDir> <seed>
 # The frames are the @numbers in that run's events.log (run.sh with the same env and seed plays the same run).
 # Needs ref_P2.json from run.sh. -> <outDir>/clips.mp4
-GD=${GD:-~/godot/Godot_v4.4.1-stable_mono_linux_x86_64/Godot_v4.4.1-stable_mono_linux.x86_64}
+GD=${GD:-~/godot/Godot_v4.5.2-stable_mono_linux_x86_64/Godot_v4.5.2-stable_mono_linux.x86_64}
 here=$(cd "$(dirname "$0")/../.." && pwd); cd "$here"; H=tools/human-bot-plat
 O=$(realpath -m "$1"); rm -rf "$O/v" "$O/c"; mkdir -p "$O/v" "$O/c"
 SEED=$2 LABELS=${LABELS:-1} WAV="$O/v.wav" xvfb-run -a -s "-screen 0 1280x720x24" $GD --rendering-driver opengl3 --path . -- --team-bot P2 "$O/v" $H/P2.cfg > "$O/v.out" 2>&1

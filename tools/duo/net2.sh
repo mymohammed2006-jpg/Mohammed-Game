@@ -2,7 +2,7 @@
 # The radio level online: two copies of the game (test/TeamNetTest.cs with LV=P3), each one's square by TeamTest's bot and route,
 # through the real menus, room code and connection, on the Firebase emulator:
 #   bash tools/duo/net2.sh <outDir> <page> <route_blue> <route_gold>      (env T, SCALE, EVERY, RULES, NET_DELAY_MS)
-GD=${GD:-~/godot/Godot_v4.4.1-stable_mono_linux_x86_64/Godot_v4.4.1-stable_mono_linux.x86_64}
+GD=${GD:-~/godot/Godot_v4.5.2-stable_mono_linux_x86_64/Godot_v4.5.2-stable_mono_linux.x86_64}
 here=$(cd "$(dirname "$0")/../.." && pwd); O=$(realpath -m "$1"); R0=$(realpath "$3"); R1=$(realpath "$4")
 rm -rf "$O"; mkdir -p "$O"
 FB=${FB:-$O/../fb}; mkdir -p "$FB"; RULES=${RULES:-/mnt/project-files/online/firestore-v48.rules}

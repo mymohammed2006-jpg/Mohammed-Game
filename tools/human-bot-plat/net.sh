@@ -3,7 +3,7 @@
 #   bash tools/human-bot-plat/net.sh <outDir>          (needs the clean run's ref_P2.json: run run.sh once first)
 # env SEED, SCALE (default 1), T, and per player: LEAVE_H/LEAVE_A/LEAVE_B or KILL_H/KILL_A/KILL_B = song seconds to leave at.
 # The emulator: firebase.json + the live rules (online/firestore-coop3.rules) in $FB (default: a folder next to the output).
-GD=${GD:-~/godot/Godot_v4.4.1-stable_mono_linux_x86_64/Godot_v4.4.1-stable_mono_linux.x86_64}
+GD=${GD:-~/godot/Godot_v4.5.2-stable_mono_linux_x86_64/Godot_v4.5.2-stable_mono_linux.x86_64}
 here=$(cd "$(dirname "$0")/../.." && pwd); O=$(realpath -m "$1"); C=$here/tools/human-bot-plat/P2.cfg
 rm -rf "$O"; mkdir -p "$O"
 FB=${FB:-$O/../fb}; mkdir -p "$FB"; RULES=${RULES:-$here/../online/firestore-coop3.rules}

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Up to four copies of the game in a versus match (test/NetTest.cs). Run inside the Firebase emulator.
 # vs.sh <out> then per player "role:ENV=v,ENV=v" e.g. host:FIN=8 guest:FIN=12 g2:FIN=10 g3:
-GD=/root/godot/Godot_v4.4.1-stable_mono_linux_x86_64/Godot_v4.4.1-stable_mono_linux.x86_64
+GD=/root/godot/Godot_v4.5.2-stable_mono_linux_x86_64/Godot_v4.5.2-stable_mono_linux.x86_64
 O=$(realpath -m "$1"); shift; GP=$(cd "$(dirname "$0")/.." && pwd)
 rm -rf "$O"; mkdir -p "$O"; : > "$O/idle.txt"; cd "$GP"
 for spec in "$@"; do

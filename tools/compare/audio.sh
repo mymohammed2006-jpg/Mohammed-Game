@@ -3,7 +3,7 @@
 # The song must play at the speed of the level's clock whatever rate the sound card runs at.
 # Our containers have no sound card (44100); most PCs run at 48000, where a wrong rate makes the song slow and deep.
 HERE=$(cd "$(dirname "$0")" && pwd); MG=$(cd "$HERE/../.." && pwd)
-GD=${GODOT:-$HOME/godot/Godot_v4.4.1-stable_mono_linux_x86_64/Godot_v4.4.1-stable_mono_linux.x86_64}
+GD=${GODOT:-$HOME/godot/Godot_v4.5.2-stable_mono_linux_x86_64/Godot_v4.5.2-stable_mono_linux.x86_64}
 ID=${1:-L1}; LOG=$(mktemp); bad=0
 (cd "$MG" && dotnet build -v q 2>&1 | grep -E " error " | head)
 for R in 44100 48000; do

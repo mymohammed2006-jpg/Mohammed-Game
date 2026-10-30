@@ -2,19 +2,19 @@
 # Builds the Windows release: the game, its installer (Mohammed-Game-Setup.exe), the update bridge (Mohammed-Game-Update.exe)
 # and latest.yml, into build/release.
 # Same file names as the old PC app, so its auto-update picks the new game up.
-# Needs: dotnet 8 (also builds the bridge), Godot 4.4.1 .NET (+ export templates), node (npx), makensis.  Run: bash tools/release/build.sh
+# Needs: dotnet 8 (also builds the bridge), Godot 4.5.2 .NET (+ export templates), node (npx), makensis.  Run: bash tools/release/build.sh
 set -e
 MG=$(cd "$(dirname "$0")/../.." && pwd)
-GD=${GODOT:-$HOME/godot/Godot_v4.4.1-stable_mono_linux_x86_64/Godot_v4.4.1-stable_mono_linux.x86_64}
+GD=${GODOT:-$HOME/godot/Godot_v4.5.2-stable_mono_linux_x86_64/Godot_v4.5.2-stable_mono_linux.x86_64}
 cd "$MG"
 V=$(sed -n 's/^config\/version="\(.*\)"/\1/p' project.godot)
 [ -n "$V" ] || { echo "no config/version in project.godot"; exit 1; }
 echo "version $V"
 
-T=$HOME/.local/share/godot/export_templates/4.4.1.stable.mono
+T=$HOME/.local/share/godot/export_templates/4.5.2.stable.mono
 if [ ! -f "$T/windows_release_x86_64.exe" ]; then
   mkdir -p "$T" && cd "$T"
-  curl -sSLo t.tpz https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_mono_export_templates.tpz
+  curl -sSLo t.tpz https://github.com/godotengine/godot/releases/download/4.5.2-stable/Godot_v4.5.2-stable_mono_export_templates.tpz
   unzip -q -j t.tpz 'templates/windows_release_x86_64.exe' 'templates/windows_release_x86_64_console.exe' 'templates/version.txt' -d .
   rm t.tpz; cd "$MG"
 fi
