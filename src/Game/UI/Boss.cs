@@ -108,7 +108,7 @@ public static partial class G
 			rr(x - 260, y - 35, 520, 70, 18); g.fillStyle = sel ? CARDS : CARD; g.fill(); g.strokeStyle = sel ? RED : "rgba(255,255,255,0.12)"; g.lineWidth = sel ? 3 : 1.5; g.stroke();
 			txt(BOSS_OPTS[i], x, y, sel ? 36 : 32, sel ? "#fff" : "rgba(255,255,255,0.6)", 800);
 		}
-		txt("من ١ إلى ٤ لاعبين، ٣ قلوب، بدون حفظ", 850, 560, 22, "rgba(255,255,255,0.6)", 500);
+		txt("من ١ إلى ٤ لاعبين، ٣ قلوب، وحفظ في نص المرحلة", 850, 560, 22, "rgba(255,255,255,0.6)", 500);
 		txt("اللي يطيح يرجع إذا لمسه واحد من الفريق", 850, 593, 22, "rgba(255,255,255,0.6)", 500);
 		drawNetNote(now);
 		row(new[] { (BTN[kind].confirm, "اختيار"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);

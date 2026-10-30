@@ -54,8 +54,20 @@ public class LocalTest
 		G.lcRetryMs = k => 3000;
 		route = File.ReadAllLines("tools/net/slow.txt").Where(l => l.Trim().Length > 0 && !l.StartsWith("#")).Select(l => { var f = l.Trim().Split(' ', 2); return (double.Parse(f[0], System.Globalization.CultureInfo.InvariantCulture), f.Length > 1 ? f[1].Trim() : ""); }).ToArray();
 		G.netSend = Fake;
-		if (EnvS("PC") == "1") { var a = SignUp("Mohammed", "pcpass1"); G.acc = new G.Acc { uid = a.uid, name = "Mohammed", it = a.tok, rt = a.tok, exp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + 3600000 }; }
-		SignUp("Sara", "sarapw1"); docs["uSara"]["fields"]["n"] = JsonNode.Parse("{\"mapValue\":{\"fields\":{\"B1\":{\"stringValue\":\"C\"},\"L1\":{\"stringValue\":\"S\"}}}}");
+		if (EnvS("EMU") == "1")   // EMU: the real rules on the Firebase emulator (auth 9099, firestore 8085) instead of the made-up Firebase
+		{
+			G.netSend = r =>
+			{
+				string u = r.RequestUri.OriginalString.Replace("https://firestore.googleapis.com/", "http://127.0.0.1:8085/")
+					.Replace("https://identitytoolkit.googleapis.com/", "http://127.0.0.1:9099/identitytoolkit.googleapis.com/").Replace("https://securetoken.googleapis.com/", "http://127.0.0.1:9099/securetoken.googleapis.com/");
+				var q = new System.Net.Http.HttpRequestMessage(r.Method, u) { Content = r.Content }; foreach (var hd in r.Headers) q.Headers.TryAddWithoutValidation(hd.Key, hd.Value);
+				lock (req) req.Add($"{r.Method} {u}"); return emuHttp.SendAsync(q);
+			};
+			// Sara: an account made before (on her own PC) that has no player doc here yet
+			emuHttp.PostAsync("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=k", new StringContent($"{{\"email\":\"{G_nameEmail("Sara")}\",\"password\":\"sarapw1\",\"returnSecureToken\":true}}", Encoding.UTF8, "application/json")).Wait();
+		}
+		else if (EnvS("PC") == "1") { var a = SignUp("Mohammed", "pcpass1"); G.acc = new G.Acc { uid = a.uid, name = "Mohammed", it = a.tok, rt = a.tok, exp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + 3600000 }; }
+		if (EnvS("EMU") != "1") SignUp("Sara", "sarapw1"); if (EnvS("EMU") != "1") docs["uSara"]["fields"]["n"] = JsonNode.Parse("{\"mapValue\":{\"fields\":{\"B1\":{\"stringValue\":\"C\"},\"L1\":{\"stringValue\":\"S\"}}}}");
 		G.devListFake = () => Enumerable.Range(0, n).Select(Dev).Prepend(G.KB).Distinct().ToList();
 		G.devFake = Fake;
 		// the entry: the boss screen's 4th choice / the platformer's "أونلاين" 3rd choice, pressed on the keyboard
@@ -111,6 +123,7 @@ public class LocalTest
 	List<(int dev, int at)> untap = new();
 
 	// ---------- the made-up Firebase ----------
+	static readonly System.Net.Http.HttpClient emuHttp = new();
 	Dictionary<string, (string pw, string uid)> users = new(); Dictionary<string, JsonObject> docs = new(); Dictionary<string, double> lastAt = new();
 	(string uid, string tok) SignUp(string name, string pw)
 	{
@@ -236,7 +249,8 @@ public class LocalTest
 		G.gfx.BeginFrame(); G.step(now, !draw); G.gfx.EndFrame();
 		if (EVERY > 0 && i % EVERY == 0 && !shot) Shot($"f{i:D6}");
 		Rec(t);
-		if (t > TMAX || (G.state is "lcBWin" or "lcVWin" && now - G.winAt > 6000) || (G.tm?.won == true && G.tm.t - G.tm.wonAt > 9)) { Shot("end"); done = true; }
+		bool saving = G.lc != null && G.lc.seats.Any(q => q.saveSt is "saving" or "err" or "net");
+		if (t > TMAX || (!saving && ((G.state is "lcBWin" or "lcVWin" && now - G.winAt > 6000) || (G.tm?.won == true && G.tm.t - G.tm.wonAt > 9)))) { Shot("end"); done = true; }
 	}
 	double SongT() => G.lc?.mode == "team" ? G.tm?.t ?? -1 : G.songT;
 	void Shot(string name) { shot = true; shotName = name; }
@@ -262,6 +276,11 @@ public class LocalTest
 		var o = new StringBuilder(); o.Append($"state {G.state} best {G.lc?.lv?.best ?? "-"} acc {G.acc?.name ?? "-"}\n");
 		if (G.lc != null) foreach (var s in G.lc.seats) o.Append($"seat {s.i} {s.name} pc{(s.pc ? 1 : 0)} guest{(s.guest ? 1 : 0)} rank {s.rank ?? "-"} hits {s.hits} deaths {s.deaths} fin {str(s.fin)} save {s.saveSt ?? "-"} xp {s.xpGain}\n");
 		foreach (var (uid, d) in docs) o.Append($"doc {uid}: {d["fields"].ToJsonString()}\n");
+		if (EnvS("EMU") == "1" && G.lc != null) foreach (var q in G.lc.seats.Where(q => q.acc != null))
+			{
+				var rq = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, $"http://127.0.0.1:8085/v1/projects/mohammed-game-f7563/databases/(default)/documents/players/{q.acc.uid}"); rq.Headers.Add("Authorization", "Bearer owner");
+				o.Append($"emu {q.name}: {emuHttp.SendAsync(rq).Result.Content.ReadAsStringAsync().Result.Replace("\n", " ")}\n");
+			}
 		File.WriteAllText(Path.Combine(outDir, "result.txt"), o.ToString());
 		GD.Print("local-test done frames=", i); host.GetTree().Quit();
 	}
