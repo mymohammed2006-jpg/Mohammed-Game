@@ -294,9 +294,9 @@ public static partial class G
 			else
 			{
 				double a = ang(bt), k = 1 - DDk(bt, end, end + 0.15);
+				hilt(a, k);   // under the blade: all of the blade shows pink
 				g.shadowColor = PINK; g.shadowBlur = 16; blade(a, w * k, PINK); g.shadowBlur = 0;
 				g.strokeStyle = "rgba(255,190,214,0.7)"; g.lineWidth = 2; g.beginPath(); g.moveTo(cx + JS.cos(a) * (r0 + 10), cy + JS.sin(a) * (r0 + 10)); g.lineTo(cx + JS.cos(a) * (len - 70), cy + JS.sin(a) * (len - 70)); g.stroke();
-				hilt(a, k);
 			}
 			g.restore();
 		};

@@ -206,9 +206,9 @@ public static partial class G
 				g.fillStyle = DDS(0.15 * q); g.fillRect(W - 40, 0, 40, yc - gw / 2); g.fillRect(W - 40, yc + gw / 2, 40, H - yc - gw / 2);
 				DDDash(W - 2, 0, W - 2, yc - gw / 2, DDS(0.7 * q), 4); DDDash(W - 2, yc + gw / 2, W - 2, H, DDS(0.7 * q), 4);
 			}
-			// the sand: columns 8 px wide from where the sand starts to where it ends
+			// the sand: from its front (in first, so furthest left) to its tail, in steps of 8 px
 			double xs = W - vs * (t - B(b0)), xe = W - vs * (t - B(b1));
-			double a = Math.Max(0, xe), z = Math.Min(W, xs);
+			double a = Math.Max(0, xs), z = Math.Min(W, xe);
 			if (z > a)
 			{
 				g.shadowColor = PINK; g.shadowBlur = 10; g.fillStyle = PINK;

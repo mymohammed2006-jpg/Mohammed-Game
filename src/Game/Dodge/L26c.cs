@@ -24,7 +24,7 @@ public static partial class G
 		// ===== the intro: the voice alone (0:30.4-0:37.2): a ring from the drum on each word, the gap goes round =====
 		void Intro()
 		{
-			double sp = ez ? 230 : 280, gw = D(ez ? 170 : 140);
+			double sp = ez ? 220 : 280, gw = D(ez ? 200 : 140);
 			double[] vb = { 0, 2, 4.5, 6.75, 9, 11 };   // the first words of the lines, then two in the hush before the drums
 			for (int i = 0; i < vb.Length; i++) { double b = vb[i], ga = D(-90 + 63 * i); at(b - 1, () => add(DDRing(MX, MY, b, 1, sp, 16, ga, gw))); }
 		}
@@ -33,19 +33,19 @@ public static partial class G
 		// "dum"'s stick across =====
 		void Sticks(double o)
 		{
-			double hold = ez ? 0.3 : 0.4, tl = ez ? 1.2 : 1;
+			double hold = ez ? 0.25 : 0.4, tl = ez ? 1.2 : 1;
 			for (int k = 0; k < 8; k++)
 			{
 				double b = 13 + k + o; int l = k < 4 ? k : 7 - k;          // in from the edges to the middle, and back out
-				int l2 = 7 - l;
+				int l2 = 7 - l; if (ez && k % 2 == 1) continue;
 				at(b - tl, () => add(DDStick(l * 160 + 14, 0, 132, H, b, tl, hold)));
-				if (ez ? k % 4 == 0 : k % 2 == 0) at(b - tl, () => add(DDStick(l2 * 160 + 14, 0, 132, H, b, tl, hold)));
+				if (!ez && k % 2 == 0) at(b - tl, () => add(DDStick(l2 * 160 + 14, 0, 132, H, b, tl, hold)));
 			}
 			int[] rows = { 0, 5, 1, 4, 2, 3, 1, 4 };
 			for (int k = 0; k < 8; k++)
 			{
 				double b = 21 + k + o; int l = (k * 3) % 8;
-				at(b - tl, () => add(DDStick(l * 160 + 14, 0, 132, H, b, tl, hold)));
+				if (!ez || k % 2 == 0) at(b - tl, () => add(DDStick(l * 160 + 14, 0, 132, H, b, tl, hold)));
 				if (k % 2 == 0 && (!ez || k % 4 == 0)) { double bd = b + 0.75; int r = rows[k / 2 * 2 % 8]; at(bd - tl, () => add(DDStick(0, r * 120 + 14, W, 92, bd, tl, hold))); }
 			}
 		}
@@ -66,9 +66,9 @@ public static partial class G
 			for (int k = 0; k < 4; k++)
 			{
 				double b = 37 + 2 * k; if (b < from || b >= to) continue; b += o; double rv = ez ? 330 : 360;
-				for (int c = 0; c < 10; c++) { if (c == ct[k] || c == ct[k] + 1 || (ez && c == ct[k] + 2)) continue; double x = 64 + 128 * c; at(b - tl, () => add(DDSpear(x, -30, Math.PI / 2, rv + 30, b, tl, hold))); }
+				for (int c = 0; c < 10; c++) { if (c == ct[k] || c == ct[k] + 1 || (ez && (c == ct[k] + 2 || c == ct[k] - 1))) continue; double x = 64 + 128 * c; at(b - tl, () => add(DDSpear(x, -30, Math.PI / 2, rv + 30, b, tl, hold))); }
 				double b2 = b + 0.75;
-				for (int c = 0; c < 10; c++) { if (c == cb[k] || c == cb[k] + 1 || (ez && c == cb[k] - 1)) continue; double x = 64 + 128 * c; at(b2 - tl, () => add(DDSpear(x, H + 30, -Math.PI / 2, rv + 30, b2, tl, hold))); }
+				for (int c = 0; c < 10; c++) { if (c == cb[k] || c == cb[k] + 1 || (ez && (c == cb[k] - 1 || c == cb[k] + 2))) continue; double x = 64 + 128 * c; at(b2 - tl, () => add(DDSpear(x, H + 30, -Math.PI / 2, rv + 30, b2, tl, hold))); }
 			}
 		}
 
@@ -76,11 +76,11 @@ public static partial class G
 		// every beat, its gap swinging left and right =====
 		void DrumTalk()
 		{
-			double sp = ez ? 260 : 320, gw = D(ez ? 120 : 96);
+			double sp = ez ? 240 : 320, gw = D(ez ? 150 : 96);
 			for (int k = 0; k < 4; k++)
 			{
 				double b = 45 + 2 * k, ga = D(-90 + 100 * k);
-				at(b - 1, () => add(DDRing(MX, MY, b, 1, sp, 16, ga, gw)));
+				if (!ez || k % 2 == 0) at(b - 1, () => add(DDRing(MX, MY, b, 1, sp, 16, ga, gw)));
 				if (!ez && k % 2 == 1) at(b - 0.25, () => add(DDRing(MX, MY, b + 0.75, 1, sp, 16, ga + D(50), gw * 1.25)));
 			}
 			for (int k = 0; k < 4; k++)
@@ -93,7 +93,7 @@ public static partial class G
 		// ===== 4. the drum roll (1:02.0-1:06.1): a ring every half beat, the gap turning on (a spiral) =====
 		void Roll()
 		{
-			double sp = ez ? 280 : 340, gw = D(ez ? 120 : 100);
+			double sp = ez ? 260 : 340, gw = D(ez ? 150 : 100);
 			for (int k = 0; k < 5; k++) { if (ez && k % 2 == 1) continue; double b = 61 + 1.5 * k, ga = D(-90 + 72 * k); at(b - 1, () => add(DDRing(MX, MY, b, 1, sp, 16, ga, gw))); }
 		}
 
@@ -101,20 +101,21 @@ public static partial class G
 		// "dum"; then from the four corner drums =====
 		void Hard1()
 		{
-			double sp = ez ? 400 : 560, gw = D(ez ? 76 : 42), hold = ez ? 0.4 : 0.5, rt = ez ? 1 : 0.8;
+			double sp = ez ? 380 : 560, gw = D(ez ? 100 : 42), hold = ez ? 0.4 : 0.5, rt = ez ? 1 : 0.8;
 			(double x, double y)[] sd = DD_SIDE.Select(d => (d.x, d.y - 5.5)).ToArray();
 			double[] la = { 0, 28, -28, 0, 20, -20, 0, 28 };
 			for (int k = 0; k < 8; k++)
 			{
 				double b = 69 + k; var d = sd[k % 2]; double ga = D(k % 2 == 0 ? la[k] : 180 - la[k]);
 				at(b - rt, () => add(DDRing(d.x, d.y, b, rt, sp, 18, ga, gw, 40)));
+				if (!ez && k % 2 == 1) { double bh = b + 0.5; var e = sd[0]; double gb = D(-la[k]); at(bh - rt, () => add(DDRing(e.x, e.y, bh, rt, sp, 16, gb, gw * 1.2, 40))); }
 				if (!ez || k % 2 == 0) { double bd = b + 0.5; double y = k % 2 == 0 ? 8 : 608; at(bd - 1, () => add(DDStick(0, y, W, 104, bd, 1, hold))); }
 			}
 			(double x, double y)[] cd = DD_CORNER.Select(d => (d.x, d.y - 2)).ToArray();
 			int[] ord = { 0, 2, 1, 3, 0, 2, 1, 3 };
 			for (int k = 0; k < 8; k++)
 			{
-				double b = 77 + k; var d = cd[ord[k]]; double toC = Math.Atan2(360 - d.y, 640 - d.x), ga = toC + D(k % 2 == 0 ? 18 : -18);
+				double b = 77 + k; if (ez && k % 2 == 1) continue; var d = cd[ord[k]]; double toC = Math.Atan2(360 - d.y, 640 - d.x), ga = toC + D(k % 2 == 0 ? 18 : -18);
 				at(b - rt, () => add(DDRing(d.x, d.y, b, rt, sp * 1.08, 18, ga, gw, 34)));
 				if (!ez && k % 2 == 1) { double bh = b + 0.5; var e = cd[(ord[k] + 2) % 4]; double gb = Math.Atan2(360 - e.y, 640 - e.x); at(bh - rt, () => add(DDRing(e.x, e.y, bh, rt, sp * 1.08, 16, gb, gw * 1.15, 34))); }
 			}
@@ -145,7 +146,7 @@ public static partial class G
 					double b = 85 + 8 * half + 2 * k + 0.75; if (b < from || b >= to) continue; b += o; double rv = ez ? 300 : 340;
 					for (int c = 0; c < 10; c++)
 					{
-						if (c == gc[k] || c == gc[k] + 1 || (ez && c == gc[k] + 2)) continue; double x = 64 + 128 * c;
+						if (c == gc[k] || c == gc[k] + 1 || (ez && (c == gc[k] + 2 || c == gc[k] - 1))) continue; double x = 64 + 128 * c;
 						if (top) at(b - 1, () => add(DDSpear(x, H + 30, -Math.PI / 2, rv + 30, b, 1, ez ? 0.45 : 0.6)));
 						else at(b - 1, () => add(DDSpear(x, -30, Math.PI / 2, rv + 30, b, 1, ez ? 0.45 : 0.6)));
 					}
@@ -158,16 +159,16 @@ public static partial class G
 		// the pair turning on, back and forth =====
 		void Hard2()
 		{
-			double sw = ez ? 0.36 : 0.26, hold = ez ? 0.12 : 0.2, len = 790, span = ez ? 120 : 140;
+			double sw = ez ? 0.36 : 0.26, hold = ez ? 0.12 : 0.2, len = 790, span = ez ? 100 : 115;
 			for (int k = 0; k < 8; k++)
 			{
-				double b = 101 + k, rot = 35 * (k / 2), s0 = rot + (k % 2 == 0 ? 180 : 0), a0 = k % 4 < 2 ? s0 : s0 + span, a1 = k % 4 < 2 ? s0 + span : s0;
-				if (ez && k % 2 == 1 && k % 4 == 3) continue;
+				double b = 101 + k, rot = 30 * (k / 2), s0 = rot + (k % 2 == 0 ? 180 : 0), a0 = k % 4 < 2 ? s0 : s0 + span, a1 = k % 4 < 2 ? s0 + span : s0;
+				if (ez && k % 2 == 1) continue;
 				at(b - 1, () => add(DDSword(640, 360, 46, len, D(a0), D(a1), b, sw, 1, hold, 26)));
 			}
 			for (int k = 0; k < 8; k++)
 			{
-				double b = 109 + k, s0 = 20 + 36 * k, sp2 = ez ? 60 : 66, dir = k % 2 == 0 ? 1 : -1;
+				double b = 109 + k, s0 = 20 + 32 * k, sp2 = ez ? 56 : 62, dir = k % 2 == 0 ? 1 : -1;
 				if (ez && k % 2 == 1) continue;
 				for (int m = 0; m < 2; m++)
 				{
@@ -196,7 +197,7 @@ public static partial class G
 				double b = 125 + k; if (b < from || b >= to) continue; b += o; int par = k % 2;
 				var xs = new List<double>(); var ys = new List<double>();
 				for (int i = 0; i < 5; i++) for (int j = 0; j < 3; j++) if ((i + j) % 2 == par) { xs.Add(128 + 256 * i); ys.Add(120 + 240 * j); }
-				double rr = ez ? 92 : 108;
+				double rr = ez ? 64 : 108;
 				at(b - tl, () => add(DDArrows(xs.ToArray(), ys.ToArray(), b, tl, rr, ez ? 0.3 : 0.4, par == 0 ? 1 : -1)));
 			}
 		}
@@ -210,7 +211,8 @@ public static partial class G
 			{
 				double b = 133 + 0.5 * k; if (ez && k % 2 == 1) continue;
 				var xs = new List<double>(); var ys = new List<double>(); double sh = (k % 4) * 110;
-				for (int j = 0; j < 6; j++) { double x = 90 + sh + j * 230 - j * 40; double y = 70 + j * 116; if (x > W - 40) x -= W - 80; xs.Add(x); ys.Add(y); }
+				for (int j = 0; j < 6; j++) { double x = 90 + sh + j * 230 - j * 40; double y = 70 + j * 116; if (x > W - 40) x -= W - 80; if (k % 2 == 1) x = W - x; xs.Add(x); ys.Add(y); }
+				if (!ez) { int n0 = xs.Count; for (int j = 0; j < n0; j++) { double x2 = xs[j] + 460; if (x2 > W - 40) x2 -= W - 80; xs.Add(x2); ys.Add(ys[j]); } }
 				at(b - tl, () => add(DDArrows(xs.ToArray(), ys.ToArray(), b, tl, r, hold, k % 2 == 0 ? 1 : -1)));
 			}
 			int[] gl = { 4, 0, 2, 3 };
@@ -226,7 +228,7 @@ public static partial class G
 				double b = 141 + k, y = rowY[k]; var xs = new List<double>(); var ys = new List<double>();
 				int gap = new[] { 2, 5, 1, 6, 3, 7, 0, 4 }[k];
 				for (int i = 0; i < 8; i++) { if (i == gap || (ez && i == (gap + 1) % 8)) continue; xs.Add(80 + 160 * i); ys.Add(y); }
-				at(b - tl, () => add(DDArrows(xs.ToArray(), ys.ToArray(), b, tl, ez ? 64 : 74, ez ? 0.3 : 0.4, 1)));
+				at(b - tl, () => add(DDArrows(xs.ToArray(), ys.ToArray(), b, tl, ez ? 64 : 80, ez ? 0.3 : 0.42, 1)));
 				if (k % 2 == 1 && !ez) { double b2 = b + 0.5; int c0 = (k * 3) % 10; for (int c = 0; c < 10; c++) { if (c == c0 || c == (c0 + 1) % 10 || c == (c0 + 5) % 10 || c == (c0 + 6) % 10) continue; double x = 64 + 128 * c; at(b2 - tl, () => add(DDSpear(x, H + 30, -Math.PI / 2, 250, b2, tl, 0.45))); } }
 			}
 		}
@@ -245,7 +247,7 @@ public static partial class G
 				double b0 = 157 + o, b1 = 165 + o;
 				var turns = Enumerable.Range(0, 8).Select(i => 157.0 + i + o).ToArray();
 				// two arms (the banner and its staff end), an eighth on every beat
-				at(b0 - tl, () => add(DDBanner(640, 360, 760, 2, D(0), D(ez ? 40 : 45), turns, b0, b1, tl)));
+				at(b0 - tl, () => add(DDBanner(640, 360, 760, 2, D(0), D(ez ? 25 : 30), turns, b0, b1, tl)));
 			}
 		}
 
@@ -253,22 +255,23 @@ public static partial class G
 		// at once, two lanes free, the free lanes move one on each beat =====
 		void Hard4()
 		{
-			double sp = ez ? 760 : 1120, tl = ez ? 1 : 0.8;
-			double[] ly = { 60, 180, 300, 420, 540, 660 };
-			int[] l1 = { 0, 3, 5, 2, 1, 4, 5, 0 }, l2 = { 4, 1, 2, 5, 3, 0, 2, 3 };
+			// seven lanes that touch (no way between two lanes): the horse is 107 px tall, the lanes 103 apart
+			double sp = ez ? 760 : 1120, tl = ez ? 1 : 0.8; int NL = 7;
+			double[] ly = Enumerable.Range(0, NL).Select(i => 52.0 + 103 * i).ToArray();
+			int[] l1 = { 0, 3, 6, 2, 5, 1, 4, 0 }, l2 = { 4, 1, 2, 6, 3, 0, 2, 5 };
 			for (int k = 0; k < 8; k++)
 			{
 				double b = 165 + k, ya = ly[l1[k]], yb = ly[l2[k]];
 				at(b - tl, () => add(DDHorse(ya, 1, b, sp, tl)));
-				if (!ez || k % 2 == 0) at(b - tl + 0.5, () => add(DDHorse(yb, -1, b + 0.5, sp, tl)));
-				if (!ez) { double yc = ly[(l1[k] + 3) % 6]; at(b - tl + 0.5, () => add(DDHorse(yc, 1, b + 0.5, sp, tl))); }
+				if (!ez) at(b - tl + 0.5, () => add(DDHorse(yb, -1, b + 0.5, sp, tl)));
+				if (!ez) { double yc = ly[(l1[k] + 4) % NL]; at(b - tl + 0.5, () => add(DDHorse(yc, 1, b + 0.5, sp, tl))); }
 			}
 			for (int k = 0; k < 8; k++)
 			{
-				double b = 173 + k; int f0 = (k + 1) % 6, f1 = (k + 3) % 6; int dir = k % 2 == 0 ? 1 : -1;
-				for (int l = 0; l < 6; l++) { if (l == f0 || l == f1 || (ez && l == (k + 5) % 6)) continue; double y = ly[l]; at(b - tl, () => add(DDHorse(y, dir, b, sp, tl))); }
+				double b = 173 + k; int f0 = (k + 1) % NL, f1 = (k + 4) % NL; int dir = k % 2 == 0 ? 1 : -1;
+				for (int l = 0; l < NL; l++) { if (l == f0 || l == f1 || (ez && (l == (f0 + 1) % NL || l == (f1 + 1) % NL || l == (f0 + 2) % NL))) continue; double y = ly[l]; at(b - tl, () => add(DDHorse(y, dir, b, sp, tl))); }
 				// half a beat later, from the other side: only the lanes free neither now nor on the next beat
-				if (!ez && k < 7) { double bh = b + 0.5; for (int l = 0; l < 6; l++) { if (l == f0 || l == f1 || l == (f0 + 1) % 6 || l == (f1 + 1) % 6) continue; double y = ly[l]; at(bh - tl, () => add(DDHorse(y, -dir, bh, sp, tl))); } }
+				if (!ez && k < 7) { double bh = b + 0.5; for (int l = 0; l < NL; l++) { if (l == f0 || l == f1 || l == (f0 + 1) % NL || l == (f1 + 1) % NL) continue; double y = ly[l]; at(bh - tl, () => add(DDHorse(y, -dir, bh, sp, tl))); } }
 			}
 		}
 
@@ -281,14 +284,14 @@ public static partial class G
 			at(196, () => add(DDStorm(197, b1, vs, gw, kb, ky)));
 		}
 
-		// ===== HARD 5 (2:28.9-2:37.2): the banner of the win, level 5: the banner turns a quarter every second beat while horses run across
-		// on the beat; then the swords close from the sides, the last ring at 2:37.2 =====
+		// ===== HARD 5 (2:28.9-2:37.2): the banner of the win, level 5: the banner (two arms) turns a sixth of a round every second beat while horses run along the top and the bottom
+		// on the beat; then the crossed blades from the middle, the last ring at 2:37.2 =====
 		void Hard5()
 		{
 			double sp = ez ? 760 : 940, tl = 1;
 			var turns = new[] { 230.0, 232, 234, 236 };
-			at(229 - tl, () => add(DDBanner(640, 360, 760, 2, D(-90), D(ez ? 80 : 90), turns, 229, 237, tl)));
-			double[] ly = { 60, 180, 540, 660 };
+			at(229 - tl, () => add(DDBanner(640, 360, 760, 2, D(-90), D(ez ? 50 : 60), turns, 229, 237, tl)));
+			double[] ly = { 60, 660, 660, 60 };
 			for (int k = 0; k < 8; k++) { double b = 229 + k + 0.5; if (ez && k % 2 == 1) continue; double y = ly[k % 4]; int dir = k % 2 == 0 ? 1 : -1; at(b - tl, () => add(DDHorse(y, dir, b, sp, tl))); }
 			// 2:33: the crossed blades every second beat, a horse along the top or the bottom edge between them
 			double sw = ez ? 0.4 : 0.28, hold = ez ? 0.15 : 0.22;
