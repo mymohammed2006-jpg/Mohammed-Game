@@ -281,27 +281,30 @@ public static partial class G
 	// one circle for each standing player (alone: one, white); online each is in its player's colour and keeps only that player safe
 	static void B1Circles(Func<int, Func<double, (double x, double y)>> path, double T0, double T1, double R)
 	{
-		var st = bnStandingSeats(); for (int k = 0; k < st.Count; k++) hazards.Add(B1Circle(path(k), T0, T1, R, net?.boss == true ? st[k] : -1));
+		var st = bnStandingSeats(); var all = lcB ? Enumerable.Range(0, st.Count).Select(path).ToList() : null;
+		for (int k = 0; k < st.Count; k++) hazards.Add(B1Circle(path(k), T0, T1, R, bnMulti ? st[k] : -1, k == 0 ? all : null));
 	}
-	static Hz B1Circle(Func<double, (double x, double y)> at, double T0, double T1, double R, int seat = -1)
+	// local play (one screen for everyone): `all` = every circle, the first one draws the pink outside all of them
+	static Hz B1Circle(Func<double, (double x, double y)> at, double T0, double T1, double R, int seat = -1, List<Func<double, (double x, double y)>> all = null)
 	{
-		var h = new Hz { kind = "B1Circle", z = -1 }; const double HOLD = 0.15; bool mine = seat < 0 || seat == bnMe;
+		var h = new Hz { kind = "B1Circle", z = -1 }; const double HOLD = 0.15; bool mine0 = seat < 0 || seat == bnMe; bool mine() => lcB ? seat < 0 || seat == bnMe : mine0;
 		string col(double a) => seat < 0 ? $"rgba(255,255,255,{str(a)})" : seat == 0 ? $"rgba(45,226,230,{str(a)})" : seat == 1 ? $"rgba(255,207,90,{str(a)})" : seat == 2 ? $"rgba(93,255,154,{str(a)})" : $"rgba(176,124,255,{str(a)})";
 		h.update = (t, dt) => { if (t > T1 + 0.5) h.dead = true; if (!h.ex && t >= T1) { h.ex = true; flash = Math.Max(flash, 0.15); sfx(tt => { sTone(tt, 196, 0.25, "square", 0.08); sNoise(tt, 0.2, "lowpass", 700, 0.15); }); } };
-		h.hit = (p, t) => { if (!mine || t < T1 || t >= T1 + HOLD) return false; var c = at(T1); return hypot(p.x - c.x, p.y - c.y) > R - p.r; };
+		h.hit = (p, t) => { if (!mine() || t < T1 || t >= T1 + HOLD) return false; var c = at(T1); return hypot(p.x - c.x, p.y - c.y) > R - p.r; };
 		h.draw = t =>
 		{
 			if (t < T0 - 0.2) return; var c = at(Math.Min(t, T1)); double k = clamp((t - T0) / (T1 - T0), 0, 1), a = clamp((t - (T0 - 0.2)) / 0.2, 0, 1);
 			if (t >= T1)
 			{
 				double q = t < T1 + HOLD ? 1 : 1 - (t - T1 - HOLD) / 0.35; if (q <= 0) return;
-				if (mine) { g.save(); g.beginPath(); g.rect(0, 0, W, H); g.arc(c.x, c.y, R, 0, TAU, true); g.fillStyle = L15P(0.45 * q); g.fill("evenodd"); g.restore(); }
+				if (lcB) { if (all != null) { g.save(); g.beginPath(); g.rect(0, 0, W, H); foreach (var f in all) { var cc = f(T1); g.moveTo(cc.x + R, cc.y); g.arc(cc.x, cc.y, R, 0, TAU, true); } g.fillStyle = L15P(0.45 * q); g.fill(); g.restore(); } }
+				else if (mine0) { g.save(); g.beginPath(); g.rect(0, 0, W, H); g.arc(c.x, c.y, R, 0, TAU, true); g.fillStyle = L15P(0.45 * q); g.fill("evenodd"); g.restore(); }
 				g.strokeStyle = col(q); g.lineWidth = 4; g.beginPath(); g.arc(c.x, c.y, R, 0, TAU); g.stroke(); return;
 			}
 			g.fillStyle = col(0.10 * a); circle(c.x, c.y, R);
 			g.strokeStyle = col(0.9 * a); g.lineWidth = 3; g.beginPath(); g.arc(c.x, c.y, R, 0, TAU); g.stroke();
 			g.lineWidth = 7; g.beginPath(); g.arc(c.x, c.y, R + 9, -Math.PI / 2, -Math.PI / 2 + TAU * k); g.stroke();
-			if (seat >= 0) { g.globalAlpha = a; txt(seat == bnMe ? "دائرتك" : vsName(seat), c.x, c.y, 18, col(1), 800); g.globalAlpha = 1; }
+			if (seat >= 0) { g.globalAlpha = a; txt(!lcB && seat == bnMe ? "دائرتك" : bnName(seat), c.x, c.y, 18, col(1), 800); g.globalAlpha = 1; }
 		};
 		return h;
 	}

@@ -150,7 +150,7 @@ public static partial class G
 				if (online && net.coop) netTell(new System.Text.Json.Nodes.JsonObject { ["k"] = "cp", ["x"] = tx, ["y"] = ty });
 				sfx(tt => { sTone(tt, 659, 0.25, "square", 0.06); sTone(tt + 0.08, 880, 0.3, "square", 0.06); });
 			}
-			else if (c == 'G' && plOpen() && state == "pltPlay") { if (online && net.coop) inGate = true; else if (online) netWin(); else plWin(); }
+			else if (c == 'G' && plOpen() && state == "pltPlay") { if (lcV) lcVsGate(); else if (online && net.coop) inGate = true; else if (online) netWin(); else plWin(); }
 		}
 		if (online && net.coop && state == "pltPlay") { if (inGate && !pl.atGate && !pl.gateBlock) coopGate(true); if (!inGate) pl.gateBlock = false; }
 	}
@@ -207,6 +207,7 @@ public static partial class G
 		burst(p.x, p.y, CYAN, 22, 380); rumble(220, 0.8, 0.6);
 		sfx(t => { sTone(t, 110, 0.3, "square", 0.18); sNoise(t, 0.25, "lowpass", 900, 0.3); });
 		if (p.hp <= 0 && online && net.coop) { deaths++; burst(p.x, p.y, CYAN, 50, 520); rumble(500, 1, 1); coopDown(); return; }
+		if (p.hp <= 0 && lcV) { deaths++; burst(p.x, p.y, lcCol(lcCur), 50, 520); rumble(500, 1, 1); lcVsDown(); return; }   // local versus: back at its checkpoint in a second (Plat/LocalVs.cs)
 		if (p.hp <= 0) { state = "pltDead"; deaths++; pl.deadAt = performance.now(); burst(p.x, p.y, CYAN, 50, 520); rumble(500, 1, 1); }
 	}
 	static void plWin()
@@ -251,10 +252,10 @@ public static partial class G
 		{
 			int n = PLATS.Count;
 			if (inp.left && plSel < n - 1) plSel++; if (inp.right && plSel > 0) plSel--;
-			if (inp.confirm && n > 0 && PLATS[plSel].coop) { if (acc == null) netNote("سجّل دخول من الحساب بالقائمة عشان تلعب أونلاين"); else { state = "pltOn"; onSel = 0; } }   // co-op: two players only
+			if (inp.confirm && n > 0 && PLATS[plSel].coop) { state = "pltOn"; onSel = 0; }   // co-op: together only (online needs an account, local play doesn't: PlatNet.cs)
 			else if (inp.confirm && n > 0) plStart(PLATS[plSel], true);
 			else if (inp.restart && n > 0 && !PLATS[plSel].coop && PLATS[plSel].lv.best == null) netNote(VS_LOCK);   // versus opens after finishing the level alone (his words 20:40 10-22)
-			else if (inp.restart && n > 0) { if (acc == null) netNote("سجّل دخول من الحساب بالقائمة عشان تلعب أونلاين"); else { state = "pltOn"; onSel = 0; } }
+			else if (inp.restart && n > 0) { state = "pltOn"; onSel = 0; }
 			else if (inp.back || inp.pz) state = "modes";
 		}
 		else if (state == "pltIntro")

@@ -44,7 +44,7 @@ public static partial class G
 
 	public static void ensureAudio()
 	{
-		if (actx.state == "suspended" && state != "paused" && state != "pauseSet" && state != "pltPause" && state != "pltSet" && !(rp.paused && (state is "replay" or "rpGap" or "rpEnd"))) actx.resume();
+		if (actx.state == "suspended" && state != "paused" && state != "pauseSet" && state != "pltPause" && state != "pltSet" && !lcPaused() && !(rp.paused && (state is "replay" or "rpGap" or "rpEnd"))) actx.resume();
 	}
 
 	public static int menuSel = 0, pauseSel = 0;

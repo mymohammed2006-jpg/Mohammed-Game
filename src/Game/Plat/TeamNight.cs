@@ -209,6 +209,7 @@ public static partial class G
 			{
 				g.globalAlpha = clamp((fi - 0.3) / 0.3, 0, 1);
 				txt(d == 0 ? "بدون ولا طيحة" : d == 1 ? "طاح مرة" : $"طاح {ar(d)} مرات", cx, cy + 88, 24, "#e9e6f5", 500);
+				if (lcT) { txt(lcSaveLine(lcSeat(i)), cx, cy + 124, 20, lcSeat(i).guest ? "rgba(255,255,255,0.45)" : lcSaveCol(lcSeat(i)), 700); g.globalAlpha = 1; continue; }
 				int xp = tmMe < 0 ? (int)Math.Round((rk == "S" ? 100 : rk == "A" ? 60 : rk == "B" ? 40 : 20) * (XP_MULT.TryGetValue(tm.L.id, out var xm) ? xm : 1)) : tm.xpGot[i];
 				if (xp > 0) { g.font = $"800 28px {FONT}"; g.fillStyle = GOLD; g.shadowColor = GOLD; g.shadowBlur = 10; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "ltr"; g.fillText($"+{ar(xp)} XP", cx, cy + 124); g.shadowBlur = 0; g.direction = "rtl"; }
 				g.globalAlpha = 1;
@@ -220,7 +221,8 @@ public static partial class G
 			g.globalAlpha = clamp(fe / 0.4, 0, 1);
 			string tt = tFmt(tm.playT);
 			txt($"وقت الفريق {tt}   •   رجعتوا لبداية صفحة {ar(tm.restarts)} مرات", W / 2, top + ch + 40, 24, "#cfc8ff", 600);
-			if (fe > 0.6 && !tmRpOn) row(myRpCan() && tmMe >= 0 ? new[] { myRpHint(tm.wonAt), (BTN[kind].back, "المراحل") } : new[] { (BTN[kind].back, "المراحل") }, W / 2, top + ch + 88);
+			if (fe > 0.6 && lcT) row(tm.t - tm.wonAt > 7.3 ? new[] { (BTN[kind].confirm, "العب مرة ثانية"), (BTN[kind].back, "شاشة اللاعبين") } : new[] { (BTN[kind].back, "شاشة اللاعبين") }, W / 2, top + ch + 88);
+			else if (fe > 0.6 && !tmRpOn) row(myRpCan() && tmMe >= 0 ? new[] { myRpHint(tm.wonAt), (BTN[kind].back, "المراحل") } : new[] { (BTN[kind].back, "المراحل") }, W / 2, top + ch + 88);
 			g.globalAlpha = 1;
 		}
 	}

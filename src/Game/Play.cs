@@ -161,6 +161,7 @@ public static partial class G
 			rngS = r0;
 		}
 		state = "play";
+		if (lcB) lcBossRun(cp);   // local play: every seat's square (UI/LocalBoss.cs)
 		if (seed == null && rec != null) { rec.cur = new RecSeg { cp = cp, seed = runSeed, t0 = null, n = 0 }; rec.segs.Add(rec.cur); }
 	}
 

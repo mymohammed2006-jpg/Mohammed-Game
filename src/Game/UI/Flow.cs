@@ -100,6 +100,8 @@ public static partial class G
 		else if (state == "rpLoad") drawRpLoad(now);
 		else if (state == "myRp") drawMyRp(now);
 		else if (state == "practice") drawPractice(now);
+		else if (state == "lcJoin") drawLcJoin(now);
+		else if (state == "lcAuth") drawLcAuth(now);
 		else if (drawPlatScreens(now)) { }
 		else return false;
 		return true;

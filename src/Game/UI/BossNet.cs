@@ -30,14 +30,20 @@ public static partial class G
 	}
 	public static bool bnOn => net?.boss == true && net.phase is "play" or "end";
 	public static bool bnMeDown;   // my square is down (online)
-	static int bnMe => net?.vseat ?? 0;
+	static int bnMe => lcB ? lcCur : net?.vseat ?? 0;   // local play: the seat being judged now (UI/LocalBoss.cs)
 	// the seats in this match (and still here)
-	static IEnumerable<int> bnSeats() { var n = net; return n == null ? new[] { 0 } : Enumerable.Range(0, VS_N).Where(s => n.vplay[s] && !n.vleft[s]); }
-	static bool bnStanding(int s) => net == null ? !bnMeDown : !net.bdown[s];
+	static IEnumerable<int> bnSeats() { var n = net; return lcB ? Enumerable.Range(0, lc.seats.Count) : n == null ? new[] { 0 } : Enumerable.Range(0, VS_N).Where(s => n.vplay[s] && !n.vleft[s]); }
+	static bool bnStanding(int s) => lcB ? !lc.seats[s].down : net == null ? !bnMeDown : !net.bdown[s];
+	// online or local: more than one square (each its own colour, circle and name)
+	public static bool bnMulti => net?.boss == true || lcB;
+	public static bool bnDownOf(int s) => lcB ? s < lc.seats.Count && lc.seats[s].down : net?.boss == true && net.bdown[s];
+	public static (double x, double y) bnDPos(int s) => lcB ? (lc.seats[s].dx, lc.seats[s].dy) : net.bdpos[s];
+	public static string bnName(int s) => lcB ? lc.seats[s].name : vsName(s);
 	public static List<int> bnStandingSeats() => bnSeats().Where(bnStanding).ToList();
 	// where a seat's square is now (mine: the real one; the others: as last heard)
 	public static (double x, double y)? bnPos(int s)
 	{
+		if (lcB) { var q0 = lc.seats[s]; return q0.down ? (q0.dx, q0.dy) : q0.p == null ? null : (q0.p.x, q0.p.y); }
 		if (net == null || s == bnMe) return player == null ? null : (player.x, player.y);
 		if (net.bdown[s]) return net.bdpos[s];
 		var L = net.vsn[s]; if (L.Count == 0) return null; var q = L[^1]; return (q.x, q.y);
@@ -45,7 +51,7 @@ public static partial class G
 	// the marked one at beat b: the standing ones in turn, a new one every 8 beats
 	public static int bnMarkSeat(double b)
 	{
-		var st = bnStandingSeats(); if (st.Count == 0) return bnMe;
+		var st = bnStandingSeats(); if (st.Count == 0) return lcB ? 0 : bnMe;
 		return st[(int)Math.Floor(b / 8) % st.Count];
 	}
 

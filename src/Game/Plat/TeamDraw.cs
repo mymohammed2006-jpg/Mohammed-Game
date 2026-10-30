@@ -244,7 +244,7 @@ public static partial class G
 		// the three
 		foreach (var p in tm.b) tmDrawBody(p, now);
 		// online: the other two's names over them
-		if (tmMe >= 0) foreach (var p in tm.b) if (p.i != tmMe && !p.gate) { g.globalAlpha = 0.75; txt(tm.names[p.i], p.x, p.y - (p.carry != null && !p.down ? 62 : 30), 16, tm.skins[p.i] != "" ? tmCol(p.i) : "#fff", 700); g.globalAlpha = 1; }
+		if (tmMe >= 0 || lcT) foreach (var p in tm.b) if (p.i != tmMe && !p.gate) { g.globalAlpha = 0.75; txt(tm.names[p.i], p.x, p.y - (p.carry != null && !p.down ? 62 : 30) - lcNameUp(p), 16, tm.skins[p.i] != "" ? tmCol(p.i) : "#fff", 700); g.globalAlpha = 1; }
 		if (tm.P.mirror > 0) foreach (var p in tm.b) tmDrawReflection(p, now);
 		foreach (var p in tm.b) if (p.carry != null && !p.down) tmDrawPic(p.carry, now);
 		// HUD: each one's lives in its colour, the song's pieces, messages

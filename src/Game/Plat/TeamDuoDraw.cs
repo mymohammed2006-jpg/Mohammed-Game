@@ -14,6 +14,7 @@ public static partial class G
 	static (double x, double y, double z) duoCam(double now)
 	{
 		double mw = tm.w * PT, mh = tm.h * PT;
+		if (tmView == -2) return lcDuoCam(now);   // local play: one camera for both (Plat/LocalTeam.cs)
 		if (tmView < 0 || tm.P.zoom <= 0) { double z0 = Math.Min(W / mw, H / mh); return (mw / 2, mh / 2, z0); }
 		double z = tm.P.zoom, vw = W / z, vh = H / z; var p = tm.b[Math.Min(tmView, tm.b.Length - 1)];
 		double tx = p.x + p.fx * 40, ty = p.y - 30;
@@ -187,7 +188,7 @@ public static partial class G
 		if (tm.P.rope > 0 && tm.ropeLive) duoCable(now);
 		foreach (var p in tm.b) tmDrawBody(p, now);
 		if (tm.spkN != null) duoShield(now);
-		if (tmMe >= 0) foreach (var p in tm.b) if (p.i != tmMe && !p.gate) { g.globalAlpha = 0.75; txt(tm.names[p.i], p.x, p.y - 30, 16, tm.skins[p.i] != "" ? tmCol(p.i) : "#fff", 700); g.globalAlpha = 1; }
+		if (tmMe >= 0 || lcT) foreach (var p in tm.b) if (p.i != tmMe && !p.gate) { g.globalAlpha = 0.75; txt(tm.names[p.i], p.x, p.y - 30 - lcNameUp(p), 16, tm.skins[p.i] != "" ? tmCol(p.i) : "#fff", 700); g.globalAlpha = 1; }
 		g.restore();
 		// the song's noise on the screen too, as much as the song is garbled
 		duoStatic(now, tm.murk);

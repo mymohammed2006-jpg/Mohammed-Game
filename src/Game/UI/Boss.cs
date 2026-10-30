@@ -27,7 +27,7 @@ public static partial class G
 	}
 
 	// ---------- the screen: the third card of "المراحل الرئيسية" opens it ----------
-	static readonly string[] BOSS_OPTS = { "العب لحالك", "سوّ غرفة", "ادخل بكود" };
+	static readonly string[] BOSS_OPTS = { "العب لحالك", "سوّ غرفة", "ادخل بكود", "العب مع ربعك هنا" };   // the last: local play, 10-30 (UI/Local.cs)
 	public static int bossSel = 0, bossLv = 0; static bool joinBoss;
 	static double bossShake;
 	// the bosses' list (his ask 13:21 10-25, "اعتمد" + now 13:53): a card per boss, then the boss's own screen; BOSS_LOCKED cards after them
@@ -52,6 +52,7 @@ public static partial class G
 		if (inp.confirm && L != null)
 		{
 			if (bossSel == 0) { if (L.ok && L.buf != null) { joinBoss = false; startLevel(L, "bossMenu"); } else bossShake = 0.4; }
+			else if (bossSel == 3) { if (L.ok && L.buf != null) lcOpen("boss", L, null, "bossMenu"); else bossShake = 0.4; }
 			else if (acc == null) netNote("سجّل دخول من الحساب بالقائمة عشان تلعب أونلاين");
 			else if (bossSel == 1) { joinBoss = true; bnHost(); }
 			else { joinBoss = true; joinCode = ""; joinDig = 0; state = "pltJoin"; }
@@ -103,12 +104,12 @@ public static partial class G
 		// the choices on the right
 		for (int i = 0; i < BOSS_OPTS.Length; i++)
 		{
-			double x = 850, y = 250 + i * 100; bool sel = i == bossSel; int ii = i; zone(x - 260, y - 38, 520, 76, () => bossSel = ii);
-			rr(x - 260, y - 38, 520, 76, 18); g.fillStyle = sel ? CARDS : CARD; g.fill(); g.strokeStyle = sel ? RED : "rgba(255,255,255,0.12)"; g.lineWidth = sel ? 3 : 1.5; g.stroke();
+			double x = 850, y = 215 + i * 88; bool sel = i == bossSel; int ii = i; zone(x - 260, y - 35, 520, 70, () => bossSel = ii);
+			rr(x - 260, y - 35, 520, 70, 18); g.fillStyle = sel ? CARDS : CARD; g.fill(); g.strokeStyle = sel ? RED : "rgba(255,255,255,0.12)"; g.lineWidth = sel ? 3 : 1.5; g.stroke();
 			txt(BOSS_OPTS[i], x, y, sel ? 36 : 32, sel ? "#fff" : "rgba(255,255,255,0.6)", 800);
 		}
-		txt("من ١ إلى ٤ لاعبين، ٣ قلوب، بدون حفظ", 850, 545, 22, "rgba(255,255,255,0.6)", 500);
-		txt("اللي يطيح يرجع إذا لمسه واحد من الفريق", 850, 578, 22, "rgba(255,255,255,0.6)", 500);
+		txt("من ١ إلى ٤ لاعبين، ٣ قلوب، بدون حفظ", 850, 560, 22, "rgba(255,255,255,0.6)", 500);
+		txt("اللي يطيح يرجع إذا لمسه واحد من الفريق", 850, 593, 22, "rgba(255,255,255,0.6)", 500);
 		drawNetNote(now);
 		row(new[] { (BTN[kind].confirm, "اختيار"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
 	}

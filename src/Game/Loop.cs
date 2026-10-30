@@ -23,9 +23,9 @@ public static partial class G
 		return e < MENU_LOOP ? e : MENU_DROP + ((e - MENU_LOOP) % (MENU_LOOP - MENU_DROP));
 	}
 
-	static readonly string[] IN_GAME = { "play", "paused", "pauseSet", "dead", "win", "starting", "replay", "rpGap", "rpEnd", "prEnd", "bnWipe", "bnPause", "bnSet" };
-	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "bossList", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins", "hcList", "myRp", "extras", "ratings" };
-	static readonly string[] FS_HINT = { "main", "levels", "modes", "bossList", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "pltPause", "pltSet", "tmPause", "tmSet", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "bnPause", "bnSet", "chal", "skins", "hcList", "extras", "ratings" };
+	static readonly string[] IN_GAME = { "play", "paused", "pauseSet", "dead", "win", "starting", "replay", "rpGap", "rpEnd", "prEnd", "bnWipe", "bnPause", "bnSet", "lcWipe", "lcBWin" };
+	static readonly string[] MENUISH = { "gate", "gateWait", "splash", "main", "levels", "modes", "bossList", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "lcJoin", "lcAuth", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "chal", "skins", "hcList", "myRp", "extras", "ratings" };
+	static readonly string[] FS_HINT = { "main", "levels", "modes", "bossList", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "lcJoin", "lcAuth", "pltPause", "pltSet", "tmPause", "tmSet", "friends", "howto", "settings", "points", "account", "board", "profile", "paused", "pauseSet", "bnPause", "bnSet", "chal", "skins", "hcList", "extras", "ratings" };
 
 	public static void draw(double now)
 	{
@@ -77,11 +77,12 @@ public static partial class G
 			if (vl) { pass(h => h.hurts && h.layer < 0); pass(h => h.hurts && h.layer >= 0); }
 			foreach (var q in particles) { g.globalAlpha = Math.Max(0, q.life / q.max); g.fillStyle = q.col; g.fillRect(q.x - q.s / 2, q.y - q.s / 2, q.s, q.s); }
 			g.globalAlpha = 1;
-			drawGhost(); bnDrawOthers(now); if (!bnMeDown) drawPlayer(); g.restore(); drawHUD(); prHUD(); bnHUD(now);
+			if (lcB) { lcBossDraw(now); g.restore(); drawHUD(); lcBossHUD(now); }   // local play: every seat's square (UI/LocalBoss.cs)
+			else { drawGhost(); bnDrawOthers(now); if (!bnMeDown) drawPlayer(); g.restore(); drawHUD(); prHUD(); bnHUD(now); }
 		}
 		if (state == "paused")
 		{
-			var list = pr.on ? prPauseList() : pauseList(); bool p7 = list.Length > 5;   // v46: 7 items (the replay ones) sit closer
+			var list = lcB ? LC_PAUSE_B : pr.on ? prPauseList() : pauseList(); bool p7 = list.Length > 5;   // v46: 7 items (the replay ones) sit closer
 			overlay(0.75); txt("اللعبة متوقفة", W / 2, p7 ? 128 : 150, 56, "#fff");
 			for (int i = 0; i < list.Length; i++)
 			{
@@ -140,7 +141,8 @@ public static partial class G
 		}
 		if (state == "win" && rateC == null) drawHcNote(now);
 		if (rateC != null) drawRate(now);
-		if (state == "bnWipe") drawBnWipe(now);
+		if (state is "bnWipe" or "lcWipe") drawBnWipe(now);
+		if (state == "lcBWin") drawLcBWin(now);
 		if (state == "prEnd") drawPrEnd(now);
 		if ((state is "replay" or "rpGap" or "rpEnd") && rp.doc != null) drawRpOverlay(now);
 		if (state == "starting" && audioHint) { overlay(0.4); txt("اضغط على الشاشة مرة وحدة عشان يشتغل الصوت 🔊", W / 2, H / 2, 32, "#fff", 500); }
@@ -158,7 +160,7 @@ public static partial class G
 		zonesFlip();
 	}
 
-	static readonly string[] MENU_MUSIC = { "main", "levels", "modes", "bossList", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "practice", "news", "chal", "skins", "hcList", "myRp", "extras", "ratings" };
+	static readonly string[] MENU_MUSIC = { "main", "levels", "modes", "bossList", "bossMenu", "pltList", "pltOn", "pltJoin", "pltRoom", "lcJoin", "lcAuth", "howto", "settings", "friends", "points", "account", "board", "profile", "rpLoad", "practice", "news", "chal", "skins", "hcList", "myRp", "extras", "ratings" };
 	public static void step(double now, bool nd = false)
 	{
 		double dt = Math.Min(0.05, Math.Max(0, now - last) / 1000); last = now; fdt = dt;
@@ -169,6 +171,7 @@ public static partial class G
 		else if (state == "gateWait") { if (actx.state == "running") { playMenu(0); state = "splash"; } else if (now - gatePressAt > 600) { gateHint = true; if (inp.any) ensureAudio(); } }
 		else if (state == "splash") { if (menuPos() >= MENU_DROP) { goMain(now); } else if (inp.any && menuPos() > 1.2) { stopMenu(); playMenu(MENU_DROP); goMain(now); } }
 		else if (rateC != null) rateInput(inp);   // the level rating card (UI/Rate.cs) takes the keys while it's open
+		else if (lcStep(inp, now, dt)) { }   // local play (UI/Local.cs): its join screen and its own handling of the play screens
 		else if (state == "extras") extrasInput(inp);
 		else if (state == "ratings") ratingsInput(inp);
 		else if (stepMenus(inp, now, dt)) { }

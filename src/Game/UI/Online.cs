@@ -296,7 +296,7 @@ public static partial class G
 	// the hidden typing field: the keyboard types into it and the game draws what is in it
 	static int accSel = 0; static string nameVal = "", passVal = ""; static double logoutArm = 0;
 	static string tfValue = "", tfField = ""; static int tfMax = 12; static bool tfFocus = false;
-	public static bool typing() => state == "account" && acc == null && accSel < 2;
+	public static bool typing() => (state == "account" && acc == null && accSel < 2) || lcTyping();
 	public static void syncField()
 	{
 		onlineBoot(); TextIn.Ensure();

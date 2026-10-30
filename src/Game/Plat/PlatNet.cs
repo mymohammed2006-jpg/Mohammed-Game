@@ -252,7 +252,7 @@ public static partial class G
 	}
 
 	// ---------- menus ----------
-	static readonly string[] ON_OPTS = { "سوّي غرفة", "ادخل بكود" };
+	static readonly string[] ON_OPTS = { "سوّي غرفة", "ادخل بكود", LC_OPT };   // the last: local play, 10-30 (UI/Local.cs)
 	static readonly string[] PL_PAUSE_ON = { "أكمل اللعب", "إعادة من آخر حفظ", "الإعدادات", "اطلع من الغرفة" };
 	static readonly string[] PL_PAUSE_ON46 = { "أكمل اللعب", "إعادة من آخر حفظ", "الإعدادات", "احفظ الريبلاي", "اطلع من الغرفة" };   // v46: save the replay on the PC (watching would leave the room)
 	// v49 (his words 00:05-00:16 10-25, when someone is stuck): versus, the room's maker restarts the whole level for everyone,
@@ -292,8 +292,11 @@ public static partial class G
 		if (net?.vs == true && stepVs(inp, now, dt)) return true;
 		if (state == "pltOn")
 		{
-			if (inp.up || inp.down) onSel = 1 - onSel;
-			if (inp.confirm) { if (onSel == 0) netHost(PLATS[plSel]); else { joinCode = ""; joinDig = 0; state = "pltJoin"; } }
+			int on = ON_OPTS.Length; if (inp.up) onSel = (onSel + on - 1) % on; if (inp.down) onSel = (onSel + 1) % on;
+			var PL = PLATS[plSel];
+			if (inp.confirm && onSel == 2) { if (PL.coop && PL.team == null) netNote("هذي المرحلة أونلاين بس"); else lcOpen(PL.coop ? "team" : "vs", null, PL, "pltOn"); }
+			else if (inp.confirm && acc == null) netNote("سجّل دخول من الحساب بالقائمة عشان تلعب أونلاين");
+			else if (inp.confirm) { if (onSel == 0) netHost(PL); else { joinCode = ""; joinDig = 0; state = "pltJoin"; } }
 			else if (inp.back || inp.pz) state = "pltList";
 		}
 		else if (state == "pltJoin")

@@ -29,7 +29,7 @@ public static partial class G
 		txt(PLATS[plSel].name, W / 2, 165, 28, RED3, 700);
 		for (int i = 0; i < ON_OPTS.Length; i++)
 		{
-			double y = 300 + i * 100; bool sel = i == onSel; int ii = i; zone(W / 2 - 260, y - 38, 520, 76, () => onSel = ii);
+			double y = 270 + i * 88; bool sel = i == onSel; int ii = i; zone(W / 2 - 260, y - 38, 520, 76, () => onSel = ii);
 			rr(W / 2 - 260, y - 38, 520, 76, 18); g.fillStyle = sel ? CARDS : CARD; g.fill(); g.strokeStyle = sel ? RED : "rgba(255,255,255,0.12)"; g.lineWidth = sel ? 3 : 1.5; g.stroke();
 			txt(ON_OPTS[i], W / 2, y, sel ? 36 : 32, sel ? "#fff" : "rgba(255,255,255,0.6)", 800);
 		}
@@ -48,6 +48,7 @@ public static partial class G
 			txt("تلعبون من ٢ إلى ٤ نفس المرحلة بنفس الوقت: واحد يسوي الغرفة، والباقين يدخلون بالكود", W / 2, 520, 23, "rgba(255,255,255,0.65)", 500);
 			txt("المباراة تخلص لما يبقى واحد بس ما وصل البوابة، وهو الخسران", W / 2, 556, 23, "rgba(255,255,255,0.65)", 500);
 		}
+		drawNetNote(now);
 		row(new[] { (BTN[kind].confirm, "اختيار"), (BTN[kind].back, "رجوع") }, W / 2, H - 30, 24, "rgba(255,255,255,0.7)", 18);
 	}
 
@@ -185,6 +186,7 @@ public static partial class G
 		if (state == "tmIntro" || tm == null)
 		{
 			var gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#1c1033"); gr.addColorStop(0.55, "#4a1f4f"); gr.addColorStop(1, "#ff9a5c"); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+			if (lcT) { drawLcTeamIntro(now); return; }
 			if (n == null) return;
 			txt(n.L?.name ?? "", W / 2, 150, 64, "#fff", 800);
 			g.font = $"26px {TFONT}"; g.fillStyle = "rgba(255,255,255,0.8)"; g.textAlign = "center"; g.direction = "ltr"; g.textBaseline = "middle"; g.fillText(n.L?.best != null ? n.L.song : "؟؟؟", W / 2, 215); g.direction = "rtl";
@@ -202,9 +204,9 @@ public static partial class G
 		if (state is "tmPause" or "tmSet") overlay(state == "tmSet" ? 0.95 : 0.75);
 		if (state == "tmPause")
 		{
-			txt("اللعبة متوقفة عندك", W / 2, 165, 56, "#fff");
-			txt("الباقين يكملون، ومربعك واقف مكانه", W / 2, 222, 22, "rgba(255,255,255,0.55)", 500);
-			var tl = tmPauseList(); bool six = tl.Length > 4;   // v49: the maker's 6 items sit closer
+			if (lcT) txt("اللعبة متوقفة", W / 2, 165, 56, "#fff");
+			else { txt("اللعبة متوقفة عندك", W / 2, 165, 56, "#fff"); txt("الباقين يكملون، ومربعك واقف مكانه", W / 2, 222, 22, "rgba(255,255,255,0.55)", 500); }
+			var tl = lcT ? LC_PAUSE_T : tmPauseList(); bool six = tl.Length > 4;   // v49: the maker's 6 items sit closer
 			if (hostAsk != 0) drawHostAsk();
 			else for (int i = 0; i < tl.Length; i++)
 			{

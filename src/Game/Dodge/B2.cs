@@ -510,8 +510,8 @@ public static partial class G
 	public static Hz B2DownRing(int s, double t0)
 	{
 		var h = new Hz { kind = "B2Down" }; double nextB = Math.Ceiling(BT(t0) + 1);
-		bool on() => net?.boss == true && net.bdown[s] && state == "play";
-		(double x, double y) at() => net.bdpos[s];
+		bool on() => bnDownOf(s) && state == "play";
+		(double x, double y) at() => bnDPos(s);
 		h.update = (t, dt) =>
 		{
 			if (!on()) { h.dead = true; return; }

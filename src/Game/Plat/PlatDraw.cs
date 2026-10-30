@@ -19,7 +19,7 @@ public static partial class G
 		else if (state == "bossList") drawBossList(now);
 		else if (state == "pltList") drawPltList(now);
 		else if (state == "pltIntro") drawPltIntro(now);
-		else if (state is "pltPlay" or "pltPause" or "pltSet" or "pltDead" or "pltWin" or "pltVsEnd" or "pltVsWait") drawPlat(now);
+		else if (state is "pltPlay" or "pltPause" or "pltSet" or "pltDead" or "pltWin" or "pltVsEnd" or "pltVsWait" or "lcVWin") drawPlat(now);
 		else if (state == "pltOn") drawPltOn(now);
 		else if (state == "pltJoin") drawPltJoin(now);
 		else if (state == "pltRoom") drawPltRoom(now);
@@ -139,8 +139,9 @@ public static partial class G
 				if (q < 2) { g.fillStyle = PINK; g.shadowColor = PINK; g.shadowBlur = 14 * (0.6 + 0.4 * pulse); g.fillRect(X + 2, Y + 2, PT - 4, PT - 4); g.shadowBlur = 0; g.fillStyle = "rgba(255,255,255,0.25)"; g.fillRect(X + 8, Y + 8, PT - 16, PT - 16); }
 				else { double w = q >= 3 ? (q - 3) : 0; g.strokeStyle = $"rgba(255,42,109,{str(0.3 + 0.4 * w)})"; g.lineWidth = 2; g.strokeRect(X + 3, Y + 3, PT - 6, PT - 6); g.fillStyle = $"rgba(255,42,109,{str(0.12 * w)})"; g.fillRect(X + 3, Y + 3, PT - 6, PT - 6); }
 			}
-			else if (c >= '1' && c <= '9' && !pl.got.Contains(x + "," + y))
+			else if (c >= '1' && c <= '9' && (lcV ? !lcVsPieceGone(x, y) : !pl.got.Contains(x + "," + y)))
 			{
+				if (lcV) lcVsPieceDots(x, y);
 				int s = pl.L.pieces != null && pl.L.pieces.TryGetValue(c.ToString(), out int v) ? v : 0;
 				plPieceIcon(X + PT / 2, Y + PT / 2 + 4 * JS.sin(b * Math.PI / 2), 1 + 0.15 * pulse, s, 1);
 			}
@@ -152,7 +153,7 @@ public static partial class G
 			}
 			else if (c == 'G')
 			{
-				bool open = plOpen(); double cx = X + PT / 2, cy = Y + PT / 2 - 8;
+				bool open = lcV ? lcVsAnyOpen() : plOpen(); double cx = X + PT / 2, cy = Y + PT / 2 - 8;
 				g.save(); g.translate(cx, cy);
 				if (open)
 				{
@@ -163,7 +164,7 @@ public static partial class G
 				{
 					g.strokeStyle = "rgba(255,255,255,0.3)"; g.lineWidth = 3; g.setLineDash(new double[] { 6, 6 }); g.beginPath(); g.arc(0, 0, 26, 0, TAU); g.stroke(); g.setLineDash(new double[0]);
 					g.restore(); g.save(); g.translate(cx, cy);
-					g.font = $"800 18px {FONT}"; g.fillStyle = "rgba(255,255,255,0.55)"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "rtl"; g.fillText($"{ar(pl.got.Count)}/{ar(total)}", 0, 2);
+					if (!lcV) { g.font = $"800 18px {FONT}"; g.fillStyle = "rgba(255,255,255,0.55)"; g.textAlign = "center"; g.textBaseline = "middle"; g.direction = "rtl"; g.fillText($"{ar(pl.got.Count)}/{ar(total)}", 0, 2); }
 				}
 				g.restore();
 			}
@@ -179,11 +180,14 @@ public static partial class G
 		foreach (var q in particles) { g.globalAlpha = Math.Max(0, q.life / q.max); g.fillStyle = q.col; g.fillRect(q.x - q.s / 2, q.y - q.s / 2, q.s, q.s); }
 		g.globalAlpha = 1;
 		double ia = 1;   // the intro: the square drops in, then the HUD shows
-		if (state == "pltIntro") { double s = (now - pl.introAt) / 1000; ia = clamp((s - 2.85) / 0.15, 0, 1); if (s >= 2.4) { double f = clamp((s - 2.4) / 0.45, 0, 1), dy = -260 * (1 - f * f); player.y += dy; tinted(myHue(), () => drawPlayer()); player.y -= dy; } }
+		if (lcV) { lcVsDrawSquares(now); if (state == "pltIntro") ia = clamp(((now - pl.introAt) / 1000 - 2.85) / 0.15, 0, 1); }
+		else if (state == "pltIntro") { double s = (now - pl.introAt) / 1000; ia = clamp((s - 2.85) / 0.15, 0, 1); if (s >= 2.4) { double f = clamp((s - 2.4) / 0.45, 0, 1), dy = -260 * (1 - f * f); player.y += dy; tinted(myHue(), () => drawPlayer()); player.y -= dy; } }
 		else if (state != "pltDead" && pl.down) drawDown(player.x, player.y, now, false);
 		else if (pl.atGate) { }   // inside the gate
 		else if (state != "pltDead") tinted(myHue(), () => drawPlayer());
 		if (online && state != "pltIntro") drawNetGhost(now);
+		if (lcV) { g.save(); g.globalAlpha = ia; lcVsHUD(now); g.restore(); }
+		else {
 		g.save(); g.globalAlpha = ia;
 		// HUD: lives, the pieces, messages
 		for (int i = 0; i < P_HP; i++)
@@ -199,9 +203,10 @@ public static partial class G
 		if (pl.msgT > 0) { g.globalAlpha = Math.Min(1, pl.msgT); txt(pl.msg, W / 2, 70, 30, GOLD); g.globalAlpha = 1; }
 		if (cpMsg > 0) { g.globalAlpha = Math.Min(1, cpMsg); txt("✓ تم الحفظ", W / 2, pl.msgT > 0 ? 118 : 70, 24, CYAN); g.globalAlpha = 1; }
 		g.restore();
+		}
 		if (state == "pltPause")
 		{
-			var PP = online ? plPauseOn() : PL_PAUSE46; bool p7 = PP.Length > 5;   // v46: 7 items (the replay ones) sit closer
+			var PP = lcV ? LC_PAUSE_V : online ? plPauseOn() : PL_PAUSE46; bool p7 = PP.Length > 5;   // v46: 7 items (the replay ones) sit closer
 			overlay(0.75); txt("اللعبة متوقفة", W / 2, p7 ? 128 : 150, 56, "#fff");
 			if (hostAsk != 0) drawHostAsk();
 			else for (int i = 0; i < PP.Length; i++)
@@ -225,6 +230,7 @@ public static partial class G
 			}
 		}
 		if (state == "pltVsEnd") drawVsEnd(now);
+		if (state == "lcVWin") drawLcVWin(now);
 		if (state == "pltVsWait") { drawVsWait(now); if (hostAsk != 0) drawHostAsk(); }
 		if (state == "pltWin" && rateC != null) overlay(0.7);   // the rating card is open: only the card
 		else if (state == "pltWin")
