@@ -27,6 +27,7 @@ public static partial class G
 		["L21"] = 4.0,   // Barracuda: as hard as Abra Macabre
 		["L22"] = 4.0,   // Shiawase VIP: as hard as Abra Macabre
 		["L23"] = 1.5,   // راضي بحبك: as hard as level 3 (Mohammed 18:23 10-30)
+		["L25"] = 1.5,   // حان الوعد يا لابتي: the same difficulty as L3 (Mohammed, 10-30)
 		["B1"] = 4.0,   // the boss mode's first level (proposed in the plan: like Abra Macabre)
 		["B2"] = 4.6,   // the boss mode's second, 15% harder than B1 (his يالله 05:45 10-28 on the plan's x4.6)
 		["P1"] = 1.5,   // the platformer's first level
