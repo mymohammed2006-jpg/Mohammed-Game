@@ -26,6 +26,7 @@ public static partial class G
 		["L20"] = 4.0,   // New Game: as hard as Abra Macabre
 		["L21"] = 4.0,   // Barracuda: as hard as Abra Macabre
 		["L22"] = 4.0,   // Shiawase VIP: as hard as Abra Macabre
+		["L26"] = 1.5,   // لا دندنت: as hard as L2 with five parts as hard as L5 (his ask 10-30); between the two
 		["B1"] = 4.0,   // the boss mode's first level (proposed in the plan: like Abra Macabre)
 		["B2"] = 4.6,   // the boss mode's second, 15% harder than B1 (his يالله 05:45 10-28 on the plan's x4.6)
 		["P1"] = 1.5,   // the platformer's first level
