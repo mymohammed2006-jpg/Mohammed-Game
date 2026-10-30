@@ -190,6 +190,7 @@ public static partial class G
 			else if ((d != 0 || inp.confirm) && r == "screen") { int i = Array.IndexOf(SCREEN_MODES, screenMode), sn = SCREEN_MODES.Length; setScreen(SCREEN_MODES[((i < 0 ? 0 : i) + (d != 0 ? d : 1) + sn) % sn]); }
 			else if ((d != 0 || inp.confirm) && r == "vsync") setVsync(!vsyncOn);
 			else if ((d != 0 || inp.confirm) && r == "counter") setFpsShow(!fpsShow);
+			else if ((d != 0 || inp.confirm) && r == "rumble") setRumble(!rumbleOn);
 			else if (inp.confirm && r == "extra") { state = "extras"; extraSel = 0; }
 			else if (d != 0 && r == "fps") { int i = Array.IndexOf(FPS_LIST, fpsCap); if (i < 0) i = 4; setFps(FPS_LIST[(int)clamp(i + d, 0, FPS_LIST.Length - 1)]); }
 			else if (d != 0 && r == "res") { var L = resList(); int i = Array.IndexOf(L, resSet); if (i < 0) i = 0; setRes(L[(i + L.Length + d) % L.Length]); }
