@@ -179,7 +179,8 @@ public class LocalTest
 		i++; foreach (var (dev, at) in untap.ToList()) if (at == i) { press[dev] = default; untap.Remove((dev, at)); if (dev == G.KB) foreach (var k in new[] { "Enter", "Escape", "Backspace" }) G.OnKeyUp(k); }
 		double t = i / (double)fps;
 		// the script: Enter on the menu, each controller joins, sign-ins, player 1 starts
-		if (step == 0 && i == 10) { G.OnKeyDown("Enter", false); untap.Add((G.KB, i + 3)); step = 1; }
+		if (step == 0 && i == 8 && EnvS("MENU") == "1") { Shot("menu"); done = true; }   // MENU: just the menu with the new choice
+		else if (step == 0 && i == 10) { G.OnKeyDown("Enter", false); untap.Add((G.KB, i + 3)); step = 1; }
 		else if (step == 1 && G.state == "lcJoin" && i >= 20) { for (int s = 0; s < n; s++) Tap(Dev(s), "c"); step = 2; }
 		else if (step == 2 && i >= 30 && G.lc.seats.Count == n)
 		{

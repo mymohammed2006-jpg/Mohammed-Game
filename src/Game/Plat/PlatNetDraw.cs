@@ -33,7 +33,13 @@ public static partial class G
 			rr(W / 2 - 260, y - 38, 520, 76, 18); g.fillStyle = sel ? CARDS : CARD; g.fill(); g.strokeStyle = sel ? RED : "rgba(255,255,255,0.12)"; g.lineWidth = sel ? 3 : 1.5; g.stroke();
 			txt(ON_OPTS[i], W / 2, y, sel ? 36 : 32, sel ? "#fff" : "rgba(255,255,255,0.6)", 800);
 		}
-		if (PLATS[plSel].team != null)
+		if (onSel == 2)   // local play (UI/Local.cs)
+		{
+			var tl = PLATS[plSel].team;
+			txt(tl != null ? $"تلعبون {(tl.players == 2 ? "اثنين" : ar(tl.players))} على هذا الجهاز، كل واحد بيده، بنفس الشاشة" : PLATS[plSel].coop ? "هذي المرحلة أونلاين بس" : "تلعبون من ٢ إلى ٤ على هذا الجهاز، كل واحد بيده، بنفس الشاشة", W / 2, 520, 23, "rgba(255,255,255,0.65)", 500);
+			if (tl != null || !PLATS[plSel].coop) txt("كل واحد يلعب ضيف، أو يدخل بحسابه عشان ينحفظ له", W / 2, 556, 23, "rgba(255,255,255,0.65)", 500);
+		}
+		else if (PLATS[plSel].team != null)
 		{
 			txt("تلعبون ٣ مع بعض: واحد يسوي الغرفة، والاثنين يدخلون بالكود", W / 2, 520, 23, "rgba(255,255,255,0.65)", 500);
 			txt("ما تعدّون أي صفحة إلا بالتعاون، والثلاثة لازم يوصلون", W / 2, 556, 23, "rgba(255,255,255,0.65)", 500);
