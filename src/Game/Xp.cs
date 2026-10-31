@@ -31,6 +31,7 @@ public static partial class G
 		["L26"] = 1.5,   // لا دندنت: as hard as L2 with five parts as hard as L5 (his ask 10-30); between the two
 		["L27"] = 1.5,   // المفروض: the same difficulty as L3 (Mohammed, 10-30)
 		["L28"] = 1.5,   // يا طيب القلب: the same difficulty as L3 (Mohammed, 10-30)
+		["L29"] = 1.5,   // Trouble: the same difficulty as L3, its 1:36.8-1:49.2 like L4 (Mohammed, 10-30)
 		["L30"] = 1.3,   // C'est la vie: about as hard as level 2, made for fun (Mohammed 10-30)
 		["B1"] = 4.0,   // the boss mode's first level (proposed in the plan: like Abra Macabre)
 		["B2"] = 4.6,   // the boss mode's second, 15% harder than B1 (his يالله 05:45 10-28 on the plan's x4.6)
