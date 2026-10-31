@@ -5,218 +5,182 @@ using static MG.JS;
 
 namespace MG;
 
-// يالعين قسامي, main level 24: part 3, the fate (4:34-5:25): the threads of fate, the scale and its weights, the eye closing; and the events.
+// يالعين قسامي, main level 24, part 3 (4:34-5:25): the bombs, the searchlights and the pillars' shadows, the cave run; and the events.
 public static partial class G
 {
-	// ---------- 9. the threads of fate (4:34) ----------
-	// A thread between two gold pegs: from (ax0, ay0)-(bx0, by0) at b to (ax1, ay1)-(bx1, by1) at b + dur (the pegs slide along the
-	// screen's edges). It has one knot: a gap of kl px round the point ku (0-1) along it, ringed in gold. It shows dashed (with gold
-	// arrows at the pegs: where they will slide) from bw, pink from b to b + dur.
-	public static Hz QSThread(double ax0, double ay0, double bx0, double by0, double ax1, double ay1, double bx1, double by1, double ku, double kl, double bw, double b, double dur)
+	// ---------- J. bombs (4:34): a gold bomb is set in a square of the grid, its fuse burns down, then it blasts its whole row and
+	// column pink. Where the cross will go shows white dashed first. ----------
+	public static Hz QSBomb(int ci, int cj, double bp, double wn, double be, double hold, double hw)
 	{
-		var h = new Hz { kind = "QSThread" };
-		h.update = (t, dt) => { if (BT(t) > b + dur + 0.3) h.dead = true; };
-		void at(double bt, out double ax, out double ay, out double bx, out double by)
+		double x = (ci + 0.5) * QS_C, y = (cj + 0.5) * QS_C;
+		// the warning lies under every pink thing (a waiting bomb never covers a live blast)
+		var pre = new Hz { kind = "QSBombPre", z = -1 };
+		pre.update = (t, dt) => { if (BT(t) >= be) pre.dead = true; };
+		pre.draw = t =>
 		{
-			double u = QSk(bt, b, b + dur); ax = ax0 + (ax1 - ax0) * u; ay = ay0 + (ay1 - ay0) * u; bx = bx0 + (bx1 - bx0) * u; by = by0 + (by1 - by0) * u;
-		}
-		// the two pieces either side of the knot
-		void pieces(double bt, Action<double, double, double, double> f)
-		{
-			at(bt, out var ax, out var ay, out var bx, out var by); double l = hypot(bx - ax, by - ay), u0 = ku - kl / 2 / l, u1 = ku + kl / 2 / l;
-			f(ax, ay, ax + (bx - ax) * u0, ay + (by - ay) * u0); f(ax + (bx - ax) * u1, ay + (by - ay) * u1, bx, by);
-		}
+			double bt = BT(t); if (bt < bp || bt >= be) return;
+			g.save();
+			double q = QSk(bt, bp, be);
+			if (bt >= be - wn)
+			{
+				double q2 = QSk(bt, be - wn, be); g.fillStyle = QSW(0.04 + 0.06 * q2); g.fillRect(0, y - hw, W, 2 * hw); g.fillRect(x - hw, 0, 2 * hw, H);
+				QSDash(0, y - hw, W, y - hw, QSW(0.3 + 0.4 * q2)); QSDash(0, y + hw, W, y + hw, QSW(0.3 + 0.4 * q2)); QSDash(x - hw, 0, x - hw, H, QSW(0.3 + 0.4 * q2)); QSDash(x + hw, 0, x + hw, H, QSW(0.3 + 0.4 * q2));
+			}
+			g.fillStyle = "rgb(30,22,10)"; circle(x, y, 20); g.strokeStyle = QSG(0.95); g.lineWidth = 4; g.beginPath(); g.arc(x, y, 26, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - q)); g.stroke();
+			g.fillStyle = QSG(0.6 + 0.4 * JS.sin(bt * TAU * 2)); circle(x, y, 6);
+			g.restore();
+		};
+		hazards.Add(pre);
+		var h = new Hz { kind = "QSBomb" };
+		h.update = (t, dt) => { if (BT(t) > be + hold + 0.3) h.dead = true; };
 		h.draw = t =>
 		{
-			double bt = BT(t); if (bt < bw || bt > b + dur + 0.3) return;
-			g.save(); g.lineCap = "round";
-			at(bt, out var ax, out var ay, out var bx, out var by);
-			double kx = ax + (bx - ax) * ku, ky = ay + (by - ay) * ku;
-			if (bt < b)
+			double bt = BT(t); if (bt < be) return;
+			g.save();
 			{
-				double q = QSk(bt, bw, b); g.strokeStyle = QSW(0.25 + 0.5 * q); g.lineWidth = 2; g.setLineDash(new double[] { 12, 10 }); g.beginPath();
-				pieces(bt, (x0, y0, x1, y1) => { g.moveTo(x0, y0); g.lineTo(x1, y1); }); g.stroke(); g.setLineDash(new double[0]);
-				// gold arrows: where the pegs go
-				g.strokeStyle = QSG(0.4 + 0.5 * q); g.lineWidth = 3;
-				void arrow(double x0, double y0, double x1, double y1)
-				{
-					double dx = x1 - x0, dy = y1 - y0, l = hypot(dx, dy); if (l < 1) return; dx /= l; dy /= l;
-					double px = clamp(x0, 12, W - 12) + dx * 40, py = clamp(y0, 12, H - 12) + dy * 40;
-					g.beginPath(); g.moveTo(px - dx * 30, py - dy * 30); g.lineTo(px, py); g.moveTo(px - dx * 12 - dy * 9, py - dy * 12 + dx * 9); g.lineTo(px, py); g.lineTo(px - dx * 12 + dy * 9, py - dy * 12 - dx * 9); g.stroke();
-				}
-				arrow(ax0, ay0, ax1, ay1); arrow(bx0, by0, bx1, by1);
+				double al = 1 - QSk(bt, be + hold, be + hold + 0.3), k = QSOut((bt - be) / 0.08);
+				g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = QSP(al); g.fillRect(0, y - hw * k, W, 2 * hw * k); g.fillRect(x - hw * k, 0, 2 * hw * k, H);
+				g.shadowBlur = 0; g.fillStyle = $"rgba(255,200,222,{str(0.9 * al)})"; circle(x, y, 24 * k);
+			}
+			g.restore();
+		};
+		h.hit = (p, t) => { double bt = BT(t); if (bt < be || bt >= be + hold) return false; double m = hw * QSOut((bt - be) / 0.08) + p.r - 2; return Math.Abs(p.y - y) < m || Math.Abs(p.x - x) < m; };
+		return h;
+	}
+
+	// ---------- K. searchlights (4:54): pink beams of light sweep from the top (later from the bottom too); the gold pillars stop the
+	// light: stand in their shadows. The pillars drift in the second half. ----------
+	static readonly double[] QS_PX = { 150, 420, 640, 860, 1130, 290, 990 }, QS_PY = { 300, 410, 290, 410, 300, 570, 570 };
+	const double QS_PR = 48;
+	static void QSPillar(int k, double bt, out double x, out double y) { double d = QSk(bt, 298, 302); x = QS_PX[k] + d * 70 * JS.sin(QSRad((bt - 300) * 22.5 + 90 * k)); y = QS_PY[k]; }
+	public static Hz QSPillars(double b0, double b1)
+	{
+		var h = new Hz { kind = "QSPillars", z = -1 };   // under every pink thing (the last bombs still blast when they rise)
+		h.update = (t, dt) => { if (BT(t) > b1 + 1) h.dead = true; };
+		h.draw = t =>
+		{
+			double bt = BT(t); if (bt < b0 - 2 || bt > b1 + 1) return; double al = QSk(bt, b0 - 2, b0 - 1) * (1 - QSk(bt, b1, b1 + 1));
+			g.save();
+			for (int k = 0; k < QS_PX.Length; k++) { QSPillar(k, bt, out var x, out var y); g.fillStyle = $"rgba(20,16,8,{str(al)})"; circle(x, y, QS_PR); g.strokeStyle = QSG(0.95 * al); g.lineWidth = 4; g.beginPath(); g.arc(x, y, QS_PR, 0, TAU); g.stroke(); g.strokeStyle = QSG(0.4 * al); g.lineWidth = 2; g.beginPath(); g.arc(x, y, QS_PR * 0.6, 0, TAU); g.stroke(); }
+			g.restore();
+		};
+		return h;
+	}
+	public static Hz QSLight(double lx, double ly, double dir0, double A, double per, double ph, double ca, double b0, double b1)
+	{
+		var h = new Hz { kind = "QSLight" };
+		double ang(double bt) => QSRad(dir0 + A * JS.sin(Math.PI * (bt - ph) / per));
+		// how far the light gets along direction a before a pillar stops it
+		double reach(double a, double bt)
+		{
+			double dx = JS.cos(a), dy = JS.sin(a), best = 1600;
+			for (int k = 0; k < QS_PX.Length; k++)
+			{
+				QSPillar(k, bt, out var cx, out var cy); double ox = cx - lx, oy = cy - ly, pr = ox * dx + oy * dy; if (pr <= 0) continue;
+				double pp = ox * ox + oy * oy - pr * pr; if (pp >= QS_PR * QS_PR) continue; double tt = pr - Math.Sqrt(QS_PR * QS_PR - pp); if (tt < best) best = tt;
+			}
+			return best;
+		}
+		h.update = (t, dt) => { if (BT(t) > b1 + 0.6) h.dead = true; };
+		h.draw = t =>
+		{
+			double bt = BT(t); if (bt < b0 - 1.5 || bt > b1 + 0.6) return;
+			double a = ang(Math.Max(bt, b0 - 1.5)), cr = QSRad(ca);
+			g.save();
+			if (bt < b0)
+			{
+				double q = QSk(bt, b0 - 1.5, b0); QSDash(lx, ly, lx + JS.cos(a - cr) * 1500, ly + JS.sin(a - cr) * 1500, QSW(0.25 + 0.5 * q)); QSDash(lx, ly, lx + JS.cos(a + cr) * 1500, ly + JS.sin(a + cr) * 1500, QSW(0.25 + 0.5 * q));
 			}
 			else
 			{
-				double al = 1 - QSk(bt, b + dur, b + dur + 0.3);
-				g.shadowColor = PINK; g.shadowBlur = 12; g.strokeStyle = QSP(al); g.lineWidth = 6; g.beginPath();
-				pieces(bt, (x0, y0, x1, y1) => { g.moveTo(x0, y0); g.lineTo(x1, y1); }); g.stroke(); g.shadowBlur = 0;
+				double al = 1 - QSk(bt, b1, b1 + 0.6);
+				g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = QSP(0.78 * al); g.beginPath(); g.moveTo(lx, ly);
+				int n = (int)Math.Ceiling(2 * ca / 0.4); for (int i = 0; i <= n; i++) { double ai = a - cr + 2 * cr * i / n, r = reach(ai, bt); g.lineTo(lx + JS.cos(ai) * r, ly + JS.sin(ai) * r); }
+				g.closePath(); g.fill(); g.shadowBlur = 0;
+				// where it will point half a beat on
+				double a2 = ang(bt + 0.5); QSDash(lx, ly, lx + JS.cos(a2) * 1500, ly + JS.sin(a2) * 1500, QSW(0.3 * al));
 			}
-			// the knot's gold ring and the pegs (harmless)
-			g.strokeStyle = QSG(0.85); g.lineWidth = 3; g.beginPath(); g.arc(kx, ky, kl / 2 - 6, 0, TAU); g.stroke();
-			g.fillStyle = QSG(0.9); circle(clamp(ax, 6, W - 6), clamp(ay, 6, H - 6), 7); circle(clamp(bx, 6, W - 6), clamp(by, 6, H - 6), 7);
+			g.fillStyle = QSG(0.95); circle(lx, ly, 16); g.fillStyle = QSW(0.9); circle(lx, ly, 7);
 			g.restore();
 		};
 		h.hit = (p, t) =>
 		{
-			double bt = BT(t); if (bt < b || bt >= b + dur) return false; bool hit = false;
-			pieces(bt, (x0, y0, x1, y1) => { if (!hit && QSSeg(p.x, p.y, x0, y0, x1, y1) < 3 + p.r - 2) hit = true; });
-			return hit;
+			double bt = BT(t); if (bt < b0 || bt >= b1) return false;
+			double dx = p.x - lx, dy = p.y - ly, d = hypot(dx, dy); if (d < 1) return true;
+			double da = Math.Abs(QSMod(JS.atan2(dy, dx) - ang(bt) + Math.PI, TAU) - Math.PI); if (da > QSRad(ca) + Math.Asin(Math.Min(1, (p.r - 2) / d))) return false;
+			for (int k = 0; k < QS_PX.Length; k++) { QSPillar(k, bt, out var cx, out var cy); if (QSSeg(cx, cy, lx, ly, p.x, p.y) < QS_PR - (p.r - 2)) return false; }
+			return true;
 		};
 		return h;
 	}
 
-	// ---------- 10. the scale (4:54) ----------
-	// A balance hangs from the top (gold beam, harmless); its two pans are pink bowls. It tips to one side then the other every 2 beats
-	// (from b0), so the bowls go up and down. QSScaleAt gives the bowls' middles at beat bt.
-	const double QS_PX = W / 2, QS_PY = 96, QS_BL = 400, QS_CH = 200, QS_BR = 88;
-	static double QSTilt(double bt, double b0)
+	// ---------- L. the cave run (5:14): the screen runs to the left through a winding pink cave; spikes from its walls pass the middle
+	// on the kicks; at the end it opens out. ----------
+	static double QSCaveY(double X) => H / 2 + 140 * JS.sin(X / 520) + 60 * JS.sin(X / 230 + 1);
+	public static Hz QSCave(double b0, double b1, double V, double h0, double h1, double[] spX, bool[] spTop, double spH)
 	{
-		if (bt < b0) return 0; int j = (int)Math.Floor((bt - b0) / 2); double prev = j == 0 ? 0 : (j % 2 == 1 ? 24 : -24), cur = j % 2 == 0 ? 24 : -24;
-		return prev + (cur - prev) * QSE(QSk(bt - b0 - 2 * j, 0, 0.6));
-	}
-	public static void QSScaleAt(double bt, double b0, out double lx, out double ly, out double rx, out double ry)
-	{
-		double a = QSRad(QSTilt(bt, b0)), c = JS.cos(a), s = JS.sin(a);
-		lx = QS_PX - c * QS_BL; ly = QS_PY - s * QS_BL + QS_CH; rx = QS_PX + c * QS_BL; ry = QS_PY + s * QS_BL + QS_CH;
-	}
-	public static Hz QSScale(double b0, double b1, double bw)
-	{
-		var h = new Hz { kind = "QSScale" };
-		h.update = (t, dt) => { if (BT(t) > b1 + 1) h.dead = true; };
+		var h = new Hz { kind = "QSCave" }; double T0 = B(b0);
+		double hg(double bt) => bt < b0 + 2 ? 420 + (h0 - 420) * QSE((bt - b0) / 2) : bt < b1 - 2 ? h0 + (h1 - h0) * (bt - b0 - 2) / (b1 - b0 - 4) : h1 + (440 - h1) * QSE((bt - b1 + 2) / 1.5);
+		double scr(double t) => (t - T0) * V;
+		// a spike: world X, top or bottom; its triangle on screen
+		void spike(int k, double t, double g0, out double ax, out double ay, out double bx, out double by, out double tx, out double ty)
+		{
+			double X = spX[k], x = X - scr(t), yc = QSCaveY(X), s = spTop[k] ? -1 : 1, wy = yc + s * g0;
+			ax = x - 46; bx = x + 46; ay = by = wy + s * 30; tx = x; ty = wy - s * spH;
+		}
+		h.update = (t, dt) => { if (BT(t) > b1 + 0.6) h.dead = true; };
 		h.draw = t =>
 		{
-			double bt = BT(t); if (bt < bw || bt > b1 + 1) return; double al = QSk(bt, bw, bw + 1) * (1 - QSk(bt, b1, b1 + 1));
-			double a = QSRad(QSTilt(bt, b0)), c = JS.cos(a), s = JS.sin(a);
-			QSScaleAt(bt, b0, out var lx, out var ly, out var rx, out var ry);
-			g.save(); g.globalAlpha = al; g.lineCap = "round";
-			// the post, the beam, the chains (gold, harmless)
-			g.strokeStyle = QSG(0.8); g.lineWidth = 6; g.beginPath(); g.moveTo(QS_PX, -10); g.lineTo(QS_PX, QS_PY); g.stroke();
-			g.lineWidth = 8; g.beginPath(); g.moveTo(QS_PX - c * QS_BL, QS_PY - s * QS_BL); g.lineTo(QS_PX + c * QS_BL, QS_PY + s * QS_BL); g.stroke();
-			g.fillStyle = QSG(0.95); circle(QS_PX, QS_PY, 12);
-			g.lineWidth = 2; g.strokeStyle = QSG(0.6); g.beginPath();
-			foreach (var (ex, ey, px, py) in new[] { (QS_PX - c * QS_BL, QS_PY - s * QS_BL, lx, ly), (QS_PX + c * QS_BL, QS_PY + s * QS_BL, rx, ry) })
-			{ g.moveTo(ex, ey); g.lineTo(px - QS_BR, py); g.moveTo(ex, ey); g.lineTo(px + QS_BR, py); }
-			g.stroke();
-			// the bowls
-			foreach (var (px, py) in new[] { (lx, ly), (rx, ry) })
+			double bt = BT(t); if (bt < b0 - 1 || bt > b1 + 0.6) return;
+			g.save();
+			if (bt < b0) { double q = QSk(bt, b0 - 1, b0); for (int s = -1; s <= 1; s += 2) { g.strokeStyle = QSW(0.3 + 0.4 * q); g.lineWidth = 2; g.setLineDash(new double[] { 10, 8 }); g.beginPath(); for (double x = 0; x <= W; x += 16) { double y = QSCaveY(x) + s * h0; if (x == 0) g.moveTo(x, y); else g.lineTo(x, y); } g.stroke(); g.setLineDash(new double[0]); } }
+			else
 			{
-				if (bt < b0) { g.strokeStyle = QSW(0.6); g.lineWidth = 2; g.setLineDash(new double[] { 10, 8 }); g.beginPath(); g.arc(px, py, QS_BR, 0, Math.PI); g.closePath(); g.stroke(); g.setLineDash(new double[0]); }
-				else { g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = QSP(0.85); g.beginPath(); g.arc(px, py, QS_BR, 0, Math.PI); g.closePath(); g.fill(); g.shadowBlur = 0; g.strokeStyle = PINK; g.lineWidth = 3; g.stroke(); }
+				double gg = hg(bt), sc = scr(t), al = 1 - QSk(bt, b1, b1 + 0.6);
+				g.shadowColor = PINK; g.shadowBlur = 14; g.fillStyle = QSP(0.92 * al);
+				for (int s = -1; s <= 1; s += 2)
+				{
+					g.beginPath(); g.moveTo(-10, s < 0 ? -10 : H + 10);
+					for (double x = -10; x <= W + 10; x += 16) g.lineTo(x, QSCaveY(x + sc) + s * gg);
+					g.lineTo(W + 10, s < 0 ? -10 : H + 10); g.closePath(); g.fill();
+				}
+				for (int k = 0; k < spX.Length; k++)
+				{
+					double x = spX[k] - sc; if (x < -80 || x > W + 80) continue;
+					spike(k, t, gg, out var ax, out var ay, out var bx, out var by, out var tx, out var ty);
+					g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.lineTo(tx, ty); g.closePath(); g.fill();
+				}
+				g.shadowBlur = 0;
+				// the spikes coming in from the right show their place first (white dashed) a second ahead
+				for (int k = 0; k < spX.Length; k++)
+				{
+					double x = spX[k] - sc; if (x <= W + 80 || x > W + 80 + V) continue;
+					double xx = W - 20, yc = QSCaveY(spX[k]), s2 = spTop[k] ? -1 : 1; QSDash(xx, yc + s2 * gg, xx, yc + s2 * (gg - spH), QSW(0.6));
+				}
 			}
 			g.restore();
 		};
 		h.hit = (p, t) =>
 		{
 			double bt = BT(t); if (bt < b0 || bt >= b1) return false;
-			QSScaleAt(bt, b0, out var lx, out var ly, out var rx, out var ry);
-			foreach (var (px, py) in new[] { (lx, ly), (rx, ry) }) if (p.y > py - (p.r - 2) && hypot(p.x - px, p.y - py) < QS_BR + p.r - 2) return true;
+			double gg = hg(bt), sc = scr(t), yc = QSCaveY(p.x + sc), m = p.r - 2;
+			if (p.y < yc - gg + m || p.y > yc + gg - m) return true;
+			for (int k = 0; k < spX.Length; k++)
+			{
+				double x = spX[k] - sc; if (Math.Abs(x - p.x) > 80) continue;
+				spike(k, t, gg, out var ax, out var ay, out var bx, out var by, out var tx, out var ty);
+				double d1 = (p.x - bx) * (ay - by) - (ax - bx) * (p.y - by), d2 = (p.x - tx) * (by - ty) - (bx - tx) * (p.y - ty), d3 = (p.x - ax) * (ty - ay) - (tx - ax) * (p.y - ay);
+				bool neg = d1 < 0 || d2 < 0 || d3 < 0, pos = d1 > 0 || d2 > 0 || d3 > 0;
+				if (!(neg && pos)) return true;
+				if (QSSeg(p.x, p.y, ax, ay, tx, ty) < m || QSSeg(p.x, p.y, bx, by, tx, ty) < m) return true;
+			}
 			return false;
-		};
-		return h;
-	}
-	// A weight (a pink block, size sz) falls in the column x from the top at b at sp px/s; the column shows dashed from bw.
-	public static Hz QSWeight(double x, double sz, double bw, double b, double sp)
-	{
-		var h = new Hz { kind = "QSWeight" }; double tf = B(b);
-		double y(double t) => -sz + (t - tf) * sp;
-		h.update = (t, dt) => { if (t > tf && y(t) - sz > H + 20) h.dead = true; };
-		h.draw = t =>
-		{
-			double bt = BT(t); if (bt < bw) return;
-			g.save();
-			if (bt < b) { double q = QSk(bt, bw, b); QSDash(x - sz / 2, 0, x - sz / 2, H, QSW(0.2 + 0.45 * q)); QSDash(x + sz / 2, 0, x + sz / 2, H, QSW(0.2 + 0.45 * q)); }
-			else
-			{
-				double yy = y(t); g.shadowColor = PINK; g.shadowBlur = 14; g.fillStyle = PINK; g.beginPath();
-				g.moveTo(x - sz / 2, yy + sz / 2); g.lineTo(x - sz * 0.32, yy - sz / 2); g.lineTo(x + sz * 0.32, yy - sz / 2); g.lineTo(x + sz / 2, yy + sz / 2); g.closePath(); g.fill();
-				g.shadowBlur = 0; g.strokeStyle = QSG(0.9); g.lineWidth = 3; g.beginPath(); g.arc(x, yy - sz / 2 - 6, 7, 0, TAU); g.stroke();
-			}
-			g.restore();
-		};
-		// the weight is narrower at its top: the hit follows its drawn shape
-		h.hit = (p, t) =>
-		{
-			if (t < tf) return false; double yy = y(t), dy = p.y - yy; if (Math.Abs(dy) >= sz / 2 + p.r - 2) return false;
-			double hw = sz * 0.32 + sz * 0.18 * clamp((dy + sz / 2) / sz, 0, 1);
-			return Math.Abs(p.x - x) < hw + p.r - 2;
-		};
-		return h;
-	}
-
-	// ---------- 11. the eye closes (5:14) ----------
-	// The eye fills the screen; what is outside its opening is pink (its lids). The opening is the almond round (cx, H/2), half width
-	// QS_RX, half height h (the lower lid as high as the eye's own). At each step beat sb[i] it eases (0.75 beat) to the size sh[i] and the middle sx[i];
-	// the next almond shows dashed the beat before.
-	const double QS_RX = 600, QS_LO = 0.5 / 0.62;   // the lower lid is as high as the eye's own (QSEyeDraw)
-	static readonly double[] QS_LSB = { 321, 325, 329, 333, 337, 340 }, QS_LSX = { 640, 520, 760, 560, 720, 640 };
-	static readonly double[] QS_LSHN = { 420, 310, 240, 190, 150, 120 }, QS_LSHE = { 470, 400, 340, 290, 250, 220 };
-	public static void QSLidsAt(double bt, out double cx, out double hh)
-	{
-		var sh = easy ? QS_LSHE : QS_LSHN; cx = QS_LSX[0]; hh = sh[0];
-		for (int i = 1; i < QS_LSB.Length; i++) { if (bt < QS_LSB[i]) break; double u = QSE(QSk(bt, QS_LSB[i], QS_LSB[i] + 0.75)); cx = QS_LSX[i - 1] + (QS_LSX[i] - QS_LSX[i - 1]) * u; hh = sh[i - 1] + (sh[i] - sh[i - 1]) * u; }
-	}
-	public static Hz QSLids(double b0, double b1)
-	{
-		var h = new Hz { kind = "QSLids" }; double[] sb = QS_LSB, sx = QS_LSX, sh = easy ? QS_LSHE : QS_LSHN;
-		h.update = (t, dt) => { if (BT(t) > b1 + 3) h.dead = true; };
-		void st(double bt, out double cx, out double hh) => QSLidsAt(bt, out cx, out hh);
-		double up(double x, double cx, double hh) { double d = (x - cx) / QS_RX; return Math.Abs(d) >= 1 ? H / 2 : H / 2 - hh * (1 - d * d); }
-		double lo(double x, double cx, double hh) { double d = (x - cx) / QS_RX; return Math.Abs(d) >= 1 ? H / 2 : H / 2 + QS_LO * hh * (1 - d * d); }
-		h.draw = t =>
-		{
-			double bt = BT(t); if (bt < b0 - 1) return; double al = QSk(bt, b0 - 1, b0);
-			st(bt, out var cx, out var hh);
-			g.save();
-			if (bt < b0)
-			{
-				g.strokeStyle = QSW(0.6 * al); g.lineWidth = 2; g.setLineDash(new double[] { 12, 10 }); g.beginPath();
-				for (int i = 0; i <= 64; i++) { double x = W * i / 64.0; if (i == 0) g.moveTo(x, up(x, cx, hh)); else g.lineTo(x, up(x, cx, hh)); }
-				for (int i = 64; i >= 0; i--) { double x = W * i / 64.0; g.lineTo(x, lo(x, cx, hh)); }
-				g.stroke(); g.setLineDash(new double[0]); g.restore(); return;
-			}
-			// the lids (pink)
-			g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = QSP(0.62);
-			g.beginPath(); g.moveTo(-10, -10); g.lineTo(W + 10, -10); g.lineTo(W + 10, H / 2);
-			for (int i = 64; i >= 0; i--) { double x = W * i / 64.0; g.lineTo(x, up(x, cx, hh)); }
-			g.lineTo(-10, H / 2); g.closePath(); g.fill();
-			g.beginPath(); g.moveTo(-10, H + 10); g.lineTo(W + 10, H + 10); g.lineTo(W + 10, H / 2);
-			for (int i = 64; i >= 0; i--) { double x = W * i / 64.0; g.lineTo(x, lo(x, cx, hh)); }
-			g.lineTo(-10, H / 2); g.closePath(); g.fill(); g.shadowBlur = 0;
-			// the lashes: short strokes out of the upper lid into the pink, and the lids' edges
-			g.strokeStyle = PINK; g.lineWidth = 3; g.beginPath();
-			for (int i = 0; i <= 64; i++) { double x = W * i / 64.0; if (i == 0) g.moveTo(x, up(x, cx, hh)); else g.lineTo(x, up(x, cx, hh)); }
-			for (int i = 0; i <= 64; i++) { double x = W * i / 64.0; if (i == 0) g.moveTo(x, lo(x, cx, hh)); else g.lineTo(x, lo(x, cx, hh)); }
-			for (int i = 2; i < 40; i++) { double x = cx - QS_RX + 2 * QS_RX * i / 41.0, y = up(x, cx, hh), d = (x - cx) / QS_RX; g.moveTo(x, y); g.lineTo(x + d * 18, y - 24); }
-			g.stroke();
-			// the next almond (dashed white) the beat before each step
-			for (int i = 1; i < sb.Length; i++)
-			{
-				if (bt < sb[i] - 1 || bt >= sb[i]) continue; double q = QSk(bt, sb[i] - 1, sb[i]);
-				g.strokeStyle = QSW(0.3 + 0.5 * q); g.lineWidth = 2; g.setLineDash(new double[] { 12, 10 }); g.beginPath();
-				for (int k = 0; k <= 64; k++) { double x = W * k / 64.0; if (k == 0) g.moveTo(x, up(x, sx[i], sh[i])); else g.lineTo(x, up(x, sx[i], sh[i])); }
-				for (int k = 0; k <= 64; k++) { double x = W * k / 64.0; if (k == 0) g.moveTo(x, lo(x, sx[i], sh[i])); else g.lineTo(x, lo(x, sx[i], sh[i])); }
-				g.stroke(); g.setLineDash(new double[0]);
-			}
-			g.restore();
-		};
-		h.hit = (p, t) =>
-		{
-			double bt = BT(t); if (bt < b0 || bt >= b1) return false; st(bt, out var cx, out var hh);
-			return p.y < up(p.x, cx, hh) + p.r - 2 || p.y > lo(p.x, cx, hh) - p.r + 2;
 		};
 		return h;
 	}
 
 	// ---------- the events ----------
 	static readonly int _qsb = DodgeBuild("L24", () => buildQS());
-	static double[] QSIn(double[] l, double a, double b, double gap = 0)
-	{
-		var o = new List<double>(); double last = -1e9;
-		foreach (var x in l) if (x >= a && x < b && x - last >= gap - 1e-9) { o.Add(x); last = x; }
-		return o.ToArray();
-	}
-	static readonly double QS_DIAG = Math.Atan2(H, W) * 180 / Math.PI;   // the screen's diagonal (corner to corner), degrees
 	static List<Ev> buildQS()
 	{
 		var E = new List<Ev>(); bool ez = easy;
@@ -224,210 +188,145 @@ public static partial class G
 		void add(Hz z) => hazards.Add(z);
 		at(0, () => add(QSStage(B(346))), true);
 		double wn = ez ? 1.4 : 1;   // how long the warnings show (beats)
+		foreach (var fb in new[] { 40.0, 80, 104, 120, 140, 180, 220, 240, 280, 320 }) { double b = fb; at(b, () => add(QSFx(b, 0.22, 7, 0.9))); }
+		at(160, () => add(QSFx(160, 0.4, 14, 1.4))); at(342, () => add(QSFx(342, 0.4, 10, 1.6)));
 
-		// ===== 1. the look (2:34-3:44) =====
-		// the split: one line through the middle every 2 beats, then a # every bar (two parallel lines, then the two across), turning 22.5 a bar;
-		// from 2:42 also a line corner to corner on each bar's first beat
+		// ===== A. falling blocks (2:34-2:54) =====
 		{
-			for (double b = 2; b < 8; b += 2) { double ang = 90 * ((b / 2) % 2) + 45; double bb = b; at(bb - wn, () => add(QSSplit(W / 2, H / 2, ang, bb - wn, bb, 0.6, ez ? 18 : 34))); }
-			for (int j = 2; j < 10; j++)
+			var sp = new List<double>(); for (double b = 1; b <= 35; b += ez ? 2 : 1) sp.Add(b);
+						if (!ez) for (double b = 3.5; b <= 35; b += 2) if (!sp.Contains(b)) sp.Add(b);
+			sp.Sort();
+			foreach (var P in QSBlocksPlan(sp.ToArray(), ez ? 260 : 380, new[] { 9.0, 17, 25, 33, 40 })) { var pp = P; at(pp.bs - wn, () => add(QSBlock(pp, wn))); }
+			// when the stack burns, the floor burns with it
+			foreach (var cb in new[] { 9.0, 17, 25, 33 }) { double b = cb; at(b - 1.5, () => add(QSBurn(H - 2 * QS_C, H, b - 1.5, b, 0.3))); }
+		}
+
+		// ===== B. your own tail + stomps (2:54-3:14) =====
+		{
+			at(39.5, () => add(QSTail(40.5, 79.5, ez ? 0.75 : 0.3, ez ? 1.4 : 2.4)));
+			double[] xs = { 200, 480, 800, 1080 }, ys = { 150, 360, 570 }; int n = 0;
+			foreach (var b in QSIn(QS_KICK.Concat(QS_SNR).OrderBy(x => x).ToArray(), 42, 79, ez ? 2 : 0.5))
 			{
-				double th = 22.5 * j, d = new[] { 150.0, 270, 360, 200, 320, 120, 280, 390 }[j % 8];
-				for (int k = 0; k < 4; k++)
+				double x = xs[n % 4], y = ys[(n / 4 + n) % 3], bb = b; n++; at(bb - wn, () => add(QSStomp(x, y, ez ? 160 : 260, bb - wn, bb, 0.5)));
+				// and its twin across the middle
+				if (!ez) at(bb - wn, () => add(QSStomp(W - x, H - y, 260, bb - wn, bb, 0.5)));
+			}
+		}
+
+		// ===== C. the safe bubble (3:14-3:26) =====
+		{
+			double r = ez ? 190 : 175;
+			double[][] P = { new[] { 640.0, 360 }, new[] { 480.0, 280 }, new[] { 760.0, 400 }, new[] { 520.0, 450 }, new[] { 780.0, 300 }, new[] { 640.0, 360 }, new[] { 640.0, 380 } };
+			var bubs = new List<QSBub> { new QSBub { b0 = 77, b1 = 80, x0 = 640, y0 = 360, x1 = 640, y1 = 360, r = r } };
+			var main = new List<QSBub>();
+			for (int s = 0; s < 6; s++)
+			{
+				var u = new QSBub { b0 = 80 + 4 * s, b1 = 84 + 4 * s, x0 = P[s][0], y0 = P[s][1], x1 = P[s + 1][0], y1 = P[s + 1][1], r = r }; bubs.Add(u); main.Add(u);
+				if (s == 1 || s == 3) bubs.Add(new QSBub { b0 = 80 + 4 * s, b1 = 84 + 4 * s, x0 = P[s][0], y0 = P[s][1], x1 = W - P[s + 1][0], y1 = P[s + 1][1], r = r, die = 81.5 + 4 * s });
+			}
+			at(77, () => add(QSFlood(bubs, 77, 80, 104, 0)));
+			int n = 0;
+			foreach (var b in QSIn(QS_KICK, 81, 103, ez ? 2 : 1)) { var u = main[(int)Math.Min(5, Math.Floor((b - 80) / 4))]; double ang = 60 * n + 15, bb = b; n++; at(bb - wn, () => add(QSBubBar(u, ang, bb - wn, bb, 0.35, ez ? 10 : 12))); }
+		}
+
+		// ===== D. billiards (3:26-3:34, the quiet part) =====
+		{
+			double r = ez ? 44 : 78;
+			double[] sb = ez ? new[] { 104.0, 106, 110, 114 } : new[] { 104.0, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114 };
+			double[][] start = { new[] { r, r, 1, 0.62 }, new[] { W - r, H - r, -1, -0.7 }, new[] { W - r, r, -0.8, 1 }, new[] { r, H - r, 1, -0.55 }, new[] { W / 2, r, 0.45, 1 }, new[] { W / 2, H - r, -0.5, -1 }, new[] { r, H / 2, 1, 0.3 } };
+			for (int i = 0; i < sb.Length; i++)
+			{
+				double[] s0 = start[i % start.Length]; double sp = (ez ? 280 : 520 + 15 * i), m = hypot(s0[2], s0[3]), b0 = sb[i];
+				at(b0 - 1, () => add(QSBall(s0[0], s0[1], s0[2] / m * sp, s0[3] / m * sp, r, b0 - 1, b0, 119.5)));
+			}
+		}
+
+		// ===== E. the laser off the mirrors (3:34-3:44) =====
+		{
+			var pb = new List<double>(); var ang = new List<double[]>(); double wE = ez ? 1.0 : 0.6;
+			for (double b = 121; b < 140; b += ez ? 2 : 1) pb.Add(b);
+			for (int j = 0; j < pb.Count; j++) { var a = new double[6]; for (int k = 0; k < 6; k++) a[k] = 15 * Math.Floor(QSH(j * 11 + k * 3.7) * 12); ang.Add(a); }
+			at(118, () => add(QSMirrorSet(pb, ang, wE, 120, 139.5)));
+			double[] ye = { 360, 180, 540 };
+			for (int j = 0; j < pb.Count; j++)
+			{
+				int jj = j; double b = pb[j];
+				for (int s = 0; s < (ez ? 1 : 3); s++)
 				{
-					if (ez && k % 2 == 1) continue;
-					double b = 4 * j + k, ang = th + (k >= 2 ? 90 : 0), sg = k % 2 == 0 ? 1 : -1, n = QSRad(ang + 90), cx = W / 2 + JS.cos(n) * d * sg, cy = H / 2 + JS.sin(n) * d * sg;
-					if (ez) { cx = W / 2; cy = H / 2; }
-					double w0 = ez ? 1.4 : 0.85;
-					at(b - w0, () => add(QSSplit(cx, cy, ang, b - w0, b, 0.7, ez ? 18 : 36)));
-					if (!ez && k == 0 && j >= 4) { double a2 = j % 2 == 0 ? QS_DIAG : 180 - QS_DIAG; at(b - w0, () => add(QSSplit(W / 2, H / 2, a2, b - w0, b, 0.7, 36))); }
+					bool left = (j + s) % 2 == 0; double xe = left ? 0 : W, y0 = ye[(j + s) % 3]; int m = (j * 5 + 1 + 3 * s) % 6;
+					var pts = QSBeamPath(xe, y0, Math.Atan2(QS_MY[m] - y0, QS_MX[m] - xe), ang[jj]);
+					at(b - wE, () => add(QSBeam(pts, b - wE, b, ez ? 0.45 : 1.0, ez ? 8 : 20)));
 				}
 			}
 		}
-		// the eye's first looks: its gaze sweeps across three times
+
+		// ===== F. the build-up: the room closes in (3:44-3:54) =====
+		at(139, () => add(QSRoom(ez)));
+		foreach (var sb in QS_RS) { double b = sb; if (b >= 140) at(b, () => add(QSFx(b, 0, b < 148 ? 3 : b < 156 ? 4 : 6, 0.25))); }
+
+		// ===== G. the turning grating (3:54-4:04) =====
 		{
-			double[] g0 = { 10, 22, 34 }, r1 = { 240, 360, 180 };
-			for (int k = 0; k < 3; k++) { double b = g0[k], a0 = k % 2 == 0 ? 195 : -15, rr = r1[k]; at(b - 2, () => add(QSGaze(W / 2, 112, 1, a0, 180 - a0, b - 2, b, b + 4, ez ? 10 : 14, rr, rr + (ez ? 180 : 140)))); }
-		}
-		at(40, () => add(QSFx(40, 0.3, 8, 1)));
-		// the shares: three shares light on each kick (the next ones round each time), every other share on the first kick of a bar;
-		// the circle turns, one way then the other
+			double sp = ez ? 220 : 170, bwg = ez ? 30 : 44, k = ez ? 0.4 : 0.42;
+			at(159, () => add(QSGrate(160, 180, 20, new[] { 160.0, 164, 168, 172, 176 }, new[] { 6 * k, -8 * k, 9 * k, -10 * k, 10 * k }, new[] { 160.0, 162, 164, 166, 168, 170, 172, 174, 176, 178 }, new[] { 40 * k, -50 * k, 60 * k, -60 * k, 70 * k, -70 * k, 80 * k, -80 * k, 90 * k, -90 * k }, sp, bwg, 1)));
+					}
+
+		// ===== H. the pendulums (4:04-4:24) =====
 		{
-			var kb = QSIn(QS_KICK, 41, 79, ez ? 2 : 1); int s = 0;
-			foreach (var b in kb)
-			{
-				bool half = !ez && Math.Abs(b - 4 * Math.Floor(b / 4)) < 0.3; int m;
-				if (ez) m = (1 << (s % 8)) | (1 << ((s + 4) % 8));
-				else if (half) m = 0x55 << (s % 2);
-				else m = (1 << (s % 8)) | (1 << ((s + 2) % 8)) | (1 << ((s + 4) % 8));
-				m &= 0xff; s++;
-				double spin = (Math.Floor((b - 40) / 8) % 2 == 0 ? 1 : -1) * (ez ? 8 : 16), a0 = 7 * b, w0 = ez ? 1.4 : 0.9;
-				at(b - w0, () => add(QSShares(W / 2, H / 2, a0, spin, m, b - w0, b, ez ? 0.5 : 0.6)));
-			}
-		}
-		at(80, () => add(QSFx(80, 0.3, 8, 1)));
-		// the lashes: a fan from the eye on each kick, its gaps moving over by a quarter step each time; from the eye's corners every other bar;
-		// from 3:18 a second fan half a beat later
-		{
-			var kb = QSIn(QS_KICK, 81, 102, ez ? 2 : 1); int i = 0;
-			foreach (var b in kb)
-			{
-				int n = ez ? 7 : 19; double sp = ez ? 340 : 580, spread = 210, off = (i % 4 - 1.5) * 0.25 * spread / (n - 1);
-				int bar = (int)Math.Floor((b - 80) / 4); double ex = bar % 2 == 1 ? W / 2 + (i % 2 == 0 ? -130 : 130) : W / 2, ang = 90 + off + (ex - W / 2) * -0.08;
-				i++; at(b - wn, () => add(QSFan(ex, 112, n, ang, spread, b - wn, b, sp)));
-				if (!ez && b >= 88 && b + 0.5 < 102) { double ex2 = W - ex, ang2 = 90 - off + (ex2 - W / 2) * -0.08; at(b - 0.5, () => add(QSFan(ex2, 112, 9, ang2, 130, b - 0.5, b + 0.5, 420))); }
-			}
-		}
-		// the gaze sweeps across from the eye three times (down, then up over the top, then down again); its blind spot is the way through
-		{
-			double[] g0 = { 84, 90, 96 }; double[] r1 = { 200, 380, 270 };
-			for (int k = 0; k < 3; k++) { double b = g0[k], a0 = k % 2 == 0 ? -15 : 195, a1 = k == 1 ? 345 : 180 - a0, rr = r1[k]; at(b - 1.5, () => add(QSGaze(W / 2, 112, 1, a0, a1, b - 1.5, b, b + 4, ez ? 10 : 14, rr, rr + (ez ? 170 : 125)))); }
-		}
-		// the kohl: the eye comes to the middle and the kohl traces its lids, the upper one then the lower one each bar; tears of darts on each beat;
-		// a line corner to corner at the end of each bar
-		{
-			for (int j = 0; j < 4; j++)
-			{
-				double b = 104 + 4 * j, rx = j % 2 == 0 ? 560 : 470, ry = j % 2 == 0 ? 250 : 170;
-				at(b - 1, () => add(QSKohl(W / 2, H / 2, rx, ry, true, b, b + 2, ez ? 0.9 : 1.5, 14)));
-				at(b + 1, () => add(QSKohl(W / 2, H / 2, rx, ry, false, b + 2, b + 4, ez ? 0.9 : 1.5, 14)));
-				{ double bb = b + 3.5, a2 = j % 2 == 0 ? QS_DIAG : 180 - QS_DIAG, w0 = ez ? 1.4 : 1; at(bb - w0, () => add(QSSplit(W / 2, H / 2, a2, bb - w0, bb, 0.5, ez ? 16 : 28))); }
-				for (int k = 1; k < 4; k += ez ? 4 : 2) { double bb = b + k, a0 = new[] { 0.0, 10, 5, 15, 2.5, 12.5, 7.5, 17.5 }[2 * j + (k - 1) / 2]; at(bb - wn, () => add(QSBurst(W / 2, H / 2, ez ? 10 : 18, a0, bb - wn, bb, ez ? 240 : 440))); }
-			}
-			// its gaze: two beams from the middle turning half a turn each 8 beats
-			at(103, () => add(QSGaze(W / 2, H / 2, 2, 0, 180, 103, 104, 112, ez ? 10 : 14, 150, ez ? 320 : 280)));
-			at(111, () => add(QSGaze(W / 2, H / 2, 2, 180, 360, 111, 112, 119.5, ez ? 10 : 14, 170, ez ? 340 : 300)));
-		}
-		at(120, () => add(QSFx(120, 0.35, 10, 1.2)));
-		// the split and the lashes together: diagonal lines on the claps (through each corner in turn), a fan from the eye every 2 beats
-		{
-			var sn = QSIn(QS_SNR, 120.5, 137, ez ? 2 : 1); int i = 0;
-			foreach (var b in sn)
-			{
-				double ang = i % 2 == 0 ? 45 : 135, x = new[] { 340.0, 940, 940, 340, 640, 640 }[i % 6], w0 = ez ? 1.4 : 0.85; i++;
-				at(b - w0, () => add(QSSplit(x, H / 2, ang, b - w0, b, 0.6, ez ? 18 : 34)));
-			}
-			at(122.5, () => add(QSGaze(W / 2, 112, 1, 195, 345, 122.5, 124, 128, ez ? 10 : 14, 330, ez ? 500 : 455)));
-			// then the eye looks round from the middle: two beams, half a turn
-			at(129, () => add(QSGaze(W / 2, H / 2, 2, 90, 270, 129, 130, 136, ez ? 10 : 14, 60, ez ? 210 : 170)));
-			for (double b = 122; b < 137; b += ez ? 4 : 2) { double bb = b, off = new[] { -4.4, 1.5, -1.5, 4.4 }[(int)((b - 122) / 2) % 4]; at(bb - wn, () => add(QSFan(W / 2, 112, ez ? 5 : 17, 90 + off * (ez ? 1 : 0.75), 140, bb - wn, bb, ez ? 330 : 500))); }
+			double[] kb = { 180, 196, 212 }, w = ez ? new[] { 60.0, 70, 80 } : new[] { 70.0, 90, 110 };
+			double[] tx = ez ? new[] { 213.0, 640, 1067 } : new[] { 0.0, 256, 512, 768, 1024, 1280 };
+			for (int i = 0; i < tx.Length; i++) { double x = tx[i], ph = 180 * (i % 2); at(178.5, () => add(QSPend(x, -50, 650, 90, ez ? 58 : 62, ph, kb, w, 180, 220, ez ? 36 : 72, 20))); }
+			double[] bx = new double[0]; double bs = ez ? 204 : 192;
+			for (int i = 0; i < bx.Length; i++) { double x = bx[i], ph = 90 + 180 * (i % 2); at(bs - 1.5, () => add(QSPend(x, H + 50, 500, 270, 58, ph, kb, w, bs, 220, ez ? 36 : 72, 20))); }
+			// the floor between the low pivots burns on each bar
+			for (double fb = 186; fb < 220; fb += ez ? 8 : 4) { double b = fb; at(b - 1.5, () => add(QSBurn(H - 70, H, b - 1.5, b, 0.4))); }
 		}
 
-		// ===== the build-up (3:44-3:54): rings of beads leave the eye, faster and faster =====
-		at(140, () => add(QSFx(140, 0.25, 6, 1)));
+		// ===== I. the fireworks (4:24-4:34, the top of the hard part) =====
 		{
-			for (int i = 0; i < 8; i++)
+			var L = new List<(double bb, int n, double v)>();
+			if (ez) { for (double b = 221; b < 236; b += 2) L.Add((b, 8, 220)); for (double b = 236; b < 239; b += 1) L.Add((b, 10, 240)); }
+			else { for (double b = 221; b <= 228; b += 0.5) L.Add((b, 20, 370)); for (double b = 228.5; b < 236; b += 0.5) { L.Add((b, 22, 400)); L.Add((b, 18, 390)); } for (double b = 236; b < 239.5; b += 0.5) { L.Add((b, 24, 430)); L.Add((b, 20, 420)); L.Add((b, 12, 400)); } }
+			int n = 0;
+			foreach (var (bb, cnt, v) in L)
 			{
-				double b = 142 + 2 * i, ga = 35 * i + 20, spin = (i % 2 == 0 ? 1 : -1) * (10 + 4 * i); int n = (ez ? 26 : 44) + 2 * i;
-				at(b - 1, () => add(QSRing(W / 2, H / 2, n, 0, spin, new[] { ga, ga + 180 }, ez ? 56 : 36, b - 1, b, ez ? 6 : 5)));
+				int i = n++; double xa = 140 + ((i * 5) % 9) * 125, ya = i % 2 == 0 ? 170 : 300, x0 = xa + (i % 2 == 0 ? -120 : 120), a0 = i * 7.0, b = bb;
+				at(b - 1 - wn, () => add(QSRocket(x0, xa, ya, wn, b - 1, b, cnt, v, 260, a0)));
 			}
-			foreach (var b in ez ? new[] { 152.0, 156, 158 } : new[] { 148.0, 150, 152, 154, 155, 156, 157, 158, 158.5, 159, 159.5 })
-			{ double ang = new[] { QS_DIAG, 180 - QS_DIAG, 90, 0 }[(int)Math.Round(2 * b) % 4], w0 = ez ? 1.4 : 0.8; at(b - w0, () => add(QSSplit(W / 2, H / 2, ang, b - w0, b, 0.4, ez ? 16 : 24))); }
+			at(239.5 - 1 - wn, () => add(QSRocket(640, 640, 300, wn, 238.5, 239.5, ez ? 16 : 32, ez ? 260 : 380, 200, 0)));
 		}
 
-		// ===== 2. the division (3:54-4:34), the hardest part =====
-		at(160, () => add(QSFx(160, 0.45, 14, 1.4)));
-		// the star breathes from the middle out past the screen's corners (every 3.5 beats; its notches too): slip through a notch (gold) when a blade comes;
-		// darts fly out along the notches on each kick
-		var S1 = new QSStarDef { b0 = 160, b1 = 180, rmin = 24, rmax = 1000, per = ez ? 4 : 3.5, gap = ez ? 60 : 40, a0 = 0, kb = new[] { 160.0, 164, 168, 172, 176 },
-			w = ez ? new[] { 6.0, -6, 7, -7, 8 } : new[] { 16.0, -16, 18, -18, 20 } };
-		at(156, () => add(QSStar(S1, 156)));
+		// ===== J. bombs (4:34-4:54) =====
 		{
-			double w0 = ez ? 1 : 0.6;
-			foreach (var b in QSIn(QS_KICK, 161, 179.5, ez ? 2 : 1)) { double a0 = S1.Ang(b) + 22.5; at(b - w0, () => add(QSBurst(W / 2, H / 2, ez ? 8 : 16, a0, b - w0, b, ez ? 400 : 640))); }
-			if (!ez) foreach (var b in QSIn(QS_SNR, 162, 179.5, 1)) at(b - w0, () => add(QSStarRay(S1, false, 1, b - w0, b, 0.4)));
-		}
-		at(180, () => add(QSFx(180, 0.4, 12, 1.2)));
-		// the spiral: four arms whose turn flips every 2 beats, faster and faster; the gaze turning; rings with one gap; lines on the claps
-		{
-			var kb2 = new List<double>(); var w2 = new List<double>(); for (int i = 0; i < 20; i++) { kb2.Add(180 + 2 * i); w2.Add((i % 2 == 0 ? 1 : -1) * (ez ? 24 : 44 + 1.2 * i)); }
-			at(179, () => add(QSSpiral(W / 2, H / 2, ez ? 3 : 4, ez ? 2 : 5, 180, 220, ez ? 280 : 390, 45, kb2.ToArray(), w2.ToArray())));
-			// the gaze: two beams from the eye turning half a turn every 8 beats, the other way each time
-			for (int k = 0; k < 5; k++) { double b = 180 + 8 * k, a0 = 90 * k + 20, a1 = a0 + (k % 2 == 0 ? 180 : -180), rr = 160 + 70 * (k % 3); at(b - 1, () => add(QSGaze(W / 2, H / 2, 2, a0, a1, b - 1, b, b + 7.5, ez ? 10 : 13, rr, rr + (ez ? 180 : 130)))); }
-			// rings with one gap leave the eye every 2 beats; the gap jumps round
-			for (int k = 0; k < 19; k++) { double b = 182 + 2 * k, ga = 135 * k + 30, spn = (k % 2 == 0 ? 1 : -1) * 10; int n = ez ? 30 : 44; if (ez && k % 2 == 1) continue; at(b - 1, () => add(QSRing(W / 2, H / 2, n, 0, spn, new[] { ga }, ez ? 70 : 40, b - 1, b, ez ? 6 : 4.5, 10))); }
-			int i2 = 0;
-			if (!ez) foreach (var b in QSIn(QS_SNR, 181, 219, 4))
+			double fuse = ez ? 3 : 2, wJ = ez ? 1.4 : 1; int n = 0;
+			// a bomb on every half beat (Easy: every 2 beats); on each bar's first beat a row of three
+			for (double b = 242; b < 279.5; b += ez ? 2 : 0.5)
 			{
-				double ang = 45 * i2 + 22.5, n = QSRad(ang + 90), sg = i2 % 2 == 0 ? 1 : -1, cx = W / 2 + JS.cos(n) * 220 * sg, cy = H / 2 + JS.sin(n) * 220 * sg, w0 = ez ? 1.4 : 0.8; i2++;
-				at(b - w0, () => add(QSSplit(cx, cy, ang, b - w0, b, 0.45, ez ? 14 : 24)));
+				int q = (int)Math.Floor((b - 240) / 4), k = n++, dir = q % 2 == 0 ? 1 : -1, cnt = !ez && b % 4 == 0 ? 3 : 1;
+				for (int c = 0; c < cnt; c++)
+				{
+					int ci = QSModI(2 + 5 * q + dir * 3 * k + 5 * c, 16), cj = QSModI(1 + 2 * q + 5 * k + 3 * c, 9); double bb = b;
+					at(bb - fuse, () => add(QSBomb(ci, cj, bb - fuse, wJ, bb, 0.45, ez ? 28 : 30)));
+				}
 			}
-		}
-		at(220, () => add(QSFx(220, 0.4, 12, 1.2)));
-		// the star again, the other way round; darts through its notches on each kick, rays from its tips
-		var S2 = new QSStarDef { b0 = 220, b1 = 237, rmin = 24, rmax = 1000, per = ez ? 4 : 2.5, gap = ez ? 60 : 40, a0 = 11.25, kb = new[] { 220.0, 224, 228, 232 },
-			w = ez ? new[] { -6.0, 6, -7, 7 } : new[] { -9.0, 9, -10, 10 } };
-		at(217, () => add(QSStar(S2, 217)));
-		{
-			double w0 = ez ? 1 : 0.6;
-			foreach (var b in QSIn(QS_KICK, 221, 236, ez ? 2 : 1)) { double a0 = S2.Ang(b) + 22.5; at(b - w0, () => add(QSBurst(W / 2, H / 2, ez ? 8 : 12, a0, b - w0, b, ez ? 400 : 640))); }
-			for (double b = 221.5; b < 236; b += ez ? 4 : 2) { double bb = b; at(bb - w0, () => add(QSStarRay(S2, false, 2, bb - w0, bb, 0.4))); }
-			at(236 - wn, () => add(QSBurst(W / 2, H / 2, ez ? 12 : 20, 0, 236 - wn, 236, ez ? 420 : 600)));
-			if (!ez) at(236.5 - wn, () => add(QSBurst(W / 2, H / 2, 20, 9, 236.5 - wn, 236.5, 600)));
 		}
 
-		// ===== 3. the fate (4:34-5:25) =====
-		at(240, () => add(QSFx(240, 0.4, 12, 1.4)));
-		// the threads: a thread every 2 beats; turning through the middle (bars 1-4), sliding across (bars 5-8), then two at once (9-10)
+		// ===== K. searchlights and pillars (4:54-5:14) =====
 		{
-			double kl = ez ? 150 : 64;
-			for (int i = 0; i < 19; i++)
-			{
-				double b = 242 + 2 * i, ku = i % 2 == 0 ? 0.28 : 0.72, dur = ez ? 4 : 2.3; int bar = (i * 2) / 4;
-				if (ez && i % 2 == 1) continue;
-				if (bar < 4)
-				{
-					if (i % 2 == 0) at(b - wn, () => add(QSThread(-40, -20, W + 40, H + 20, W + 40, -20, -40, H + 20, ku, kl, b - wn, b, dur)));
-					else at(b - wn, () => add(QSThread(-20, H + 40, W + 20, -40, -20, -40, W + 20, H + 40, ku, kl, b - wn, b, dur)));
-				}
-				else if (bar < 8)
-				{
-					double dir = i % 2 == 0 ? 1 : -1, x0 = dir > 0 ? -60 : W + 60, x1 = x0 + dir * 760;
-					double ln = (i / 2) % 2 == 0 ? 260 : -260; at(b - wn, () => add(QSThread(x0 + dir * Math.Max(0, ln), -20, x0 - dir * Math.Min(0, ln), H + 20, x1 + dir * Math.Max(0, ln), -20, x1 - dir * Math.Min(0, ln), H + 20, ku, kl, b - wn, b, dur)));
-				}
-				else
-				{
-					double y0 = i % 2 == 0 ? 80 : 640, dir = i % 2 == 0 ? 1 : -1;
-					at(b - wn, () => add(QSThread(-20, y0, W + 20, y0 + dir * 120, -20, y0 + dir * 480, W + 20, y0 + dir * 600, 1 - ku, kl, b - wn, b, dur)));
-					if (!ez) { double x0 = i % 4 == 0 ? 200 : 1080; at(b - wn, () => add(QSThread(x0, -20, x0, H + 20, W - x0, -20, W - x0, H + 20, ku, kl, b - wn, b, dur))); }
-				}
-			}
-			// beads fall from the knots' gold rings on the claps (a short fan down)
-			if (!ez) foreach (var b in QSIn(QS_SNR, 243, 278, 1)) { double x = 240 + 800 * QSH(b); at(b - 0.8, () => add(QSFan(x, -10, 9, 90, 80, b - 0.8, b, 500, 30))); }
+			at(278, () => add(QSPillars(280, 319.5)));
+			double ca = ez ? 8 : 8, per = ez ? 8 : 7;
+			double[] lx = ez ? new[] { 330.0, 950 } : new[] { 200.0, 640, 1080 };
+			for (int i = 0; i < lx.Length; i++) { double x = lx[i], ph = 280 + 3 * i; at(278.5, () => add(QSLight(x, -12, 90, ez ? 55 : 68, per, ph, ca, 280, 319.5))); }
+			if (!ez) foreach (var x in new[] { 420.0, 860 }) { double xx = x, ph = 300 + (x < W / 2 ? 0 : 3); at(298.5, () => add(QSLight(xx, H + 12, 270, 50, per, ph, 11, 300, 319.5))); }
 		}
-		at(280, () => add(QSFx(280, 0.35, 10, 1.2)));
-		// the scale: its bowls go up and down; a weight falls on each beat (across the whole width in turn); the lower bowl spills grains on the claps
+
+		// ===== L. the cave run (5:14-5:25) =====
 		{
-			at(276, () => add(QSScale(280, 318, 277)));
-			double[] cols = { 576, 64, 1088, 320, 832, 192, 704, 1216, 448, 960 };
-			int i = 0;
-			for (double b = 281; b < 320; b += ez ? 2 : 1) { double x = cols[i++ % cols.Length], bb = b; if (ez) x = cols[(i * 3) % cols.Length]; at(bb - wn, () => add(QSWeight(x, 132, bb - wn, bb, ez ? 520 : 900))); }
-			foreach (var b in QSIn(QS_SNR, 282, 317, ez ? 4 : 1))
-			{
-				QSScaleAt(b, 280, out var lx, out var ly, out var rx, out var ry); bool lft = ly > ry; double px = lft ? lx : rx, py = (lft ? ly : ry) + QS_BR * 0.6;
-				at(b - wn, () => add(QSFan(px, py, ez ? 3 : 11, 90 + (lft ? 15 : -15), 120, b - wn, b, ez ? 300 : 540, 30)));
-			}
+			double V = ez ? 360 : 420, T0 = B(320); var kx = QSIn(QS_KICK, 322, 340, ez ? 2 : 1);
+			var spX = kx.Select(b => (B(b) - T0) * V + W / 2).ToArray(); var spT = kx.Select((b, i) => i % 2 == 0).ToArray();
+			at(319, () => add(QSCave(320, 342, V, ez ? 230 : 190, ez ? 200 : 160, spX, spT, ez ? 110 : 140)));
 		}
-		at(320, () => add(QSFx(320, 0.35, 10, 1.2)));
-		// the eye closes: its lids come in a bar at a time and it looks left and right; lines down and across the opening on the claps (somewhere else each time)
-		{
-			double[] sx = QS_LSX;
-			at(319, () => add(QSLids(321, 342)));
-			int m = 0;
-			foreach (var b in QSIn(QS_SNR, 322, 341, ez ? 4 : 1))
-			{
-				int i = (int)Math.Floor((b - 321) / 4); double cx = sx[Math.Min(sx.Length - 1, i)], x = cx, y = H / 2.0, an = 90;
-				// down through the opening, then across it, each time somewhere else
-				if (m % 2 == 0) x = cx + new[] { -240.0, 120, -120, 240, 0, -60, 180, -180, 60 }[m / 2 % 9];
-				else { y = H / 2 + new[] { 100.0, -100, 40, -160, 160, -40 }[m / 2 % 6]; an = 0; }
-				m++;
-				at(b - wn, () => add(QSSplit(x, y, an, b - wn, b, 0.45, ez ? 14 : 22)));
-			}
-			// tears from the middle of the eye on the kicks, up then down in turn
-			int u = 0;
-			if (!ez) foreach (var b in QSIn(QS_KICK, 322, 341, 1)) { double cx = QS_LSX[Math.Min(QS_LSX.Length - 1, (int)Math.Floor((b - 321) / 4))]; bool up = u % 2 == 0; double sk = (u++ / 2 % 4) * 3.5; at(b - wn, () => add(QSFan(cx, up ? H / 2 + 60 : H / 2 - 60, 11, (up ? -90 : 90) + sk, 140, b - wn, b, 460, 30))); }
-		}
-		at(342, () => add(QSFx(342, 0.5, 10, 1.6)));
+
 		JS.sort(E, (a, b) => a.b - b.b); return E;
 	}
+	static int QSModI(int a, int m) { int r = a % m; return r < 0 ? r + m : r; }
 }

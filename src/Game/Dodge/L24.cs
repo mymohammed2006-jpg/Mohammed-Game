@@ -5,13 +5,15 @@ using static MG.JS;
 
 namespace MG;
 
-// يالعين قسامي, main level 24: "the eye and the share" (القسمة). An eye watches over a night of Arabic star patterns and hands out
-// your share: part 1 the look (the lines that split the screen open, the shares of the circle, the lashes it throws, the kohl that
-// traces its own lids), the build-up (rings of beads leave the eye while the star is drawn), part 2 the division, the hardest part
-// (the eight-pointed star that turns and breathes, the darts through its notches, the spiral the eye throws), part 3 the fate
-// (the threads of fate with one knot to slip through, the scale and its weights, the eye closing on you).
+// يالعين قسامي, main level 24 (v2, his words 10-31: every change in the song plays in a completely new way, the screen full).
+// Twelve ways to play, one for each part of the song:
+//   part 1 (2:34-3:44): falling blocks that stack up, your own tail, the safe bubble, billiard balls, the laser off the mirrors;
+//   the build-up (3:44-3:54): the room closes in step by step faster and faster, then you break out through its wall with a dash;
+//   the hardest part (3:54-4:34, rising): the turning grating, the pendulums, the fireworks;
+//   part 3 (4:34-5:25): bombs with cross blasts, searchlights (hide in the pillars' shadows), the cave run.
 // The level is the song from 2:34.000 (songs/SONG_L24.mp3 starts there). Grid: 120 BPM, beat 0 = 0.1975 s of the file (2:34.1975 of the song).
-// Every hazard is a pure function of time once it exists. Only pink hurts: the gold, the white warnings and the eye never do.
+// Only pink hurts: gold, white warnings and dark shapes never do. Every hazard is a pure function of time once it exists, except
+// the tail (it follows where you went).
 public static partial class G
 {
 	static double QSk(double t, double a, double b) => b <= a ? (t >= b ? 1 : 0) : clamp((t - a) / (b - a), 0, 1);
@@ -22,6 +24,7 @@ public static partial class G
 	static double QSOut(double k) { k = clamp(k, 0, 1); return 1 - (1 - k) * (1 - k); }
 	static double QSRad(double d) => d * Math.PI / 180;
 	static double QSH(double s) { double v = JS.sin(s * 12.9898 + 78.233) * 43758.5453; return v - Math.Floor(v); }
+	static double QSMod(double a, double m) { double r = a % m; return r < 0 ? r + m : r; }
 	static void QSDash(double x0, double y0, double x1, double y1, string col, double w = 2)
 	{
 		g.strokeStyle = col; g.lineWidth = w; g.setLineDash(new double[] { 12, 10 }); g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.setLineDash(new double[0]);
@@ -31,7 +34,7 @@ public static partial class G
 		double dx = x1 - x0, dy = y1 - y0, l2 = dx * dx + dy * dy; double u = l2 < 1e-9 ? 0 : clamp(((px - x0) * dx + (py - y0) * dy) / l2, 0, 1);
 		return hypot(px - x0 - u * dx, py - y0 - u * dy);
 	}
-	// the integral (degrees) of a speed (degrees a beat) that holds w[i] from kb[i] to kb[i+1] (and w[last] after), from kb[0] to bt
+	// the integral (degrees or px) of a speed (a beat) that holds w[i] from kb[i] to kb[i+1] (and w[last] after), from kb[0] to bt
 	static double QSTurn(double[] kb, double[] w, double bt)
 	{
 		double a = 0;
@@ -42,7 +45,7 @@ public static partial class G
 		}
 		return a;
 	}
-	// a dart (the eye's thrown lash): a thin sharp needle, length l, pointing along a
+	// a dart: a sharp needle, length l, pointing along a (radians)
 	static void QSDart(double x, double y, double l, double a, double wd = 4)
 	{
 		double c = JS.cos(a), s = JS.sin(a);
@@ -52,116 +55,13 @@ public static partial class G
 	static bool QSDartHit(Player p, double x, double y, double l, double a)
 	{
 		double c = JS.cos(a), s = JS.sin(a);
-		return QSSeg(p.x, p.y, x - c * l * 0.45, y - s * l * 0.45, x + c * l * 0.5, y + s * l * 0.5) < 3 + p.r - 2;
+		return QSSeg(p.x, p.y, x - c * l * 0.4, y - s * l * 0.4, x + c * l * 0.5, y + s * l * 0.5) < 3 + p.r - 2;
 	}
-
-	// ---------- the eye (harmless: ivory, a dark iris with a gold ring, kohl, gold lashes) ----------
-	// open 0-1 (0 = shut), look: where the iris turns (a point on the screen), spin: the iris pattern turns, glow: a red glow (the hard part)
-	public static void QSEyeDraw(double x, double y, double R, double open, double lx, double ly, double spin, double glow, double pupil, double a)
+	static double[] QSIn(double[] l, double a, double b, double gap = 0)
 	{
-		if (a <= 0.01 || R <= 1) return;
-		g.save(); g.globalAlpha = a; g.translate(x, y);
-		double hu = Math.Max(0.02, open) * R * 0.62, hl = Math.Max(0.02, open) * R * 0.5;
-		void lids() { g.beginPath(); g.moveTo(-R, 0); g.quadraticCurveTo(0, -2 * hu, R, 0); g.quadraticCurveTo(0, 2 * hl, -R, 0); g.closePath(); }
-		// glow: the hard part, the white of the eye goes dark (never pink: only pink hurts) with a gold rim
-		lids(); var sg = g.createRadialGradient(0, 0, R * 0.1, 0, 0, R);
-		sg.addColorStop(0, $"rgba({str(236 - 176 * glow)},{str(228 - 180 * glow)},{str(212 - 150 * glow)},1)"); sg.addColorStop(1, $"rgba({str(150 - 116 * glow)},{str(140 - 112 * glow)},{str(128 - 88 * glow)},1)");
-		g.fillStyle = sg; g.fill();
-		if (glow > 0) { g.strokeStyle = QSG(0.7 * glow); g.lineWidth = Math.Max(2, R * 0.02); g.stroke(); }
-		if (open > 0.05)
-		{
-			g.save(); lids(); g.clip();
-			double dx = lx - x, dy = ly - y, d = hypot(dx, dy), m = Math.Min(R * 0.42, d * 0.3), ix = d > 1 ? dx / d * m : 0, iy = d > 1 ? dy / d * m * 0.5 : 0, ir = R * 0.36;
-			var ig = g.createRadialGradient(ix, iy, ir * 0.2, ix, iy, ir); ig.addColorStop(0, "rgba(40,70,92,1)"); ig.addColorStop(0.7, "rgba(18,30,52,1)"); ig.addColorStop(1, "rgba(8,10,20,1)");
-			g.fillStyle = ig; circle(ix, iy, ir);
-			// the iris's star pattern (gold, turning)
-			g.strokeStyle = QSG(0.55); g.lineWidth = Math.Max(1, R * 0.012); g.beginPath();
-			for (int k = 0; k < 16; k++) { double q = spin + k * TAU / 16; g.moveTo(ix + JS.cos(q) * ir * 0.45, iy + JS.sin(q) * ir * 0.45); g.lineTo(ix + JS.cos(q + 0.25) * ir * 0.9, iy + JS.sin(q + 0.25) * ir * 0.9); }
-			g.stroke();
-			g.strokeStyle = QSG(0.8); g.lineWidth = Math.Max(1.5, R * 0.018); g.beginPath(); g.arc(ix, iy, ir * 0.95, 0, TAU); g.stroke();
-			g.fillStyle = "rgba(4,4,10,1)"; circle(ix, iy, ir * (0.32 + 0.16 * pupil));
-			g.fillStyle = "rgba(255,255,255,0.75)"; circle(ix - ir * 0.3, iy - ir * 0.32, ir * 0.12);
-			g.restore();
-		}
-		// kohl and the gold lashes on the upper lid
-		g.strokeStyle = "rgba(10,8,16,0.95)"; g.lineWidth = Math.Max(2, R * 0.04); g.lineJoin = "round"; g.lineCap = "round";
-		g.beginPath(); g.moveTo(-R * 1.12, -R * 0.06); g.lineTo(-R, 0); g.quadraticCurveTo(0, -2 * hu, R, 0); g.lineTo(R * 1.18, -R * 0.12); g.stroke();
-		g.lineWidth = Math.Max(1.5, R * 0.025); g.beginPath(); g.moveTo(-R, 0); g.quadraticCurveTo(0, 2 * hl, R, 0); g.stroke();
-		g.strokeStyle = QSG(0.75); g.lineWidth = Math.Max(1.2, R * 0.014); g.beginPath();
-		for (int k = 1; k < 12; k++)
-		{
-			double u = k / 12.0, px = -R + 2 * R * u, py = -2 * hu * 2 * u * (1 - u), nx = (u - 0.5) * 0.9, ny = -1, nl = hypot(nx, ny), ln = R * (0.1 + 0.08 * Math.Sin(u * Math.PI));
-			g.moveTo(px, py); g.lineTo(px + nx / nl * ln, py + ny / nl * ln);
-		}
-		g.stroke();
-		g.restore();
-	}
-	// where the eye is (and how it looks) at beat bt
-	public struct QSEyeSt { public double x, y, R, open, glow, a; }
-	public static QSEyeSt QSEyeAt(double bt)
-	{
-		var e = new QSEyeSt { x = W / 2, y = 112, R = 130, open = 1, a = 1 };
-		if (bt < 2) e.open = QSE(bt / 2);
-		else if (bt >= 102 && bt < 120)
-		{
-			// it comes down to the middle and grows (the kohl traces its lids), then goes back up
-			double k = QSE(QSk(bt, 102, 104)) * (1 - QSE(QSk(bt, 118, 120)));
-			e.y = 112 + (H / 2 - 112) * k; e.R = 130 + (470 - 130) * k; e.a = 1 - 0.55 * k;
-		}
-		else if (bt >= 138 && bt < 240)
-		{
-			// the build-up: it comes to the middle, opens wide and glows red; the hard part: it stays there, big and dim, behind the attacks
-			double k = QSE(QSk(bt, 138, 142)), f = QSk(bt, 142, 160);
-			e.y = 112 + (H / 2 - 112) * k; e.R = 130 + (300 - 130) * k + 60 * f; e.open = 1 + 0.25 * f; e.glow = 0.3 * k + 0.7 * f; e.a = 1 - 0.45 * QSk(bt, 158, 161);
-			if (bt >= 236) { double q = QSE(QSk(bt, 236, 240)); e.y += (112 - e.y) * q; e.R += (130 - e.R) * q; e.glow *= 1 - q; e.a += (1 - e.a) * q; e.open += (1 - e.open) * q; }
-		}
-		else if (bt >= 318)
-		{
-			// the end: it comes down and fills the screen, and its lids are the pink lids that close on you (QSLids: the same almond)
-			QSLidsAt(bt, out var cx, out var hh); double k = QSE(QSk(bt, 318, 321));
-			e.x = W / 2 + (cx - W / 2) * k; e.y = 112 + (H / 2 - 112) * k; e.R = 130 + (QS_RX - 130) * k; e.a = 1 - 0.45 * k;
-			e.open = 1 + (hh / (0.62 * QS_RX) - 1) * k;
-			if (bt > 342) e.open *= 1 - QSE(QSk(bt, 342, 343.2));
-		}
-		return e;
-	}
-
-	// ---------- the stage (harmless, under everything) ----------
-	public static Hz QSStage(double t1)
-	{
-		var h = new Hz { kind = "QSStage", z = -1 };
-		h.update = (t, dt) => { if (t > t1 + 3) h.dead = true; };
-		h.draw = t =>
-		{
-			double bt = BT(t), a = Math.Min(1, Math.Max(0, t + 0.5) / 0.6), p2 = QSk(bt, 140, 160) * (1 - QSk(bt, 238, 242)), p3 = QSk(bt, 238, 244);
-			g.save(); g.globalAlpha = a;
-			var gr = g.createLinearGradient(0, 0, 0, H);
-			gr.addColorStop(0, $"rgba({str(16 + 22 * p2 + 10 * p3)},{str(12 + 2 * p2 + 8 * p3)},{str(40 - 10 * p2 - 12 * p3)},1)");
-			gr.addColorStop(1, $"rgba({str(5 + 8 * p2)},{str(4)},{str(14 - 4 * p2)},1)");
-			g.fillStyle = gr; g.fillRect(0, 0, W, H);
-			// the star lattice (faint gold eight-pointed stars, slowly turning round the middle)
-			double ang = QSRad(1.5 * bt), ca = JS.cos(ang), sa = JS.sin(ang);
-			g.strokeStyle = QSG(0.06 + 0.04 * p3); g.lineWidth = 1.5; g.beginPath();
-			for (int ix = -5; ix <= 5; ix++)
-				for (int iy = -3; iy <= 3; iy++)
-				{
-					double ux = ix * 150 + (iy % 2 == 0 ? 0 : 75), uy = iy * 130, cx = W / 2 + ux * ca - uy * sa, cy = H / 2 + ux * sa + uy * ca, r = 42;
-					if (cx < -60 || cx > W + 60 || cy < -60 || cy > H + 60) continue;
-					for (int s = 0; s < 2; s++) { double q0 = ang + s * Math.PI / 4; for (int k = 0; k <= 4; k++) { double q = q0 + k * Math.PI / 2; double px = cx + JS.cos(q) * r, py = cy + JS.sin(q) * r; if (k == 0) g.moveTo(px, py); else g.lineTo(px, py); } }
-				}
-			g.stroke();
-			// the dunes far away (dark, harmless)
-			g.fillStyle = "rgba(10,8,22,0.9)"; g.beginPath(); g.moveTo(0, H);
-			for (int k = 0; k <= 16; k++) { double x = W * k / 16.0, y = H - 46 - 22 * JS.sin(k * 0.9 + 0.4) - 14 * JS.sin(k * 2.3); g.lineTo(x, y); }
-			g.lineTo(W, H); g.closePath(); g.fill();
-			var vg = g.createRadialGradient(W / 2, H / 2, 280, W / 2, H / 2, 760); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,0.55)"); g.fillStyle = vg; g.fillRect(0, 0, W, H);
-			g.restore();
-			var e = QSEyeAt(bt);
-			double kick = 0; foreach (var kb in QS_KICK) { if (kb > bt) break; kick = Math.Exp(-(bt - kb) * 5); }
-			var pl = player; double lx = pl != null ? pl.x : W / 2, ly = pl != null ? pl.y : H / 2;
-			QSEyeDraw(e.x, e.y, e.R, e.open, lx, ly, QSRad(20 * bt + (bt > 160 && bt < 240 ? 40 * (bt - 160) : 0)), e.glow, kick, e.a * a);
-		};
-		return h;
+		var o = new List<double>(); double last = -1e9;
+		foreach (var x in l) if (x >= a && x < b && x - last >= gap - 1e-9) { o.Add(x); last = x; }
+		return o.ToArray();
 	}
 	public static Hz QSFx(double b, double v, double s, double dur)
 	{
@@ -170,231 +70,319 @@ public static partial class G
 		return h;
 	}
 
-	// ---------- 1. the split (2:34) ----------
-	// A line across the screen through (cx, cy) at ang degrees shows dashed from bw (with the band's width faint at its sides); at b it
-	// splits open into a pink band, half width wm, for hold beats, then closes in 0.25 beat and leaves a gold scar (harmless).
-	public static Hz QSSplit(double cx, double cy, double ang, double bw, double b, double hold, double wm)
+	// ---------- the stage (harmless): a dark room whose colour changes with each part, a faint grid that pulses on the kicks ----------
+	static readonly double[] QS_SEC = { 0, 40, 80, 104, 120, 140, 160, 180, 220, 240, 280, 320, 342 };
+	static readonly int[][] QS_TINT = { new[] { 18, 24, 56 }, new[] { 10, 38, 44 }, new[] { 30, 18, 52 }, new[] { 8, 38, 28 }, new[] { 34, 28, 10 }, new[] { 40, 30, 6 },
+		new[] { 8, 26, 54 }, new[] { 30, 16, 44 }, new[] { 6, 8, 26 }, new[] { 36, 24, 10 }, new[] { 10, 12, 22 }, new[] { 26, 14, 36 }, new[] { 10, 10, 20 } };
+	static double[] QSTint(double bt)
 	{
-		var h = new Hz { kind = "QSSplit" }; double a = QSRad(ang), c = JS.cos(a), s = JS.sin(a);
-		h.update = (t, dt) => { if (BT(t) > b + hold + 2.5) h.dead = true; };
-		double w(double bt) => bt < b ? 0 : bt < b + 0.12 ? wm * QSOut((bt - b) / 0.12) : bt < b + hold ? wm : wm * (1 - QSk(bt, b + hold, b + hold + 0.25));
-		h.draw = t =>
-		{
-			double bt = BT(t); if (bt < bw) return;
-			g.save(); g.translate(cx, cy); g.rotate(a);
-			if (bt < b)
-			{
-				double q = QSk(bt, bw, b);
-				QSDash(-1600, 0, 1600, 0, QSW(0.3 + 0.55 * q), 2);
-				g.strokeStyle = QSW(0.08 + 0.12 * q); g.lineWidth = 1; g.beginPath(); g.moveTo(-1600, -wm); g.lineTo(1600, -wm); g.moveTo(-1600, wm); g.lineTo(1600, wm); g.stroke();
-			}
-			else
-			{
-				double ww = w(bt);
-				if (ww > 0.5)
-				{
-					g.shadowColor = PINK; g.shadowBlur = 14; g.fillStyle = QSP(0.6); g.fillRect(-1600, -ww, 3200, 2 * ww);
-					g.shadowBlur = 0; g.strokeStyle = PINK; g.lineWidth = 3; g.beginPath(); g.moveTo(-1600, -ww); g.lineTo(1600, -ww); g.moveTo(-1600, ww); g.lineTo(1600, ww); g.stroke();
-				}
-				double sc = 1 - QSk(bt, b + hold, b + hold + 2.2);
-				if (bt > b + hold && sc > 0) { g.strokeStyle = QSG(0.5 * sc); g.lineWidth = 2; g.beginPath(); g.moveTo(-1600, 0); g.lineTo(1600, 0); g.stroke(); }
-			}
-			g.restore();
-		};
-		h.hit = (p, t) => { double ww = w(BT(t)); if (ww <= 2) return false; return Math.Abs(-(p.x - cx) * s + (p.y - cy) * c) < ww + p.r - 2; };
-		return h;
+		int i = 0; while (i + 1 < QS_SEC.Length && bt >= QS_SEC[i + 1]) i++;
+		var a = QS_TINT[i]; var b = QS_TINT[Math.Min(QS_TINT.Length - 1, i + 1)]; double k = i + 1 < QS_SEC.Length ? QSE((bt - (QS_SEC[i + 1] - 1)) / 1) : 0;
+		return new[] { a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k };
 	}
-
-	// ---------- 2. the shares (2:54) ----------
-	// The screen is a circle cut in 8 shares round (cx, cy). The shares in mask light pink at b for dur beats (their edges show dashed
-	// from bw); the whole circle turns spin degrees a beat from a0 (a0 at beat b).
-	public static Hz QSShares(double cx, double cy, double a0, double spin, int mask, double bw, double b, double dur)
+	public static Hz QSStage(double t1)
 	{
-		var h = new Hz { kind = "QSShares" };
-		h.update = (t, dt) => { if (BT(t) > b + dur + 0.3) h.dead = true; };
-		double rot(double bt) => a0 + spin * (bt - b);
+		var h = new Hz { kind = "QSStage", z = -1 };
+		h.update = (t, dt) => { if (t > t1 + 3) h.dead = true; };
 		h.draw = t =>
 		{
-			double bt = BT(t); if (bt < bw || bt > b + dur + 0.3) return; double r0 = rot(bt);
-			g.save();
-			for (int k = 0; k < 8; k++)
-			{
-				if ((mask >> k & 1) == 0) continue; double q0 = QSRad(r0 + k * 45), q1 = QSRad(r0 + (k + 1) * 45);
-				if (bt < b)
-				{
-					double q = QSk(bt, bw, b);
-					g.fillStyle = QSW(0.02 + 0.05 * q); g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, 1500, q0, q1); g.closePath(); g.fill();
-					QSDash(cx, cy, cx + JS.cos(q0) * 1500, cy + JS.sin(q0) * 1500, QSW(0.3 + 0.5 * q)); QSDash(cx, cy, cx + JS.cos(q1) * 1500, cy + JS.sin(q1) * 1500, QSW(0.3 + 0.5 * q));
-				}
-				else
-				{
-					double al = 1 - QSk(bt, b + dur, b + dur + 0.3);
-					g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = QSP(0.55 * al); g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, 1500, q0, q1); g.closePath(); g.fill();
-					g.shadowBlur = 0; g.strokeStyle = QSP(al); g.lineWidth = 3; g.stroke();
-				}
-			}
+			double bt = BT(t), a = Math.Min(1, Math.Max(0, t + 0.5) / 0.6), kick = 0;
+			foreach (var kb in QS_KICK) { double d = bt - kb; if (d >= 0 && d < 0.6) kick = Math.Max(kick, 1 - d / 0.6); if (kb > bt) break; }
+			var c = QSTint(bt); g.save(); g.globalAlpha = a;
+			var gr = g.createLinearGradient(0, 0, 0, H);
+			gr.addColorStop(0, $"rgba({str(c[0] * (1 + 0.25 * kick))},{str(c[1] * (1 + 0.25 * kick))},{str(c[2] * (1 + 0.25 * kick))},1)");
+			gr.addColorStop(1, $"rgba({str(c[0] * 0.3)},{str(c[1] * 0.3)},{str(c[2] * 0.3)},1)");
+			g.fillStyle = gr; g.fillRect(0, 0, W, H);
+			g.strokeStyle = $"rgba(220,226,255,{str(0.035 + 0.04 * kick)})"; g.lineWidth = 1; g.beginPath();
+			for (double x = 80; x < W; x += 80) { g.moveTo(x, 0); g.lineTo(x, H); }
+			for (double y = 80; y < H; y += 80) { g.moveTo(0, y); g.lineTo(W, y); }
+			g.stroke();
+			var vg = g.createRadialGradient(W / 2, H / 2, 200, W / 2, H / 2, 820); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,0.55)");
+			g.fillStyle = vg; g.fillRect(0, 0, W, H);
 			g.restore();
-		};
-		h.hit = (p, t) =>
-		{
-			double bt = BT(t); if (bt < b || bt >= b + dur) return false;
-			double dx = p.x - cx, dy = p.y - cy, d = hypot(dx, dy); if (d < 1) return true;
-			double ph = (Math.Atan2(dy, dx) * 180 / Math.PI - rot(bt)) % 360; if (ph < 0) ph += 360;
-			int k = (int)Math.Floor(ph / 45) % 8; if ((mask >> k & 1) != 0) return true;
-			// near the edge of a lit share (the square's own size)
-			double e0 = ph - k * 45, e1 = (k + 1) * 45 - ph;
-			if ((mask >> ((k + 7) % 8) & 1) != 0 && d * JS.sin(QSRad(Math.Min(e0, 90))) < p.r - 2) return true;
-			if ((mask >> ((k + 1) % 8) & 1) != 0 && d * JS.sin(QSRad(Math.Min(e1, 90))) < p.r - 2) return true;
-			return false;
 		};
 		return h;
 	}
 
-	// ---------- 3. the lashes (3:14) ----------
-	// A fan of n darts leaves (x0, y0) at b, spread over spread degrees round ang, at sp px/s; their ways show dashed from bw.
-	public static Hz QSFan(double x0, double y0, int n, double ang, double spread, double bw, double b, double sp, double len = 40)
+	// ---------- A. falling blocks (2:34): pieces of four squares fall on the beat and stack up from the floor; the stack burns away
+	// on the big hits. Each piece's column and where it will land show first (white dashed). ----------
+	const double QS_C = 80;
+	public class QSPiece { public int[][] cells; public int col, top; public double bs, tl, bc, v; public int h; }
+	static readonly int[][][] QS_SHAPES =
 	{
-		var h = new Hz { kind = "QSFan" }; double tf = B(b);
-		double aOf(int i) => QSRad(ang + (n == 1 ? 0 : -spread / 2 + spread * i / (n - 1)));
-		double dist(double t) => 30 + (t - tf) * sp;
-		h.update = (t, dt) => { if (t > tf && dist(t) - len > 1600) h.dead = true; };
-		h.draw = t =>
-		{
-			double bt = BT(t); if (bt < bw) return;
-			g.save();
-			if (bt < b) { double q = QSk(bt, bw, b); for (int i = 0; i < n; i++) { double a = aOf(i); QSDash(x0 + JS.cos(a) * 30, y0 + JS.sin(a) * 30, x0 + JS.cos(a) * 1500, y0 + JS.sin(a) * 1500, QSW(0.18 + 0.45 * q)); } }
-			else { double d = dist(t); g.shadowColor = PINK; g.shadowBlur = 10; g.fillStyle = PINK; for (int i = 0; i < n; i++) { double a = aOf(i); QSDart(x0 + JS.cos(a) * d, y0 + JS.sin(a) * d, len, a); } }
-			g.restore();
-		};
-		h.hit = (p, t) =>
-		{
-			if (t < tf) return false; double d = dist(t);
-			for (int i = 0; i < n; i++) { double a = aOf(i); if (QSDartHit(p, x0 + JS.cos(a) * d, y0 + JS.sin(a) * d, len, a)) return true; }
-			return false;
-		};
-		return h;
-	}
-
-	// ---------- 4. the kohl (3:25) ----------
-	// The kohl traces the eye's lid: the upper lid (up = true, left to right) or the lower one (right to left), the curve from
-	// (cx - rx, cy) through (cx, cy -/+ ry) to (cx + rx, cy), from b0 to b1. The stroke stays pink hot beats after it is drawn, then is
-	// a gold line (harmless). Its way shows dashed from b0 - 1.
-	public static Hz QSKohl(double cx, double cy, double rx, double ry, bool up, double b0, double b1, double hot, double wd)
+		new[] { new[] { 0, 0 }, new[] { 1, 0 }, new[] { 2, 0 }, new[] { 3, 0 } },   // I
+		new[] { new[] { 0, 0 }, new[] { 1, 0 }, new[] { 0, 1 }, new[] { 1, 1 } },   // O
+		new[] { new[] { 0, 0 }, new[] { 1, 0 }, new[] { 2, 0 }, new[] { 1, 1 } },   // T
+		new[] { new[] { 0, 0 }, new[] { 0, 1 }, new[] { 0, 2 }, new[] { 1, 2 } },   // L
+		new[] { new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, 2 }, new[] { 0, 2 } },   // J
+		new[] { new[] { 1, 0 }, new[] { 2, 0 }, new[] { 0, 1 }, new[] { 1, 1 } },   // S
+		new[] { new[] { 0, 0 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 2, 1 } },   // Z
+		new[] { new[] { 0, 0 }, new[] { 0, 1 }, new[] { 0, 2 }, new[] { 0, 3 } },   // I standing
+	};
+	// the plan: pieces spawn at the beats in sp (in that order), fall at v px/s; the stack burns at the beats in clr
+	static List<QSPiece> QSBlocksPlan(double[] sp, double v, double[] clr)
 	{
-		var h = new Hz { kind = "QSKohl" }; const int N = 48;
-		h.update = (t, dt) => { if (BT(t) > b1 + hot + 2) h.dead = true; };
-		void pt(double u, out double x, out double y) { double s = up ? u : 1 - u; x = cx - rx + 2 * rx * s; y = cy + (up ? -1 : 1) * 4 * ry * s * (1 - s); }
-		double head(double bt) => QSE((bt - b0) / (b1 - b0));
-		// the part of the curve (u0..u1) that is hot at bt: drawn after bt - hot
-		void hotPart(double bt, out double u0, out double u1) { u1 = bt < b0 ? 0 : head(bt); u0 = bt - hot < b0 ? 0 : head(bt - hot); }
-		void walk(double u0, double u1, Action<double, double, double, double> f)
+		var o = new List<QSPiece>(); var colH = new int[16]; int ci = 0; var lastCols = new List<int[]>();
+		for (int n = 0; n < sp.Length; n++)
 		{
-			if (u1 <= u0) return; int n = Math.Max(1, (int)Math.Ceiling((u1 - u0) * N));
-			pt(u0, out var px, out var py);
-			for (int i = 1; i <= n; i++) { pt(u0 + (u1 - u0) * i / n, out var x, out var y); f(px, py, x, y); px = x; py = y; }
+			var sh = QS_SHAPES[(n * 5 + n / 3) % QS_SHAPES.Length]; int w = sh.Max(c => c[0]) + 1, h = sh.Max(c => c[1]) + 1;
+			// the column: walks across the well (organized), never on the two pieces before it
+			int col = 0;
+			for (int tr = 0; tr < 16; tr++)
+			{
+				col = Math.Min(16 - w, (n * 7 + tr * 5 + (int)(QSH(n + 0.37 * tr) * 2)) % 16);
+				bool bad = lastCols.Any(lc => col < lc[1] && col + w > lc[0]);
+				if (!bad) break;
+			}
+			lastCols.Add(new[] { col, col + w }); if (lastCols.Count > 2) lastCols.RemoveAt(0);
+			double bs = sp[n], t0 = B(bs);
+			// the burn before it lands resets the stack
+			while (ci < clr.Length && B(clr[ci]) < t0 + 0.2) { Array.Clear(colH, 0, 16); ci++; }
+			int top = 99;
+			for (int c = 0; c < w; c++)
+			{
+				int dyMax = sh.Where(q => q[0] == c).Max(q => q[1]);
+				top = Math.Min(top, 9 - colH[col + c] - 1 - dyMax);
+			}
+			double tl = t0 + (top * QS_C + h * QS_C) / v;
+			if (ci < clr.Length && tl > B(clr[ci]))
+			{
+				Array.Clear(colH, 0, 16); ci++; top = 9 - h; tl = t0 + (top * QS_C + h * QS_C) / v;
+			}
+			for (int c = 0; c < w; c++) { int dyMin = sh.Where(q => q[0] == c).Min(q => q[1]); colH[col + c] = Math.Max(colH[col + c], 9 - (top + dyMin)); }
+			double bc = clr[Math.Min(ci, clr.Length - 1)];   // a piece after the last burn still burns with it (never stays)
+			o.Add(new QSPiece { cells = sh, col = col, top = top, bs = bs, tl = tl, bc = bc, v = v, h = h });
 		}
+		return o;
+	}
+	public static Hz QSBlock(QSPiece P, double wn)
+	{
+		var h = new Hz { kind = "QSBlock" }; double t0 = B(P.bs), tc = B(P.bc);
+		double yOf(double t) => Math.Min(P.top * QS_C, -P.h * QS_C + (t - t0) * P.v);
+		h.update = (t, dt) => { if (t > tc + 0.6) h.dead = true; };
 		h.draw = t =>
 		{
-			double bt = BT(t); if (bt < b0 - 1) return;
-			g.save(); g.lineCap = "round"; g.lineJoin = "round";
-			if (bt < b1) { double q = QSk(bt, b0 - 1, b0); g.strokeStyle = QSW(0.2 + 0.4 * q); g.lineWidth = 2; g.setLineDash(new double[] { 12, 10 }); g.beginPath(); walk(head(bt), 1, (x0, y0, x1, y1) => { g.moveTo(x0, y0); g.lineTo(x1, y1); }); g.stroke(); g.setLineDash(new double[0]); }
-			hotPart(bt, out var u0, out var u1);
-			double gl = 1 - QSk(bt, b1 + hot, b1 + hot + 2);
-			if (u0 > 0 && gl > 0) { g.strokeStyle = QSG(0.55 * gl); g.lineWidth = 3; g.beginPath(); walk(0, u0, (x0, y0, x1, y1) => { g.moveTo(x0, y0); g.lineTo(x1, y1); }); g.stroke(); }
-			if (u1 > u0)
+			double bt = BT(t); if (bt < P.bs - wn) return;
+			g.save();
+			if (t < P.tl)
 			{
-				g.shadowColor = PINK; g.shadowBlur = 14; g.strokeStyle = PINK; g.lineWidth = wd; g.beginPath(); walk(u0, u1, (x0, y0, x1, y1) => { g.moveTo(x0, y0); g.lineTo(x1, y1); }); g.stroke();
-				if (bt < b1) { pt(u1, out var hx, out var hy); g.fillStyle = PINK; circle(hx, hy, wd * 1.2); }
+				double q = QSk(bt, P.bs - wn, P.bs);
+				int w = P.cells.Max(c => c[0]) + 1;
+				g.fillStyle = QSW(0.04 + 0.05 * q); g.fillRect(P.col * QS_C, 0, w * QS_C, H);
+				g.strokeStyle = QSW(0.3 + 0.45 * q); g.lineWidth = 2; g.setLineDash(new double[] { 8, 7 });
+				foreach (var c in P.cells) g.strokeRect((P.col + c[0]) * QS_C + 5, (P.top + c[1]) * QS_C + 5, QS_C - 10, QS_C - 10);
+				g.setLineDash(new double[0]);
+			}
+			if (t >= t0)
+			{
+				double y = yOf(t);
+				if (t < tc)
+				{
+					g.shadowColor = PINK; g.shadowBlur = 12; g.fillStyle = PINK;
+					foreach (var c in P.cells) g.fillRect((P.col + c[0]) * QS_C + 4, y + c[1] * QS_C + 4, QS_C - 8, QS_C - 8);
+					g.shadowBlur = 0; g.strokeStyle = "rgba(255,190,214,0.8)"; g.lineWidth = 3;
+					foreach (var c in P.cells) g.strokeRect((P.col + c[0]) * QS_C + 14, y + c[1] * QS_C + 14, QS_C - 28, QS_C - 28);
+				}
+				else
+				{
+					// burnt: gold embers fading (harmless)
+					double k = QSk(t, tc, tc + 0.6); g.fillStyle = QSG(0.7 * (1 - k));
+					foreach (var c in P.cells) { double s = (QS_C - 8) * (1 - 0.6 * k); g.fillRect((P.col + c[0]) * QS_C + QS_C / 2 - s / 2, y + c[1] * QS_C + QS_C / 2 - s / 2 - 30 * k, s, s); }
+				}
 			}
 			g.restore();
 		};
 		h.hit = (p, t) =>
 		{
-			double bt = BT(t); hotPart(bt, out var u0, out var u1); if (u1 <= u0) return false; bool hit = false;
-			walk(u0, u1, (x0, y0, x1, y1) => { if (!hit && QSSeg(p.x, p.y, x0, y0, x1, y1) < wd / 2 + p.r - 2) hit = true; });
-			if (!hit && bt < b1) { pt(u1, out var hx, out var hy); hit = hypot(p.x - hx, p.y - hy) < wd * 1.2 + p.r - 2; }
-			return hit;
+			if (t < t0 || t >= tc) return false; double y = yOf(t), m = QS_C / 2 - 4 + p.r - 2;
+			foreach (var c in P.cells) { double cx = (P.col + c[0] + 0.5) * QS_C, cy = y + (c[1] + 0.5) * QS_C; if (Math.Abs(p.x - cx) < m && Math.Abs(p.y - cy) < m) return true; }
+			return false;
 		};
 		return h;
 	}
 
-	// ---------- 5. the rings of beads (the build-up, 3:44) ----------
-	// A ring of n pink beads leaves the middle at b and grows to 900 px by b + dur; it turns spin degrees a beat; gaps: the beads whose
-	// angle (at a0, at b) is within gw/2 of a gap angle are missing. It shows as a dashed ring with its gaps from bw.
-	public static Hz QSRing(double cx, double cy, int n, double a0, double spin, double[] gaps, double gw, double bw, double b, double dur, double br = 11)
+	// the floor burns (when the stack burns away): a pink band from y0 to y1, shows from bw (white dashed edge, gold sparks), pink at b for hold beats
+	public static Hz QSBurn(double y0, double y1, double bw, double b, double hold)
 	{
-		var h = new Hz { kind = "QSRing" };
-		h.update = (t, dt) => { if (BT(t) > b + dur) h.dead = true; };
-		double rad(double bt) => 900 * (bt - b) / dur;
-		bool on(int k) { double q = a0 + k * 360.0 / n; foreach (var gq in gaps) { double d = ((q - gq) % 360 + 540) % 360 - 180; if (Math.Abs(d) < gw / 2) return false; } return true; }
+		var h = new Hz { kind = "QSBurn" };
+		h.update = (t, dt) => { if (BT(t) > b + hold + 0.4) h.dead = true; };
+		h.draw = t =>
+		{
+			double bt = BT(t); if (bt < bw || bt > b + hold + 0.4) return;
+			g.save();
+			if (bt < b) { double q = QSk(bt, bw, b); g.fillStyle = QSW(0.04 + 0.08 * q); g.fillRect(0, y0, W, y1 - y0); QSDash(0, y0, W, y0, QSW(0.4 + 0.5 * q), 3); g.fillStyle = QSG(0.5 * q); for (int i = 0; i < 24; i++) g.fillRect(QSH(i + bt * 0.01) * W, y1 - (y1 - y0) * QSH(i * 3 + Math.Floor(bt * 8)), 5, 5); }
+			else { double al = 1 - QSk(bt, b + hold, b + hold + 0.4); g.shadowColor = PINK; g.shadowBlur = 18; g.fillStyle = QSP(0.9 * al); g.fillRect(0, y0, W, y1 - y0); }
+			g.restore();
+		};
+		h.hit = (p, t) => { double bt = BT(t); return bt >= b && bt < b + hold && p.y > y0 - (p.r - 2); };
+		return h;
+	}
+
+	// ---------- B. your own tail (2:54): where you were turns pink after d0 s and stays so until d1 s; you must never stop and never
+	// cross your own fresh path. The part younger than d0 shows white dashed. Stomps on the kicks (a square shows first, then slams). ----------
+	public static Hz QSTail(double b0, double b1, double d0, double d1)
+	{
+		var h = new Hz { kind = "QSTail" }; double t0 = B(b0), t1 = B(b1);
+		var ts = new List<double>(); var xs = new List<double>(); var ys = new List<double>();
+		h.update = (t, dt) =>
+		{
+			if (t > t1 + d1 + 0.2) { h.dead = true; return; }
+			if (t >= t0 && t <= t1 - d0 && player != null && (ts.Count == 0 || t - ts[ts.Count - 1] >= 1.0 / 60 - 1e-9)) { ts.Add(t); xs.Add(player.x); ys.Add(player.y); }
+			while (ts.Count > 0 && ts[0] < t - d1 - 0.1) { ts.RemoveAt(0); xs.RemoveAt(0); ys.RemoveAt(0); }
+		};
+		h.draw = t =>
+		{
+			if (t < t0 - 0.5 || t > t1 + 0.3) return;
+			double fa = 1 - QSk(t, t1, t1 + 0.3);
+			g.save(); g.lineCap = "round"; g.lineJoin = "round"; g.globalAlpha = fa;
+			// the young part (harmless yet)
+			g.strokeStyle = QSW(0.45); g.lineWidth = 2; g.setLineDash(new double[] { 6, 6 }); g.beginPath(); bool on = false;
+			for (int i = 0; i < ts.Count; i++) { if (t - ts[i] > d0) continue; if (!on) { g.moveTo(xs[i], ys[i]); on = true; } else g.lineTo(xs[i], ys[i]); }
+			g.stroke(); g.setLineDash(new double[0]);
+			g.shadowColor = PINK; g.shadowBlur = 12; g.strokeStyle = PINK; g.lineWidth = 8; g.beginPath(); on = false;
+			for (int i = 0; i < ts.Count; i++) { double age = t - ts[i]; if (age < d0 || age > d1) { on = false; continue; } if (!on) { g.moveTo(xs[i], ys[i]); on = true; } else g.lineTo(xs[i], ys[i]); }
+			g.stroke();
+			g.restore();
+		};
+		h.hit = (p, t) =>
+		{
+			if (t >= t1) return false;   // the tail is gone before the flood comes
+			for (int i = 0; i + 1 < ts.Count; i++)
+			{
+				double a0 = t - ts[i], a1 = t - ts[i + 1]; if (a0 > d1 || a1 < d0) continue;
+				if (QSSeg(p.x, p.y, xs[i], ys[i], xs[i + 1], ys[i + 1]) < 4 + p.r - 2) return true;
+			}
+			// standing still: the newest point that is old enough
+			for (int i = ts.Count - 1; i >= 0; i--) { double a = t - ts[i]; if (a < d0) continue; if (a > d1) break; if (hypot(p.x - xs[i], p.y - ys[i]) < 4 + p.r - 2) return true; break; }
+			return false;
+		};
+		return h;
+	}
+	// a stomp: a square (side sz) at (x, y) shows from bw (a gold frame closing in), slams pink at b for hold beats
+	public static Hz QSStomp(double x, double y, double sz, double bw, double b, double hold)
+	{
+		var h = new Hz { kind = "QSStomp" };
+		h.update = (t, dt) => { if (BT(t) > b + hold + 0.4) h.dead = true; };
 		h.draw = t =>
 		{
 			double bt = BT(t); if (bt < bw) return;
 			g.save();
 			if (bt < b)
 			{
-				double q = QSk(bt, bw, b); g.strokeStyle = QSW(0.25 + 0.5 * q); g.lineWidth = 2;
-				for (int k = 0; k < n; k++) { if (!on(k)) continue; double a = QSRad(a0 + k * 360.0 / n); g.beginPath(); g.arc(cx + JS.cos(a) * 30, cy + JS.sin(a) * 30, 4, 0, TAU); g.stroke(); }
-				foreach (var gq in gaps) { double a = QSRad(gq); QSDash(cx, cy, cx + JS.cos(a) * 1400, cy + JS.sin(a) * 1400, QSG(0.25 + 0.4 * q)); }
+				double q = QSk(bt, bw, b), s = sz * (1.8 - 0.8 * q);
+				g.strokeStyle = QSW(0.3 + 0.5 * q); g.lineWidth = 2; g.setLineDash(new double[] { 10, 8 }); g.strokeRect(x - sz / 2, y - sz / 2, sz, sz); g.setLineDash(new double[0]);
+				g.strokeStyle = QSG(0.3 + 0.6 * q); g.lineWidth = 3; g.strokeRect(x - s / 2, y - s / 2, s, s);
 			}
 			else
 			{
-				double r = rad(bt), rot = QSRad(spin * (bt - b)); g.shadowColor = PINK; g.shadowBlur = 10; g.fillStyle = PINK;
-				for (int k = 0; k < n; k++) { if (!on(k)) continue; double a = QSRad(a0 + k * 360.0 / n) + rot, x = cx + JS.cos(a) * r, y = cy + JS.sin(a) * r; if (x > -20 && x < W + 20 && y > -20 && y < H + 20) circle(x, y, br); }
+				double al = 1 - QSk(bt, b + hold, b + hold + 0.3), k = QSOut((bt - b) / 0.08);
+				g.shadowColor = PINK; g.shadowBlur = 16; g.fillStyle = QSP(al); double s = sz * (0.7 + 0.3 * k); g.fillRect(x - s / 2, y - s / 2, s, s);
+				g.shadowBlur = 0; g.strokeStyle = $"rgba(255,190,214,{str(0.8 * al)})"; g.lineWidth = 3; g.strokeRect(x - s / 2 + 14, y - s / 2 + 14, s - 28, s - 28);
 			}
+			g.restore();
+		};
+		h.hit = (p, t) => { double bt = BT(t); if (bt < b || bt >= b + hold) return false; double m = sz / 2 * (0.7 + 0.3 * QSOut((bt - b) / 0.08)) + p.r - 2; return Math.Abs(p.x - x) < m && Math.Abs(p.y - y) < m; };
+		return h;
+	}
+
+	// ---------- C. the safe bubble (3:14): the whole screen floods pink but for the bubble; the bubble travels, sometimes it splits in
+	// two and only the gold one stays (the white dashed one shrinks away). A bar crosses the bubble on the kicks. ----------
+	public class QSBub { public double b0, b1, x0, y0, x1, y1, r, die = -1; }   // moves (x0,y0) -> (x1,y1) from b0 to b1; die: shrinks from there
+	static bool QSBubAt(QSBub u, double bt, out double x, out double y, out double r)
+	{
+		x = y = r = 0; if (bt < u.b0 - 1e-9) return false; double k = clamp((bt - u.b0) / (u.b1 - u.b0), 0, 1);
+		x = u.x0 + (u.x1 - u.x0) * k; y = u.y0 + (u.y1 - u.y0) * k; r = u.r;
+		if (u.die >= 0) { r = u.r * (1 - QSk(bt, u.die, u.die + 1)); if (r <= 0) return false; }
+		if (bt > u.b1 && u.die < 0) return false;
+		return true;
+	}
+	public static Hz QSFlood(List<QSBub> bubs, double bw, double b0, double b1, double mid)
+	{
+		var h = new Hz { kind = "QSFlood" };
+		h.update = (t, dt) => { if (BT(t) > b1 + 0.6) h.dead = true; };
+		h.draw = t =>
+		{
+			double bt = BT(t); if (bt < bw || bt > b1 + 0.6) return;
+			g.save();
+			if (bt < b0)
+			{
+				double q = QSk(bt, bw, b0); g.fillStyle = QSW(0.05 + 0.07 * q); g.fillRect(0, 0, W, H);
+				// white stripes sliding in (the flood is coming)
+				g.strokeStyle = QSW(0.15 + 0.25 * q); g.lineWidth = 3; g.beginPath();
+				for (double x = -H + QSMod(bt * 80, 60); x < W; x += 60) { g.moveTo(x, H); g.lineTo(x + H, 0); }
+				g.stroke();
+			}
+			else
+			{
+				double al = bt < b1 ? 0.9 : 0.9 * (1 - QSk(bt, b1, b1 + 0.6)); g.fillStyle = bt < b1 ? QSP(al) : QSG(al * 0.5); g.fillRect(0, 0, W, H);
+			}
+			foreach (var u in bubs)
+			{
+				if (!QSBubAt(u, bt, out var x, out var y, out var r)) continue;
+				if (bt >= b0) { g.fillStyle = "rgb(12,10,26)"; circle(x, y, r); }   // never cover the tail before the flood
+				if (u.die >= 0) { g.strokeStyle = QSW(0.8); g.lineWidth = 3; g.setLineDash(new double[] { 10, 8 }); g.beginPath(); g.arc(x, y, r, 0, TAU); g.stroke(); g.setLineDash(new double[0]); }
+				else { g.strokeStyle = QSG(0.95); g.lineWidth = 4; g.beginPath(); g.arc(x, y, r, 0, TAU); g.stroke(); }
+			}
+			// where the bubble goes next: a small gold ring at its next stop
+			foreach (var u in bubs) if (u.die < 0 && bt >= u.b0 - 1 && bt < u.b1) { g.strokeStyle = QSG(0.5); g.lineWidth = 2; g.setLineDash(new double[] { 6, 6 }); g.beginPath(); g.arc(u.x1, u.y1, u.r, 0, TAU); g.stroke(); g.setLineDash(new double[0]); }
 			g.restore();
 		};
 		h.hit = (p, t) =>
 		{
-			double bt = BT(t); if (bt < b) return false; double r = rad(bt), rot = QSRad(spin * (bt - b));
-			double d = hypot(p.x - cx, p.y - cy); if (Math.Abs(d - r) > br + p.r) return false;
-			for (int k = 0; k < n; k++) { if (!on(k)) continue; double a = QSRad(a0 + k * 360.0 / n) + rot; if (hypot(p.x - cx - JS.cos(a) * r, p.y - cy - JS.sin(a) * r) < br + p.r - 2) return true; }
-			return false;
+			double bt = BT(t); if (bt < b0 + 0.25 || bt >= b1) return false;
+			foreach (var u in bubs) { if (!QSBubAt(u, bt, out var x, out var y, out var r)) continue; if (hypot(p.x - x, p.y - y) + p.r - 2 < r) return false; }
+			return true;
 		};
 		return h;
 	}
-	// ---------- the gaze ----------
-	// The eye's gaze: n beams (evenly round) from (ex, ey) out to the screen's edge, half width hw, turning from a0 to a1 (degrees)
-	// between b0 and b1 at an even speed. Each beam has a blind spot from r1 to r2 px from the eye (ringed in gold): the only way
-	// through it. It shows from bw: its first place dashed, the blind spot in gold, and a gold arc for the way it will turn.
-	public static Hz QSGaze(double ex, double ey, int n, double a0, double a1, double bw, double b0, double b1, double hw, double r1, double r2)
+	// a bar across the bubble u: through its middle at ang degrees, shows from bw, pink at b for hold beats
+	public static Hz QSBubBar(QSBub u, double ang, double bw, double b, double hold, double hw)
 	{
-		var h = new Hz { kind = "QSGaze" };
-		h.update = (t, dt) => { if (BT(t) > b1 + 0.3) h.dead = true; };
-		double ang(double bt) => a0 + (a1 - a0) * clamp((bt - b0) / (b1 - b0), 0, 1);
+		var h = new Hz { kind = "QSBubBar" }; double a = QSRad(ang), c = JS.cos(a), s = JS.sin(a);
+		h.update = (t, dt) => { if (BT(t) > b + hold + 0.3) h.dead = true; };
 		h.draw = t =>
 		{
-			double bt = BT(t); if (bt < bw || bt > b1 + 0.3) return;
-			g.save(); g.lineCap = "butt";
-			for (int k = 0; k < n; k++)
-			{
-				double q = QSRad(ang(bt) + k * 360.0 / n), c = JS.cos(q), sn = JS.sin(q);
-				if (bt < b0)
-				{
-					double u = QSk(bt, bw, b0);
-					QSDash(ex + c * 20, ey + sn * 20, ex + c * r1, ey + sn * r1, QSW(0.25 + 0.5 * u), 2); QSDash(ex + c * r2, ey + sn * r2, ex + c * 1600, ey + sn * 1600, QSW(0.25 + 0.5 * u), 2);
-					g.strokeStyle = QSG(0.2 + 0.4 * u); g.lineWidth = 2; g.beginPath(); g.arc(ex, ey, (r1 + r2) / 2, q, QSRad(a1 + k * 360.0 / n), a1 < a0); g.stroke();
-				}
-				else
-				{
-					double al = 1 - QSk(bt, b1, b1 + 0.3);
-					g.shadowColor = PINK; g.shadowBlur = 16; g.strokeStyle = QSP(0.85 * al); g.lineWidth = 2 * hw; g.beginPath();
-					g.moveTo(ex + c * 10, ey + sn * 10); g.lineTo(ex + c * r1, ey + sn * r1); g.moveTo(ex + c * r2, ey + sn * r2); g.lineTo(ex + c * 1600, ey + sn * 1600); g.stroke(); g.shadowBlur = 0;
-				}
-				g.fillStyle = QSG(0.9); circle(ex + c * r1, ey + sn * r1, 5); circle(ex + c * r2, ey + sn * r2, 5);
-			}
+			double bt = BT(t); if (bt < bw || bt > b + hold + 0.3) return; if (!QSBubAt(u, bt, out var x, out var y, out var r)) return;
+			g.save();
+			if (bt < b) { double q = QSk(bt, bw, b); QSDash(x - c * r, y - s * r, x + c * r, y + s * r, QSW(0.3 + 0.5 * q), 2); }
+			else { double al = 1 - QSk(bt, b + hold, b + hold + 0.3); g.shadowColor = PINK; g.shadowBlur = 12; g.strokeStyle = QSP(al); g.lineWidth = 2 * hw; g.lineCap = "butt"; g.beginPath(); g.moveTo(x - c * r, y - s * r); g.lineTo(x + c * r, y + s * r); g.stroke(); }
 			g.restore();
 		};
 		h.hit = (p, t) =>
 		{
-			double bt = BT(t); if (bt < b0 || bt >= b1) return false;
-			for (int k = 0; k < n; k++)
-			{
-				double q = QSRad(ang(bt) + k * 360.0 / n), c = JS.cos(q), sn = JS.sin(q), dx = p.x - ex, dy = p.y - ey, al = dx * c + dy * sn, pe = Math.Abs(-dx * sn + dy * c);
-				if (al > 10 - p.r && al < 1600 && pe < hw + p.r - 2 && (al < r1 + p.r - 2 || al > r2 - p.r + 2)) return true;
-			}
-			return false;
+			double bt = BT(t); if (bt < b || bt >= b + hold) return false; if (!QSBubAt(u, bt, out var x, out var y, out var r)) return false;
+			return QSSeg(p.x, p.y, x - c * r, y - s * r, x + c * r, y + s * r) < hw + p.r - 2;
 		};
+		return h;
+	}
+
+	// ---------- D. billiards (3:26, the quiet part): pink balls roll in from the corners and bounce off the walls; the way each
+	// ball goes next shows white dashed. ----------
+	static double QSBounce(double u, double lo, double hi) { double L = hi - lo; double m = QSMod(u - lo, 2 * L); return lo + (m < L ? m : 2 * L - m); }
+	public static Hz QSBall(double x0, double y0, double vx, double vy, double r, double bw, double b0, double b1)
+	{
+		var h = new Hz { kind = "QSBall" }; double t0 = B(b0);
+		void pos(double t, out double x, out double y) { double d = Math.Max(0, t - t0); x = QSBounce(x0 + vx * d, r, W - r); y = QSBounce(y0 + vy * d, r, H - r); }
+		h.update = (t, dt) => { if (BT(t) > b1 + 0.6) h.dead = true; };
+		h.draw = t =>
+		{
+			double bt = BT(t); if (bt < bw || bt > b1 + 0.6) return;
+			g.save();
+			// the way ahead (1 s)
+			double q = bt < b0 ? QSk(bt, bw, b0) : 1; g.strokeStyle = QSW(0.2 + 0.35 * q * (1 - QSk(bt, b1 - 1, b1))); g.lineWidth = 2; g.setLineDash(new double[] { 8, 8 }); g.beginPath();
+			for (int i = 0; i <= 30; i++) { pos(Math.Max(t, t0) + i / 30.0, out var px, out var py); if (i == 0) g.moveTo(px, py); else g.lineTo(px, py); }
+			g.stroke(); g.setLineDash(new double[0]);
+			pos(t, out var x, out var y);
+			if (bt < b0) { g.strokeStyle = QSG(0.4 + 0.5 * q); g.lineWidth = 3; g.beginPath(); g.arc(x, y, r * (1.6 - 0.6 * q), 0, TAU); g.stroke(); }
+			else
+			{
+				double s = bt < b1 ? 1 : 1 - QSk(bt, b1, b1 + 0.5);
+				g.shadowColor = PINK; g.shadowBlur = 18; g.fillStyle = PINK; circle(x, y, r * s);
+				g.shadowBlur = 0; g.fillStyle = "rgba(255,200,222,0.85)"; circle(x - r * 0.35 * s, y - r * 0.35 * s, r * 0.22 * s);
+			}
+			g.restore();
+		};
+		h.hit = (p, t) => { double bt = BT(t); if (bt < b0 || bt >= b1 + 0.4) return false; double s = bt < b1 ? 1 : 1 - QSk(bt, b1, b1 + 0.5); pos(t, out var x, out var y); return hypot(p.x - x, p.y - y) < r * s + p.r - 2; };
 		return h;
 	}
 }
