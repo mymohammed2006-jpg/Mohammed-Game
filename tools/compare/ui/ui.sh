@@ -3,7 +3,7 @@
 # then compares every frame's UI state, the Firebase requests, and the captured pictures.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd); MG=$(cd "$HERE/../../.." && pwd)
-GD=${GODOT:-$HOME/godot/Godot_v4.4.1-stable_mono_linux_x86_64/Godot_v4.4.1-stable_mono_linux.x86_64}
+GD=${GODOT:-$HOME/godot/Godot_v4.5.2-stable_mono_linux_x86_64/Godot_v4.5.2-stable_mono_linux.x86_64}
 GAME=${GAME:-/mnt/project-files/Mohammed_Game/Mohammed Game}
 WORK=${WORK:-$MG/../cmpwork}; OUT=${OUT:-$WORK/out}
 if [ ! -f "$WORK/game/harness.html" ] || [ "$GAME/index.html" -nt "$WORK/game/harness.html" ]; then

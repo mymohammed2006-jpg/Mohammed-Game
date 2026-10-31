@@ -16,6 +16,7 @@ public static partial class G
 
 	public static string resSet = "auto";
 	public static bool vsyncOn = true, fpsShow = false;
+	public static bool rumbleOn = false;   // v57 (his ask 10-30): the controller shakes only if this is ticked; off at first for everyone
 	public static readonly int[] FPS_LIST = { 60, 120, 144, 165, 240, 360, 500 };
 	public static int fpsCap = 240;
 	public const int FPS_MIN = 30, FPS_MAX = 500;   // New in the Godot version: any number in between
@@ -27,6 +28,7 @@ public static partial class G
 		var r = localStorage.getItem("mg_res"); if (!string.IsNullOrEmpty(r)) resSet = r;
 		if (localStorage.getItem("mg_vsync") == "0") vsyncOn = false;
 		fpsShow = localStorage.getItem("mg_fpsshow") == "1";
+		rumbleOn = localStorage.getItem("mg_rumble") == "1";
 		double f = num(localStorage.getItem("mg_fps")); if (f == (int)f && (FPS_LIST.Contains((int)f) || (f >= FPS_MIN && f <= FPS_MAX))) fpsCap = (int)f;
 		var sm = localStorage.getItem("mg_screen"); if (SCREEN_MODES.Contains(sm)) screenMode = sm;
 		var lf = localStorage.getItem("mg_screen_full"); if (lf == "full" || lf == "borderless") lastFull = lf;
@@ -36,6 +38,7 @@ public static partial class G
 
 	public static void setVsync(bool on) { vsyncOn = on; localStorage.setItem("mg_vsync", on ? "1" : "0"); ApplyFrameSettings(); }
 	public static void setFpsShow(bool on) { fpsShow = on; localStorage.setItem("mg_fpsshow", on ? "1" : "0"); }
+	public static void setRumble(bool on) { rumbleOn = on; localStorage.setItem("mg_rumble", on ? "1" : "0"); }
 	public static void setFps(int f) { fpsCap = f; localStorage.setItem("mg_fps", str(f)); ApplyFrameSettings(); }
 	static void ApplyFrameSettings()
 	{

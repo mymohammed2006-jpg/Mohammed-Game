@@ -2,7 +2,7 @@
 # One side of a before/after clip for the story video: the story run in a game folder (the old v41 code or the new one),
 # frames a-b with the game's sound and a fixed line at the top (TAG, colour TAGC); extra env (TP, HOLD) as TeamBot says.
 #   bash tools/human-bot-plat/pair.sh <gameDir> <out.mp4> <a> <b> "<tag>" <colour> [VAR=value ...]
-GD=${GD:-~/godot/Godot_v4.4.1-stable_mono_linux_x86_64/Godot_v4.4.1-stable_mono_linux.x86_64}
+GD=${GD:-~/godot/Godot_v4.5.2-stable_mono_linux_x86_64/Godot_v4.5.2-stable_mono_linux.x86_64}
 G=$(realpath "$1"); out=$(realpath -m "$2"); a=$3 b=$4 tag=$5 col=$6; w=$(mktemp -d); shift 6
 H=$(cd "$(dirname "$0")" && pwd)
 (cd "$G"; env "$@" STORY=$H/story_P2.txt TAG="$tag" TAGC="$col" CLIPS="$a-$b" WAV="$w/v.wav" T=$(python3 -c "print($b/60+0.05)") \

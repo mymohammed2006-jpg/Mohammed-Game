@@ -7,7 +7,7 @@
 
 ---
 
-For maintainers: since v40 the game is a Godot 4.4.1 .NET (C#) project (`project.godot`, code in `src/`, songs in `songs/`).
+For maintainers: since v40 the game is a Godot 4.5.2 .NET (C#) project (`project.godot`, code in `src/`, songs in `songs/`).
 `config/version` in `project.godot` must be bumped for every release (40.0.0 = game v40). `bash tools/release/build.sh` builds
 the game, the installer (`installer/installer.nsi`) and `latest.yml`; the file names are the old Electron app's, so its
 auto-update installs the Godot game in place and the saves move over. Workflow "تجربة بناء" builds on every push (no publish);

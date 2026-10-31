@@ -28,6 +28,7 @@ public class PvRun
 		var now = () => performance.manual.Value;
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "mouse") { MouseScene(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "hc") { HcScene(now); G.last = now(); return; }
+		if (System.Environment.GetEnvironmentVariable("MG_PV") == "rumble") { RumbleScene(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "rp") { RpScene(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "all46") { All46(now); G.last = now(); return; }
 		if (System.Environment.GetEnvironmentVariable("MG_PV") == "rpt") { RptScene(now); G.last = now(); return; }
@@ -384,6 +385,26 @@ public class PvRun
 		shots[900] = "p5-watching2";
 		at[901] = () => { for (int j = 0; j < 1; j++) tap("ArrowRight"); };
 		shots[1100] = "p6-end";
+	}
+	// v57: the rumble row in the menu's settings and the pause settings (off at first, Enter ticks it, saved)
+	void RumbleScene(Func<double> now)
+	{
+		endF = 400; G.kindForce = "ps";
+		void tap(string k) { G.OnKeyDown(k, false); G.OnKeyUp(k); }
+		at[1] = () => { G.gatePassed = true; G.state = "settings"; G.setSel = 0; G.LoadDisplaySettings(); log($"start: rumble {G.rumbleOn} (want False)"); };
+		shots[40] = "r1-settings";
+		for (int k = 0; k < 5; k++) { int f = 41 + k * 4; at[f] = () => G.OnKeyDown("ArrowDown", false); at[f + 2] = () => G.OnKeyUp("ArrowDown"); }
+		shots[80] = "r2-rumble-off";
+		at[81] = () => G.OnKeyDown("Enter", false); at[83] = () => G.OnKeyUp("Enter");
+		at[86] = () => log($"Enter -> rumble {G.rumbleOn} saved {localStorage.getItem("mg_rumble")} (want True 1)");
+		shots[120] = "r3-rumble-on";
+		at[121] = () => { G.setSel = 7; };
+		shots[150] = "r4-last-row";
+		at[151] = () => { G.easy = false; G.startLevel(G.LEVELS[0], "levels"); };
+		at[300] = () => tap("Escape");
+		at[310] = () => { G.state = "pauseSet"; G.setSel = 5; };
+		shots[340] = "r5-pause-settings";
+		at[341] = () => { G.setRumble(false); log($"off again -> {G.rumbleOn}"); };
 	}
 	void HcScene(Func<double> now)
 	{

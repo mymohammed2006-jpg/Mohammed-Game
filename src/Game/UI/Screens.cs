@@ -443,7 +443,8 @@ public static partial class G
 	}
 	// settings. New in the Godot version: the fullscreen tick box became the screen mode row (window / borderless / real fullscreen)
 	public static int setSel = 0;
-	static string[] setRows() => classicUi || state != "settings" ? new[] { "vol", "screen", "vsync", "fps", "counter", "res" } : new[] { "vol", "screen", "vsync", "fps", "counter", "res", "extra" };   // "أشياء إضافية": the menu's settings only (v50)
+	static string[] setRows() => classicUi ? new[] { "vol", "screen", "vsync", "fps", "counter", "res" }
+		: state != "settings" ? new[] { "vol", "screen", "vsync", "fps", "counter", "rumble", "res" } : new[] { "vol", "screen", "vsync", "fps", "counter", "rumble", "res", "extra" };   // "أشياء إضافية": the menu's settings only (v50); "الاهتزاز" v57
 	static void checkBox(double cx, double y, bool on, bool sel)
 	{
 		double s = 36, bx = cx - s / 2;
@@ -462,15 +463,15 @@ public static partial class G
 		var rows = setRows(); double cx = W / 2 - 150, lx = W / 2 + 350;
 		for (int i = 0; i < rows.Length; i++)
 		{
-			string k = rows[i]; double y = (rows.Length > 6 ? 160 : 172) + i * (rows.Length > 6 ? 64 : 70); bool sel = i == setSel; int ii = i;
+			string k = rows[i]; double sp = rows.Length > 7 ? 57 : rows.Length > 6 ? 64 : 70, bh = Math.Min(60, sp - 4), y = (rows.Length > 7 ? 150 : rows.Length > 6 ? 160 : 172) + i * sp; bool sel = i == setSel; int ii = i;   // 8 rows (v57): closer, so the last one stays above the hint
 			if (!classicUi)
 			{
-				zone(W / 2 - 390, y - 30, 780, 60, () => setSel = ii, k is "screen" or "vsync" or "counter" or "extra" ? "confirm" : null, freeRow(k) ? () => { numRow = k; numBuf = ""; } : null);
+				zone(W / 2 - 390, y - bh / 2, 780, bh, () => setSel = ii, k is "screen" or "vsync" or "counter" or "rumble" or "extra" ? "confirm" : null, freeRow(k) ? () => { numRow = k; numBuf = ""; } : null);
 				if (k == "fps") { zone(cx - 164, y - 24, 42, 48, () => setSel = ii, null, () => numSet("fps", fpsCap - 1), rep: true); zone(cx + 122, y - 24, 42, 48, () => setSel = ii, null, () => numSet("fps", fpsCap + 1), rep: true); }
 				else if (k is "screen" or "res") { zone(cx - 164, y - 24, 42, 48, () => setSel = ii, "left"); zone(cx + 122, y - 24, 42, 48, () => setSel = ii, "right"); }
 				else if (k == "vol") { double tot = 10 * 20 + 9 * 6, x0 = cx - tot / 2 + 30; zone(x0 - 6, y - 28, tot + 12, 56, () => setSel = ii, null, null, gx => numSet("vol", (int)round(clamp((gx - x0) / tot, 0, 1) * 100))); }
 			}
-			if (sel) { rr(W / 2 - 390, y - 30, 780, 60, 16); g.fillStyle = $"rgba({RGB},{str(0.08 + 0.08 * pulse)})"; g.fill(); g.strokeStyle = RED; g.lineWidth = 2; g.stroke(); }
+			if (sel) { rr(W / 2 - 390, y - bh / 2, 780, bh, 16); g.fillStyle = $"rgba({RGB},{str(0.08 + 0.08 * pulse)})"; g.fill(); g.strokeStyle = RED; g.lineWidth = 2; g.stroke(); }
 			string lc = sel ? "#fff" : "rgba(255,255,255,0.55)";
 			if (k == "vol")
 			{
@@ -492,6 +493,7 @@ public static partial class G
 				txt(s, cx, y, fs, sel ? RED : "rgba(255,255,255,0.7)", 800);
 			}
 			else if (k == "counter") { txt("عداد الفريمات", lx, y, 32, lc, 800, "right"); checkBox(cx, y, fpsShow, sel); }
+			else if (k == "rumble") { txt("الاهتزاز", lx, y, 32, lc, 800, "right"); checkBox(cx, y, rumbleOn, sel); }
 			else if (k == "vsync") { txt("V-Sync", lx, y, 32, lc, 800, "right"); checkBox(cx, y, vsyncOn, sel); }
 			else if (k == "fps") { txt("Framecap", lx, y, 32, lc, 800, "right"); optArrows(cx, y, sel); if (numRow == "fps") numBox(cx, y, 150); else txt("‪" + str(fpsCap) + " FPS‬", cx, y, 30, sel ? RED : "rgba(255,255,255,0.7)", 800); }
 			else if (k == "extra") { txt("أشياء إضافية", lx, y, 32, lc, 800, "right"); g.fillStyle = sel ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.3)"; g.beginPath(); g.moveTo(cx - 14, y); g.lineTo(cx, y - 11); g.lineTo(cx, y + 11); g.closePath(); g.fill(); }
@@ -502,6 +504,7 @@ public static partial class G
 		else if (r == "vsync") hint = vsyncOn ? "الحركة أنعم وبدون تقطيع في الشاشة" : "اللعبة تمشي لين الـ Framecap، والرسم مع كل تحديث للشاشة";
 		else if (r == "fps") hint = vsyncOn ? "أعلى شي يوصل له سرعة شاشتك، لأن V-Sync شغال" : "أعلى عدد فريمات في الثانية";
 		else if (r == "counter") hint = "يطلع عدد الفريمات تحت يمين الشاشة";
+		else if (r == "rumble") hint = "اليد تهتز لما تنضرب وفي الضربات القوية";
 		else if (r == "extra") hint = "فيها: تقييم المراحل";
 		else if (r == "res") hint = "أقل دقة = اللعبة أخف على الجهاز، بس الرسم أقل وضوح";
 		if (numRow != null) hint = r == "fps" ? $"اكتب رقم من {ar(FPS_MIN)} إلى {ar(FPS_MAX)}" : "اكتب رقم من ٠ إلى ١٠٠";

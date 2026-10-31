@@ -132,7 +132,7 @@ public static partial class G
 
 	public static void rumble(double ms, double s, double w)
 	{
-		if (dry) return;
+		if (dry || !rumbleOn) return;
 		PadRumble(ms, s, w);
 	}
 

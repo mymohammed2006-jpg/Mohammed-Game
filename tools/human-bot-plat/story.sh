@@ -3,7 +3,7 @@
 #   bash tools/human-bot-plat/story.sh <outDir>      -> <outDir>/story.mp4   (needs ref_P2.json from run.sh)
 # One run without pictures plans the cut (story_clips.py); the sound comes from one run; then each clip's frames are drawn
 # by its own run (the runs are the same to the frame) and encoded right away, so the pictures never pile up on the disk.
-GD=${GD:-~/godot/Godot_v4.4.1-stable_mono_linux_x86_64/Godot_v4.4.1-stable_mono_linux.x86_64}
+GD=${GD:-~/godot/Godot_v4.5.2-stable_mono_linux_x86_64/Godot_v4.5.2-stable_mono_linux.x86_64}
 here=$(cd "$(dirname "$0")/../.." && pwd); cd "$here"; H=tools/human-bot-plat
 O=$(realpath -m "$1"); rm -rf "$O"; mkdir -p "$O/c"
 run() { STORY=$H/story_P2.txt xvfb-run -a -s "-screen 0 1280x720x24" $GD --rendering-driver opengl3 --path . -- --team-bot P2 "$@"; }

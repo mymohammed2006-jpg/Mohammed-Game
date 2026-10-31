@@ -9,7 +9,7 @@ The original is `/mnt/project-files/Mohammed_Game/Mohammed Game/index.html` (805
 
 1. Copy the shared project to your own scratch folder (never build inside the shared folder):
    `cp -r /mnt/project-files/godot-port <scratch>/mg`
-2. Run `bash <scratch>/mg/tools/setup.sh`. It installs the .NET 8 SDK, xvfb and Godot 4.4.1 (.NET) if they are missing, imports the project and builds it.
+2. Run `bash <scratch>/mg/tools/setup.sh`. It installs the .NET 8 SDK, xvfb and Godot 4.5.2 (.NET) if they are missing, imports the project and builds it.
 3. Check the setup with `bash tools/compare/run.sh L1 n` (always start scripts with `bash`: the shared folder drops the execute bit). It should print `state: 0 lines differ` (see "Checking your level" below).
 
 ## How the code is laid out

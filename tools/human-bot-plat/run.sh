@@ -4,7 +4,7 @@
 #   VIDEO=1 bash tools/human-bot-plat/run.sh <outDir> <seed>    one run with pictures and the game's sound -> <outDir>/video.mp4
 # First it plays the level clean (no mistakes) to learn each room's starting beat and places (ref_P2.json).
 # env as in test/TeamBot.cs (SEED is set here; JIT, REACT, MIS, MISN, ALL3, FPS, VIEW pass through).
-GD=${GD:-~/godot/Godot_v4.4.1-stable_mono_linux_x86_64/Godot_v4.4.1-stable_mono_linux.x86_64}
+GD=${GD:-~/godot/Godot_v4.5.2-stable_mono_linux_x86_64/Godot_v4.5.2-stable_mono_linux.x86_64}
 here=$(cd "$(dirname "$0")/../.." && pwd); cd "$here"; H=tools/human-bot-plat
 O=$(realpath -m "$1"); mkdir -p "$O"; SEEDS=${2:-1-20}
 run() { xvfb-run -a -s "-screen 0 1280x720x24" $GD --rendering-driver opengl3 --path . -- --team-bot P2 "$@"; }
