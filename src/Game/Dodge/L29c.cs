@@ -246,20 +246,40 @@ public static partial class G
 		at(136, () => add(TBFx(136, 0.25, 8, 1)));
 		// the pins: a journey round a five-pointed star, each route drawn to the next pin on the 3-3-2
 		{
-			var pb = TB332(136, 164); if (ez) pb = TBThin(pb, 2.5);
+			var pb = TB332(136, 150); if (ez) pb = TBThin(pb, 2.5);   // the concert starts on 152 (1:05.6): the last pins cool before it
 			double px = W / 2, py = 140;
 			for (int i = 0; i < pb.Length; i++)
 			{
 				double b = pb[i], th = TBRad(-90 + i * 144 + 9 * (i / 5)), nx = W / 2 + JS.cos(th) * 450, ny = 370 + JS.sin(th) * 240;
 				double x0 = px, y0 = py, bu = (i % 2 == 0 ? 1 : -1) * 70; px = nx; py = ny;
-				at(b - 2.0, () => add(TBPin(x0, y0, nx, ny, bu, b - 0.5, ez ? 1.5 : 1.2, ez ? 2.5 : 3.5, ez ? 150 : 230)));
+				double hold = Math.Max(0.75, Math.Min(ez ? 2.5 : 3.5, 151.5 - b));
+				at(b - 2.0, () => add(TBPin(x0, y0, nx, ny, bu, b - 0.5, ez ? 1.5 : 1.2, hold, ez ? 150 : 230)));
 			}
+		}
+		// ===== the hype (1:05.6-1:18.1): the concert, every sound on the screen, easy to play (a wide lane always stays free) =====
+		{
+			at(149, () => add(TBShow(TB_HK, TB_HS, TB_HV)));
+			at(152, () => add(TBFx(152, 0.25, 6, 0.8)));
+			var kb = TB_HK.Where(x => x < 164 || x >= 168).ToArray(); var sb = TB_HS.Where(x => x < 166 || x >= 168).ToArray();
+			if (ez) { kb = TBThin(kb, 2); sb = TBThin(sb, 2); }
+			foreach (var b in kb) at(b - 1.3, () => add(TBEq(false, b, ez ? 1.3 : 0.9)));
+			foreach (var b in sb) at(b - 1.3, () => add(TBEq(true, b, ez ? 1.3 : 0.9)));
+			// the shouts: a wave from one speaker then the other (on 1:11.2 both shout at once)
+			var vb = ez ? new[] { 168, 172, 175, 178, 180.75 } : TB_HV; int sd = -1;
+			foreach (var b in vb)
+			{
+				int s = sd; sd = -sd;
+				at(b - 1.5, () => add(TBShout(s, b, 1.2, ez ? 520 : 640, ez ? 2 : 3, ez ? 10 : 12)));
+				if (!ez && b == 168) at(b - 1.5, () => add(TBShout(-s, b, 1.2, 640, 3, 12)));
+			}
+			at(168, () => add(TBFx(168, 0.3, 8, 0.8)));
 		}
 		// the globe turns: lines of longitude sweep across with a gap that rolls up and down
 		{
 			var mb = TB332(164, 200).Where(x => ez ? x % 4 == 0 || x >= 182 && x % 4 == 1.5 : x >= 182 || x % 4 != 3).ToArray();
 			for (int i = 0; i < mb.Length; i++)
 			{
+				if (mb[i] < 184) continue;   // before 184 is the concert
 				double b = mb[i]; int dir = b < 182 ? -1 : 1; double gy = 360 + 210 * JS.sin(i * 0.62);
 				at(b - 1.5, () => add(TBMeridian(dir, b, 1.2, ez ? 380 : 460, 150, gy, ez ? 230 : 175)));
 			}
