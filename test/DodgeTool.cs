@@ -77,6 +77,8 @@ public static partial class G
 	static void DodgeDiff(Level L)
 	{
 		double end = B(L.end), mins = end / 60; double sp = 0, su = 0, cov = 0; int covN = 0; var seg = new double[16]; long spawns = 0; var perS = new int[400];
+		// DIFFB=0,140,160,240,342: also unprotected/min between those beats (a level's own parts)
+		var pb = (System.Environment.GetEnvironmentVariable("DIFFB") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)).ToArray(); var ps = new double[Math.Max(1, pb.Length)];
 		for (int w = 0; w < 4; w++)
 		{
 			beginRun(0, 1000 + w); dry = true; int hp = 0, hu = 0; double inv = 1.0, lastU = -9; double nextCov = 0;
@@ -87,7 +89,7 @@ public static partial class G
 				int hc0 = hazards.Count; fireEvents(t); stepHazards(t, STEP); if (w == 0) { spawns += Math.Max(0, hazards.Count - hc0); perS[(int)clamp(t, 0, 399)] += Math.Max(0, hazards.Count - hc0); }
 				bool hit = hazards.Any(h => !h.dead && h.hit(player, t));
 				inv -= STEP; if (hit && inv <= 0) { hp++; inv = 2.0; }
-				if (hit && t - lastU > 0.25) { hu++; seg[(int)clamp(Math.Floor(BT(t) / 32), 0, 15)]++; } if (hit) lastU = t;
+				if (hit && t - lastU > 0.25) { hu++; seg[(int)clamp(Math.Floor(BT(t) / 32), 0, 15)]++; for (int j = 0; j + 1 < pb.Length; j++) if (BT(t) >= pb[j] && BT(t) < pb[j + 1]) ps[j]++; } if (hit) lastU = t;
 				if (w == 0 && t >= nextCov)
 				{
 					nextCov = t + 0.25; var pr = new Player { r = 1 }; int c = 0;
@@ -100,6 +102,7 @@ public static partial class G
 			GD.Print($"path {w}: hits {hp} (unprotected {hu})");
 		}
 		{ int best = 0; for (int i = 0; i + 8 <= 400; i++) best = Math.Max(best, perS.Skip(i).Take(8).Sum()); GD.Print($"busiest 8 s: {toFixed(best / 8.0, 1)} new things/s"); }
+		if (pb.Length > 1) GD.Print("unprotected/min by part: " + string.Join("  ", Enumerable.Range(0, pb.Length - 1).Select(j => $"{pb[j]}-{pb[j + 1]}: " + toFixed(ps[j] / 4 / ((pb[j + 1] - pb[j]) * SPB / 60), 1))));
 		GD.Print("unprotected/min by 32 beats: " + string.Join(" ", seg.Take((int)Math.Ceiling(L.end / 32)).Select(v => toFixed(v / 4 / (32 * SPB / 60), 1))));
 		GD.Print($"RESULT {L.id} {(easy ? "e" : "n")}: hits/min {toFixed(sp / 4 / mins, 2)}  unprotected/min {toFixed(su / 4 / mins, 2)}  coverage {toFixed(100 * cov / covN, 1)}%  new things/min {toFixed(spawns / mins, 0)}  events/min {toFixed(events.Count / mins, 0)}");
 	}
