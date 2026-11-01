@@ -39,7 +39,7 @@ public static partial class G
 	public static double rpFrom(RpSeg s) => s.fr >= 0 ? s.t0 : s.cp == 0 ? 0 : B(s.cp - 2);
 	public static double rpLen(RpSeg s) => Math.Max(0, s.t0 - rpFrom(s)) + (s.n - 1) / (double)rp.doc.hz;
 	public static void rpTimeline() { double o = 0; rp.off = rp.doc.segs.Select(s => { double a = o; o += rpLen(s); return a; }).ToArray(); rp.tot = o; }
-	public static void rpKill() { if (rp.plat) plRpStopMusic(); if (src == null) return; src.stop(); src = null; }
+	public static void rpKill() { if (rp.plat) plRpStopMusic(); stopMore(0.01); if (src == null) return; src.stop(); src = null; }
 	// starts attempt i from second T of the song (no T = from its start)
 	public static void rpGo(int i, double? T = null)
 	{

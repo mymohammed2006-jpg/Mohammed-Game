@@ -141,6 +141,7 @@ public static partial class G
 		{
 			bnWipeCp = checkpoint; lc.wipeAt = wall + 2600; stopMusic(); state = "lcWipe"; deadAt = wall; return;
 		}
+		songTailArm(t);
 		if (t >= B(cur.end) + 0.4 && state == "play") lcBossWin();
 	}
 	static void lcBossDamage(LcSeat s)

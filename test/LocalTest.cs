@@ -247,6 +247,13 @@ public class LocalTest
 		double now = t0 + i * 1000.0 / fps; performance.manual = now; AudioCtx.manualTime = i / (double)fps;
 		bool draw = (EVERY > 0 && i % EVERY == 0) || shot || G.state is "lcJoin" or "lcAuth" or "lcBWin" or "lcVWin" || G.tm?.won == true;
 		G.gfx.BeginFrame(); G.step(now, !draw); G.gfx.EndFrame();
+		if (WAV != null)   // WAV=<file>: the game's sound (the song after the level end: SongTail.cs)
+		{
+			wav ??= new BinaryWriter(new MemoryStream()); G.dry = true;
+			long upto = (long)Math.Round(AudioCtx.manualTime.Value * AudioCtx.SR); int m = (int)(upto - wavN);
+			if (m > 0) { var l = new float[m]; var r = new float[m]; AudioCtx.RenderAt(l, r, m, (double)wavN / AudioCtx.SR); wavN = upto; for (int j = 0; j < m; j++) { wav.Write((short)(Math.Clamp(l[j], -1, 1) * 32767)); wav.Write((short)(Math.Clamp(r[j], -1, 1) * 32767)); } }
+			if (G.state == "lcBWin" && winAudio < 0) winAudio = AudioCtx.manualTime.Value;
+		}
 		if (EVERY > 0 && i % EVERY == 0 && !shot) Shot($"f{i:D6}");
 		Rec(t);
 		bool saving = G.lc != null && G.lc.seats.Any(q => q.saveSt is "saving" or "err" or "net");
@@ -270,8 +277,16 @@ public class LocalTest
 		log.Append(sb).Append('\n');
 		if (e != lastEv) { lastEv = e; File.AppendAllText(Path.Combine(outDir, "events.txt"), $"{str(Math.Round(t, 2))} song {str(Math.Round(SongT(), 2))} {e}\n"); }
 	}
+	static readonly string WAV = EnvS("WAV"); BinaryWriter wav; long wavN; double winAudio = -1;
 	void Finish()
 	{
+		if (wav != null)
+		{
+			var pcm = ((MemoryStream)wav.BaseStream).ToArray(); using var f = new BinaryWriter(File.Create(WAV));
+			f.Write(Encoding.ASCII.GetBytes("RIFF")); f.Write(36 + pcm.Length); f.Write(Encoding.ASCII.GetBytes("WAVEfmt ")); f.Write(16); f.Write((short)1); f.Write((short)2);
+			f.Write(AudioCtx.SR); f.Write(AudioCtx.SR * 4); f.Write((short)4); f.Write((short)16); f.Write(Encoding.ASCII.GetBytes("data")); f.Write(pcm.Length); f.Write(pcm);
+			File.WriteAllText(WAV + ".txt", $"songStart {str(G.songStart)} end {str(G.B(G.cur.end))} winAtAudio {str(winAudio)} state {G.state}\n");
+		}
 		File.WriteAllText(Path.Combine(outDir, "state.log"), log.ToString()); File.WriteAllText(Path.Combine(outDir, "net.log"), string.Join("\n", req) + "\n");
 		var o = new StringBuilder(); o.Append($"state {G.state} best {G.lc?.lv?.best ?? "-"} acc {G.acc?.name ?? "-"}\n");
 		if (G.lc != null) foreach (var s in G.lc.seats) o.Append($"seat {s.i} {s.name} pc{(s.pc ? 1 : 0)} guest{(s.guest ? 1 : 0)} rank {s.rank ?? "-"} hits {s.hits} deaths {s.deaths} fin {str(s.fin)} save {s.saveSt ?? "-"} xp {s.xpGain}\n");

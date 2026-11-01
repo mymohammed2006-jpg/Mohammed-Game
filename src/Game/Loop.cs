@@ -229,6 +229,7 @@ public static partial class G
 			void list() { stopMusic(); player = null; hazards = new List<Hz>(); state = fromList; }
 			if (now - winAt > 800 && inp.confirm) { if (!rateAsk(cur, again)) again(); } else if (inp.back) { if (!rateAsk(cur, list)) list(); }
 		}
+		if (state == "win" || state == "lcBWin") winMusic();   // the song plays on behind the win screen, from the start again when it ends (SongTail.cs)
 		pvUpdate(now);
 		if (pv.src != null || pv.had) { if (menuSrc != null) stopMenu(); }
 		else if (MENU_MUSIC.Contains(state)) { if (menuSrc == null && menuBuf != null && actx.state == "running") playMenu(MENU_DROP); }

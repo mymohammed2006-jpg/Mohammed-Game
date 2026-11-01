@@ -36,7 +36,7 @@ public static partial class G
 		foreach (var L in LEVELS.Concat(FRIENDS).Concat(HCLV).Concat(BOSSLV))
 		{
 			if (!SONG_FILE.TryGetValue(L.id, out var f)) continue;
-			var b = LoadSong(f); if (b != null) L.buf = b; else L.err = true;
+			var b = LoadSong(f); if (b != null) { L.buf = b; loadTail(L, f); } else L.err = true;
 		}
 	}
 }

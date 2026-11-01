@@ -110,6 +110,7 @@ public static partial class G
 	}
 	public static void stopMusic()
 	{
+		stopMore(0.06);   // the tail and the win screen's restarts (SongTail.cs)
 		if (src == null) return; var s = src;
 		s.gain.setTargetAtTime(0, actx.currentTime, 0.06); s.stop(actx.currentTime + 0.5);
 		src = null;

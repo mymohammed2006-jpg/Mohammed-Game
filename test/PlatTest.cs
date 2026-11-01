@@ -33,7 +33,7 @@ public class PlatTest
 		G.InitSound(); G.gfx.Resize(1280, 720); G.scale = 1; G.offX = 0; G.offY = 0; G.gatePassed = true;
 		var sk = System.Environment.GetEnvironmentVariable("SKIN"); if (sk != null) G.skin = sk; if (System.Environment.GetEnvironmentVariable("EASY") == "1") G.setEasy(true);
 		if (System.Environment.GetEnvironmentVariable("BEST") is { Length: > 0 } bst) G.PLATS[0].lv.best = bst;
-		if (id == "menu") return;
+		if (id is "menu" or "news") return;
 		if (id == "board")
 		{
 			// fake online players: the P1 board page and a profile (rows down to the platformer)
@@ -51,7 +51,7 @@ public class PlatTest
 	}
 	public void Process()
 	{
-		if (shot) { G.gfx.game.GetTexture().GetImage().SavePng(Path.Combine(outDir, id is "menu" or "board" ? $"{id}-{i}.png" : $"f{i:D6}.png")); shot = false; }
+		if (shot) { G.gfx.game.GetTexture().GetImage().SavePng(Path.Combine(outDir, id is "menu" or "board" or "news" ? $"{id}-{i}.png" : $"f{i:D6}.png")); shot = false; }
 		if (done)
 		{
 			File.WriteAllText(Path.Combine(outDir, "state.log"), log.ToString());
@@ -69,6 +69,15 @@ public class PlatTest
 			if (menuStep == 1) { G.prof.p = G.board.list[0]; G.prof.row = G.ALL_LV().Count - 1; G.prof.sc = G.ALL_LV().Count - 11; G.prof.col = 0; G.state = "profile"; }
 			if (menuStep == 2) { G.keys["ArrowLeft"] = true; G.OnKeyDown("ArrowLeft", false); }
 			for (int k = 0; k < 40; k++) { performance.manual += 1000.0 / 60; G.gfx.BeginFrame(); G.draw(performance.manual.Value); G.gfx.EndFrame(); }
+			G.gfx.BeginFrame(); G.draw(performance.manual.Value);
+			i = menuStep++; shot = true; G.gfx.EndFrame();
+			return;
+		}
+		if (id == "news")   // the "what's new" page a player of the last version sees (NEWSFROM = the version they had)
+		{
+			if (menuStep >= 1) { done = true; return; }
+			localStorage.setItem("mg_news", System.Environment.GetEnvironmentVariable("NEWSFROM") ?? "57"); G.goMain(performance.manual.Value);
+			for (int k = 0; k < 90; k++) { performance.manual += 1000.0 / 60; G.gfx.BeginFrame(); G.draw(performance.manual.Value); G.gfx.EndFrame(); }
 			G.gfx.BeginFrame(); G.draw(performance.manual.Value);
 			i = menuStep++; shot = true; G.gfx.EndFrame();
 			return;

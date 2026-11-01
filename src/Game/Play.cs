@@ -267,6 +267,7 @@ public static partial class G
 		{
 			if (beat >= c && c > checkpoint) { checkpoint = c; cpMsg = 1.8; sfx(tt => { sTone(tt, 659, 0.25, "square", 0.06); sTone(tt + 0.08, 880, 0.3, "square", 0.06); }); }
 		}
+		songTailArm(t);   // the song goes on after the level end (SongTail.cs)
 		if (pr.on && t >= B(cur.end) + 0.4 && state == "play") prFinish();
 		else if (t >= B(cur.end) + 0.4 && bnPlaying)
 		{

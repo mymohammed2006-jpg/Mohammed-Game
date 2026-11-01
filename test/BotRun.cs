@@ -52,8 +52,14 @@ public class BotRun
 		{
 			G.easy = m == "e"; G.applyTheme(G.easy); G.cur = L; G.fromList = "levels"; G.levelTiming(L); L.buf = G.LoadSong(G.SONG_FILE[L.id]); G.noMus = false;
 			if (TS) G.testSeed = () => 1000 + G.deaths;   // FPS=<n>: same seeds at every frame rate (draw() uses Math.random)
-			G.requestStart(0); G.beginRun(0); G.last = performance.now();
-			total = (int)Math.Ceiling((G.B(L.end) + 2) * FPS);
+			// WAV=<file>: the game's own sound to a file (with the song's tail, SongTail.cs; NOTAIL=1 = without it),
+			// FROM=<beat> start there, INV=1 nothing hurts (it reaches the win screen), AFTER=<s> seconds of the win screen
+			double fb = double.TryParse(System.Environment.GetEnvironmentVariable("FROM"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var fbv) ? fbv : 0;
+			if (WAV != null) { wav = new BinaryWriter(new MemoryStream()); AudioCtx.deviceRate = AudioServer.GetMixRate();   // the songs mix at the sound card's rate, like the game
+				 if (System.Environment.GetEnvironmentVariable("NOTAIL") != "1") G.loadTail(L, G.SONG_FILE[L.id]); }
+			G.requestStart(fb); G.beginRun(fb); G.last = performance.now();
+			total = (int)Math.Ceiling((G.B(L.end) - (fb > 0 ? G.B(fb) : 0) + 2) * FPS);
+			if (double.TryParse(System.Environment.GetEnvironmentVariable("AFTER"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var af)) total = (int)Math.Ceiling((G.B(L.end) - G.B(fb) + 0.6 + af) * FPS);
 			Log(); return;
 		}
 		G.rp.doc = G.botDoc(L, m); G.rp.bot = true; G.rp.back = "levels"; G.rp.L = L; G.rp.m = m; G.rp.hide = true;
@@ -135,8 +141,16 @@ public class BotRun
 			G.keys["ArrowRight"] = d[0] > 0; G.keys["ArrowLeft"] = d[0] < 0; G.keys["ArrowDown"] = d[1] > 0; G.keys["ArrowUp"] = d[1] < 0;
 			G.keys["KeyJ"] = nu && u > 0 && u % 5 == 0; G.keys["Enter"] = G.state == "dead" && i % (FPS / 2) == 0;
 		}
+		if (INV && G.player != null) G.player.inv = 9;
+		if (WAV != null && System.Environment.GetEnvironmentVariable("NOSFX") == "1") G.dry = true;   // the songs alone (the effects' noise is not seeded)
+		if (winAudio < 0 && G.state is "win" or "lcBWin") winAudio = AudioCtx.manualTime.Value;
 		G.gfx.BeginFrame();
 		G.step(performance.manual.Value);
+		if (wav != null)
+		{
+			long upto = (long)Math.Round(AudioCtx.manualTime.Value * AudioCtx.SR); int n = (int)(upto - wavN);
+			if (n > 0) { var l = new float[n]; var r = new float[n]; AudioCtx.RenderAt(l, r, n, (double)wavN / AudioCtx.SR); wavN = upto; for (int j = 0; j < n; j++) { wav.Write((short)(Math.Clamp(l[j], -1, 1) * 32767)); wav.Write((short)(Math.Clamp(r[j], -1, 1) * 32767)); } }
+		}
 		Log();
 		return true;
 	}
@@ -177,6 +191,18 @@ public class BotRun
 		perf.Append('\n');
 	}
 
+	static readonly string WAV = System.Environment.GetEnvironmentVariable("WAV");
+	static readonly bool INV = System.Environment.GetEnvironmentVariable("INV") == "1";
+	BinaryWriter wav; long wavN;
+	void WriteWav()
+	{
+		if (wav == null) return;
+		var pcm = ((MemoryStream)wav.BaseStream).ToArray(); using var f = new BinaryWriter(File.Create(WAV));
+		f.Write(Encoding.ASCII.GetBytes("RIFF")); f.Write(36 + pcm.Length); f.Write(Encoding.ASCII.GetBytes("WAVEfmt ")); f.Write(16); f.Write((short)1); f.Write((short)2);
+		f.Write(AudioCtx.SR); f.Write(AudioCtx.SR * 4); f.Write((short)4); f.Write((short)16); f.Write(Encoding.ASCII.GetBytes("data")); f.Write(pcm.Length); f.Write(pcm);
+		File.WriteAllText(WAV + ".txt", $"songStart {G.songStart.ToString(System.Globalization.CultureInfo.InvariantCulture)} end {G.B(G.cur.end).ToString(System.Globalization.CultureInfo.InvariantCulture)} winAtAudio {winAudio.ToString(System.Globalization.CultureInfo.InvariantCulture)} state {G.state}\n");
+	}
+	double winAudio = -1;
 	public void Process()
 	{
 		if (PERF != null && !play)
@@ -189,7 +215,7 @@ public class BotRun
 			if (pendingShot) { G.gfx.game.GetTexture().GetImage().SavePng(Path.Combine(outDir, $"f{shotFrame:D6}.png")); pendingShot = false; }
 			while (true)
 			{
-				if (!PlayFrame()) { done = true; G.gfx.EndFrame(); return; }
+				if (!PlayFrame()) { done = true; G.gfx.EndFrame(); WriteWav(); return; }
 				if (i >= from && i % every == 0) { G.gfx.EndFrame(); pendingShot = true; shotFrame = i; return; }
 			}
 		}
