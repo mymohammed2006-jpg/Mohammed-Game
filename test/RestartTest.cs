@@ -208,8 +208,21 @@ public class RestartTest
 		Run("H1", new[] { 0, 3, 2 }); q = Queued("H1");
 		Ok(q != null && q.segs.Count == 8 && q.segs.All(s => s.c == 0), $"  short: whole run kept ({q?.segs.Count} parts, none cut)");
 		if (q != null) { var (d, gaps, e) = Play(G.HCLV[0], Unpack(q), q.r); Ok(d == 7 && gaps == 7 && e, $"  replay shows the 7 deaths ({d}, stops {gaps})"); }
-		// 3) a normal level over the limit: no replay, unchanged
-		Run("L1", new[] { 0, 105 }); q = Queued("L1"); Ok(q == null, "  normal level over the limit: not saved (unchanged)");
+		// 3) v58: the other dodge levels over the limit work like Hardcore (only the run that won, no deaths)
+		foreach (var id in new[] { "L1", "F12", "B1" })
+		{
+			var L = G.ALL_LV().First(x => x.id == id); int nCp = Math.Min(2, L.cps.Length - 1); var dies = new int[nCp + 1]; dies[nCp] = 105;
+			Run(id, dies); q = Queued(id);
+			Ok(q != null, $"  {id} over the limit: replay queued for the server");
+			if (q == null) continue;
+			Ok(q.segs.Count == nCp + 1 && q.segs.Take(nCp).All(s => s.c == 1) && q.segs[^1].c == 0, $"  {nCp + 1} parts, all but the last cut ({string.Join(",", q.segs.Select(s => s.cp + ":" + s.c))})");
+			var segs = Unpack(q); Ok(q.segs.Sum(s => s.d.Length + 80) < G.RP_MAX_BYTES, $"  size {q.segs.Sum(s => s.d.Length + 80)}");
+			var (d, gaps, e) = Play(L, segs, q.r); Ok(d == 0 && gaps == 0 && e, $"  replay plays to the end with no deaths or stops (deaths {d}, stops {gaps}, end {e})");
+		}
+		// 4) a normal level under the limit: the whole run with its deaths, as before
+		Run("L1", new[] { 0, 3 }); q = Queued("L1");
+		Ok(q != null && q.segs.Count == 5 && q.segs.All(s => s.c == 0), $"  L1 short: whole run kept ({q?.segs.Count} parts, none cut)");
+		if (q != null) { var (d, gaps, e) = Play(G.ALL_LV().First(x => x.id == "L1"), Unpack(q), q.r); Ok(d == 4 && gaps == 4 && e, $"  replay shows the 4 deaths ({d}, stops {gaps})"); }
 	}
 	(int deaths, int gaps, bool end) Play(Level L, List<RpSeg> segs, string r)
 	{

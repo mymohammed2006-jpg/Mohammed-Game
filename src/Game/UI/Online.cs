@@ -345,8 +345,9 @@ public static partial class G
 		if (best != null && Array.IndexOf(RANKS, r) > Array.IndexOf(RANKS, best)) { rec = null; return; }
 		var segs = rpSegs(rec.segs); var all = rec.segs; rec = null;
 		// no limit on deaths: the limit is the file size (Firebase takes about 1 MB per file) = about 45 minutes of play
-		// v46, Hardcore only (his idea 16:02 10-22): too long = only the run that won, start to end, without the deaths
-		if (L.hc && rpTooBig(segs)) segs = rpWinPath(all);
+		// too long = only the run that won, start to end, without the deaths (v46 Hardcore only, his idea 16:02 10-22;
+		// v58 every dodge level: main, friends, solo bosses, his words 09:42 UTC 11-01. The platformer has no server replay.)
+		if (rpTooBig(segs)) segs = rpWinPath(all);
 		if (segs.Count == 0 || rpTooBig(segs)) return;
 		rpq[L.id + "_" + m] = new RpqItem { lvl = L.id, m = m, r = r, v = RP_V, hz = RP_HZ, segs = segs, sk = classicUi ? "" : skin }; saveRpq();
 	}
