@@ -27,6 +27,7 @@ public static partial class G
 		["L21"] = 4.0,   // Barracuda: as hard as Abra Macabre
 		["L22"] = 4.0,   // Shiawase VIP: as hard as Abra Macabre
 		["L23"] = 1.5,   // راضي بحبك: as hard as level 3 (Mohammed 18:23 10-30)
+		["L24"] = 1.6,   // يالعين قسامي: L3 (x1.5) with a hard part like L5 (x1.8) in the middle
 		["L25"] = 1.5,   // حان الوعد يا لابتي: the same difficulty as L3 (Mohammed, 10-30)
 		["L26"] = 1.5,   // لا دندنت: as hard as L2 with five parts as hard as L5 (his ask 10-30); between the two
 		["L27"] = 1.5,   // المفروض: the same difficulty as L3 (Mohammed, 10-30)
